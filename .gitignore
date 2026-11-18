@@ -1,0 +1,6 @@
+.godot/
+.tools/
+build/
+output/
+.playwright-cli/
+.DS_Store

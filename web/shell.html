@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f2e5cc">
+<meta name="description" content="OnlyJump 琥珀山徑。用蓄力跳躍攀登懸空岩島，在山頂敲響銅鐘。">
+<title>OnlyJump — 琥珀山徑</title>
+<link rel="icon" href="data:,">
+<style>
+@font-face{font-family:BarlowPoster;src:url('./fonts/BarlowCondensed-ExtraBoldItalic.ttf') format('truetype');font-style:italic;font-weight:800;font-display:swap}
+:root{--ink:#243532;--paper:#fbefd5;--orange:#b34c2b;--line:rgba(44,55,43,.26);--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--gut:clamp(24px,4vw,76px);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'PingFang HK','Microsoft JhengHei',sans-serif}
+*{box-sizing:border-box}html,body{margin:0;background:#ead4b9;width:100%;height:100%;overflow:hidden}body{isolation:isolate}button{color:inherit;font:inherit;cursor:pointer;touch-action:manipulation}button:focus-visible,summary:focus-visible{outline:3px solid #a63d22;outline-offset:4px}button:disabled{cursor:wait;opacity:.65}[hidden]{display:none!important}
+#canvas{display:block;width:100%;height:100%;outline:none;touch-action:none;position:absolute;inset:0;z-index:-3}
+.wash{pointer-events:none;position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#f2e5cfee 0%,#f2e5cfe5 20%,#efdec8bd 34%,#efdec83b 49%,transparent 65%);transition:opacity .25s}
+body:not([data-mode=intro]) .wash{opacity:0}
+header{position:absolute;top:max(24px,env(safe-area-inset-top));left:var(--gut);right:var(--gut);display:flex;align-items:center;justify-content:space-between;pointer-events:none}header>*{pointer-events:auto}
+.brand{display:flex;align-items:center;gap:11px;font:800 italic 24px/1 BarlowPoster,'Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:.015em}
+.mark{display:inline-block;width:32px;height:27px;position:relative;background:currentColor;clip-path:polygon(0 94%,49% 0,65% 31%,54% 52%,47% 39%,25% 81%,46% 81%,76% 24%,100% 94%)}
+.actions{display:flex;gap:7px}.pill,.secondary{border:1px solid var(--line);border-radius:100px;background:#fcf1dbdf;padding:9px 15px;font-size:13px;font-weight:650;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.pill:hover,.secondary:hover{background:#fff6df}.soundmark{display:flex;height:16px;align-items:center;gap:2px}.soundmark i{width:2px;height:6px;background:currentColor;border-radius:2px}.soundmark i:nth-child(2){height:13px}.soundmark i:nth-child(3){height:9px}.soundmark i:nth-child(4){height:15px}
+#mute[aria-pressed=true] .soundmark i{height:2px}.pause-icon{width:10px;height:12px;border-inline:3px solid}
+#intro{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;padding:66px var(--gut) 74px}
+.intro-content{width:min(38vw,460px);pointer-events:auto}.route{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;letter-spacing:.12em}.route:before{content:'';width:29px;height:3px;background:var(--orange)}
+h1{font-family:BarlowPoster,'Arial Narrow',Impact,sans-serif;font-style:italic;font-weight:800;font-size:clamp(94px,min(11vw,19vh),194px);text-transform:uppercase;line-height:.77;letter-spacing:-.039em;margin:.20em 0 .17em -.025em}h1 span{display:block}h1 b{color:var(--orange)}
+.summary{max-width:22em;margin:24px 0 21px;font-size:clamp(14px,1.15vw,17px);line-height:1.8;font-weight:540;letter-spacing:.02em}
+.primary{min-width:172px;border:0;border-radius:4px;background:var(--ink);color:#fff2d8;font-weight:700;padding:14px 18px;display:inline-flex;align-items:center;justify-content:space-between;gap:28px;font-size:15px;box-shadow:0 2px 0 #0002}
+.primary:hover{background:#334b44}.primary .arrow{display:inline-block;font:24px/18px Arial}.fine{font:12px/1.4 var(--mono);letter-spacing:.06em}
+.bottom{position:absolute;left:var(--gut);bottom:max(24px,env(safe-area-inset-bottom));right:var(--gut);display:flex;align-items:end;justify-content:space-between;gap:20px;pointer-events:none}
+.controls{font-size:12px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-weight:650}.controls span{display:inline-flex;align-items:center;gap:7px}kbd{font:600 11px/1.4 var(--mono);padding:2px 5px;border:1px solid #34403a66;background:#faedd5d9;border-radius:4px}
+.route-sign{background:#fff1dcd9;border:1px solid #fff6df82;border-radius:4px;display:flex;gap:13px;padding:10px 14px;align-items:center}.route-sign strong{font-size:13px}.route-sign small{display:block;margin-top:2px;font:10px var(--mono);letter-spacing:.07em}
+.flag-icon{display:block;width:16px;height:23px;border-left:2px solid var(--orange);transform:skew(-6deg)}.flag-icon:after{content:'';display:block;width:14px;height:11px;background:var(--orange);clip-path:polygon(0 0,100% 30%,0 100%)}
+#hud{position:absolute;left:var(--gut);top:83px;pointer-events:none}.alt-card{display:inline-block;padding:13px 16px 12px;background:#fbefdde8;color:var(--ink);border:1px solid #fbefdde8;border-radius:5px;min-width:160px}.alt-card .route{font-size:11px;letter-spacing:.04em}.alt-card .route:before{width:16px;height:2px}.number{font:800 italic 52px/.98 BarlowPoster,sans-serif;margin:6px 0}.number small{font:13px var(--mono);margin-left:4px}.route-progress{height:3px;background:#c4bcab;margin:8px 0}.route-progress i{display:block;height:100%;background:var(--orange);width:0}.stats{font-size:11px;font-variant-numeric:tabular-nums}
+#meter{position:absolute;bottom:max(23px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#233430eb;color:var(--paper);padding:11px 17px 13px;min-width:220px;border-radius:5px;pointer-events:none}.meter-label{display:flex;justify-content:space-between;gap:20px;font-size:12px;font-weight:650}.bar{height:5px;background:#ffffff38;margin-top:8px;border-radius:2px;overflow:hidden}.bar span{display:block;background:#efae64;height:100%;transform:scaleX(0);transform-origin:left}
+#notice{font-size:12px;background:var(--paper);display:block;width:max-content;max-width:85vw;padding:6px 10px;margin-top:7px;border-radius:4px}
+#overlay{position:absolute;inset:0;display:grid;place-items:center;background:#273a374a;backdrop-filter:blur(4px);z-index:4}
+.panel{width:min(365px,90vw);background:var(--paper);border:1px solid #fffae5;border-radius:6px;padding:29px;box-shadow:0 12px 50px #28373030}.panel h2{font-size:30px;letter-spacing:-.04em;margin:12px 0 6px}.panel p{font-size:14px;line-height:1.7;margin:8px 0 20px}.panel .primary{width:100%;margin-bottom:10px}.panel .secondary{display:inline-flex;padding:8px 14px;margin-right:6px}.panel .route{font-size:12px}
+#touch{position:absolute;inset:0;pointer-events:none;display:none}#pad,#jump{pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;position:absolute;bottom:max(25px,env(safe-area-inset-bottom));border-radius:50%;border:1px solid #fff5dba6;background:#30413ba8;color:#fff2d8;display:grid;place-items:center}#pad{left:max(20px,env(safe-area-inset-left));width:96px;height:96px}#pad i{width:36px;height:36px;border-radius:50%;background:#f8edd09e;border:1px solid #fff4d7aa}#jump{right:max(20px,env(safe-area-inset-right));width:80px;height:80px;font-weight:700}#jump:active{background:#955a36}
+.touch-copy{display:none}body[data-mode=playing] .brand{color:#263b34;background:#fbefdde3;border-radius:4px;padding:6px 10px;font-size:19px}body[data-mode=playing] .mark{width:24px;height:20px}
+@media(pointer:coarse){#touch:not([hidden]){display:block}.key-copy{display:none!important}.touch-copy{display:inline}.controls{display:none}#meter{min-width:123px;bottom:26px}}
+@media(max-width:660px) and (orientation:portrait){:root{--gut:21px}.wash{background:linear-gradient(0deg,#f1e3cc 4%,#f1e3cfee 24%,#f2e4ceaa 45%,transparent 66%)}#intro{align-items:end;padding-bottom:72px}.intro-content{width:100%}h1{font-size:clamp(78px,19vw,120px);line-height:.87;margin:8px 0}h1 span{display:inline}h1 span+span{margin-left:.10em}.summary{margin:12px 0 15px;max-width:24em;font-size:14px}.bottom{bottom:18px}.route-sign{padding:6px 10px}.controls{gap:7px}.route-sign small{display:none}.brand{font-size:21px}.route-sign strong{font-size:11px}#hud{top:75px}.alt-card{min-width:136px}}
+@media(max-height:550px){header{top:13px}.brand{font-size:19px}.mark{width:24px;height:21px}#intro{padding-top:45px;padding-bottom:40px}.intro-content{width:48vw}h1{font-size:clamp(56px,16vh,85px);margin:8px 0}.summary{font-size:12px;line-height:1.45;margin:8px 0}.primary{padding:9px 13px;min-width:132px}.bottom{bottom:10px}.route-sign{padding:5px 9px}.route-sign small{display:none}#hud{top:55px}.alt-card{padding:7px 10px}.number{font-size:33px}.pill{padding:6px 11px}}
+</style>
+$GODOT_HEAD_INCLUDE
+</head>
+<body data-mode="intro">
+<canvas id="canvas" tabindex="-1" aria-label="OnlyJump 3D 遊戲場景"></canvas><div class="wash"></div>
+<header><div class="brand" aria-label="OnlyJump"><i class="mark"></i>OnlyJump</div><div class="actions"><button class="pill" id="mute" aria-pressed="false" disabled><span class="soundmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="soundLabel">音效開</span></button><button class="pill" id="pause" hidden><i class="pause-icon"></i>暫停</button></div></header>
+<main id="intro"><div class="intro-content"><div class="route">琥珀山徑</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1><p class="summary"><span class="key-copy">行到岩台邊，按住空白鍵蓄力。</span><span class="touch-copy">推動搖桿行到岩台邊，按住跳掣蓄力。</span>瞄準下一座浮島，放手起跳。</p><button class="primary" id="start" disabled><span id="start-label">載入遊戲中…</span><span class="arrow" aria-hidden="true">↗</span></button><p id="error" role="alert" hidden></p></div></main>
+<div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>蓄力跳躍</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong>山頂銅鐘 · 25 m</strong><small lang="en">AMBER EXPANSE</small></div></div></div>
+<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route">琥珀山徑</div><div class="number"><span id="height">0.0</span><small>m</small></div><div class="route-progress"><i id="progress"></i></div><div class="stats">岩台 <b id="ledge">0 / 12</b> · <span id="time">00:00</span></div></div><span id="notice" role="status" hidden></span></section>
+<div id="meter" hidden><div class="meter-label"><span id="powerLabel">按住蓄力</span><span class="fine" id="power">0%</span></div><div class="bar"><span id="fill"></span></div></div>
+<div id="touch" hidden><div id="pad" aria-label="移動搖桿"><i></i></div><button id="jump">蓄力</button></div>
+<section id="overlay" hidden><div class="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"><div class="route">琥珀山徑</div><h2 id="panelTitle"></h2><p id="report"></p><button class="primary" id="continue"></button><button class="secondary" id="reset">重新開始</button><button class="secondary" id="menu">返回主畫面</button></div></section>
+<noscript>請開啟 JavaScript 載入遊戲。</noscript>
+<script>
+const el = id => document.getElementById(id);
+const canvas = el('canvas');
+let send, mode = 'intro', padPointer = null, jumpPointer = null;
+function timer(seconds) {
+  return [Math.floor(seconds/60), Math.floor(seconds)%60].map(n => String(n).padStart(2,'0')).join(':');
+}
+function releasePad() {
+  padPointer = null;
+  el('pad').firstElementChild.style.transform = '';
+  if (send) send('stick',0,0);
+}
+function restoreFocus() {
+  if (mode === 'playing') canvas.focus({preventScroll:true});
+}
+window.OnlyJumpUI = {
+  bindGame(callback) {
+    send = callback;
+    el('start').disabled = el('mute').disabled = false;
+    el('start-label').textContent = '開始攀登';
+  },
+  update(next,height,best,ledge,total,power,charging,elapsed,falls,jumps,muted,notice) {
+    const changed = mode !== next;
+    mode = document.body.dataset.mode = next;
+    const playing = next === 'playing', intro = next === 'intro', won = next === 'won';
+    el('intro').hidden = el('legend').hidden = !intro;
+    el('pause').hidden = el('hud').hidden = el('meter').hidden = el('touch').hidden = !playing;
+    el('overlay').hidden = !(won || next === 'paused');
+    el('mute').setAttribute('aria-pressed',String(muted));
+    el('soundLabel').textContent = muted ? '音效關' : '音效開';
+    el('height').textContent = height.toFixed(1);
+    el('ledge').textContent = ledge+' / '+total;
+    el('time').textContent = timer(elapsed);
+    el('progress').style.width = (ledge/total*100)+'%';
+    el('power').textContent = Math.round(power*100)+'%';
+    el('powerLabel').textContent = charging ? '放手起跳' : '按住蓄力';
+    el('fill').style.transform = 'scaleX('+power+')';
+    el('notice').textContent = notice;
+    el('notice').hidden = !notice;
+    if (!el('overlay').hidden) {
+      el('panelTitle').textContent = won ? '抵達山頂' : '已暫停';
+      el('report').textContent = (won ? '銅鐘響起。' : '')+'用時 '+timer(elapsed)+' · '+jumps+' 次起跳 · '+falls+' 次跌落。最高落腳點 '+best.toFixed(1)+' m。';
+      el('continue').textContent = won ? '再攀一次 ↗' : '繼續攀登 ↗';
+      el('reset').hidden = won;
+    }
+    if (changed) {
+      if (!playing) { padPointer = jumpPointer = null; el('pad').firstElementChild.style.transform=''; }
+      if (playing) restoreFocus();
+      else if (intro) el('start').focus({preventScroll:true});
+      else el('continue').focus({preventScroll:true});
+    }
+  }
+};
+el('start').onclick=()=>send('start');
+el('pause').onclick=()=>send('pause');
+el('mute').onclick=()=>{send('mute');restoreFocus()};
+el('continue').onclick=()=>send(mode==='won'?'restart':'pause');
+el('reset').onclick=()=>send('restart');
+el('menu').onclick=()=>send('menu');
+function pointStick(e) {
+  const rect = el('pad').getBoundingClientRect();
+  let x = (e.clientX-rect.left-rect.width/2)/(rect.width*.34);
+  let y = (e.clientY-rect.top-rect.height/2)/(rect.height*.34);
+  const len = Math.max(1,Math.hypot(x,y)); x/=len; y/=len;
+  el('pad').firstElementChild.style.transform='translate('+x*25+'px,'+y*25+'px)';
+  send('stick',x,y);
+}
+el('pad').onpointerdown=e=>{if(padPointer!==null)return; e.preventDefault(); padPointer=e.pointerId; el('pad').setPointerCapture(e.pointerId);pointStick(e)};
+el('pad').onpointermove=e=>{if(e.pointerId===padPointer)pointStick(e)};
+el('pad').onlostpointercapture=e=>{if(e.pointerId===padPointer)releasePad()};
+el('jump').onpointerdown=e=>{if(jumpPointer!==null)return;e.preventDefault();jumpPointer=e.pointerId;el('jump').setPointerCapture(e.pointerId);send('down')};
+el('jump').onpointerup=e=>{if(e.pointerId===jumpPointer){jumpPointer=null;send('up')}};
+el('jump').onlostpointercapture=e=>{if(e.pointerId===jumpPointer){jumpPointer=null;send('hide')}};
+document.addEventListener('visibilitychange',()=>{if(document.hidden && send)send('hide')});
+window.addEventListener('blur',()=>{if(send)send('hide')});
+document.addEventListener('keydown',e=>{
+  if (mode==='paused' && (e.code==='Escape'||e.code==='KeyP') && e.target!==canvas) { e.preventDefault(); send('pause'); }
+  else if(mode==='paused' && e.code==='KeyR' && e.target!==canvas) {e.preventDefault();send('restart');}
+  else if (e.code==='Tab' && !el('overlay').hidden) {
+    const buttons=Array.from(el('overlay').querySelectorAll('button:not([hidden])'));
+    if(e.shiftKey && document.activeElement===buttons[0]){e.preventDefault();buttons.at(-1).focus()}
+    else if(!e.shiftKey && document.activeElement===buttons.at(-1)){e.preventDefault();buttons[0].focus()}
+  }
+});
+function failure(message){el('error').hidden=false;el('error').textContent=String(message);el('start-label').textContent='未能載入';}
+</script>
+<script src="$GODOT_URL" onerror="failure('遊戲引擎載入失敗，請重新整理。')"></script>
+<script>
+if(typeof Engine!=='undefined'){
+  const config=$GODOT_CONFIG;
+  const missing=Engine.getMissingFeatures({threads:false});
+  if(missing.length) failure('瀏覽器缺少 '+missing.join(', ')+'。請用支援 WebGL 2 嘅瀏覽器。');
+  else new Engine(config).startGame({canvas,onProgress:(loaded,total)=>{
+    if(!send && total>0)el('start-label').textContent='載入 '+Math.round(loaded/total*100)+'%';
+  }}).catch(failure);
+}
+</script>
+</body></html>

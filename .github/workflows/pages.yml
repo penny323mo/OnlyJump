@@ -1,0 +1,62 @@
+name: Build and publish OnlyJump
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE: 4.7.2-stable
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install official Godot editor and single-threaded Web template
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          base="https://github.com/godotengine/godot-builds/releases/download/$RELEASE"
+          curl -fsSL --retry 3 "$base/Godot_v${RELEASE}_linux.x86_64.zip" -o editor.zip
+          echo 'cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  editor.zip' | sha256sum -c -
+          unzip -q editor.zip
+          mv "Godot_v${RELEASE}_linux.x86_64" godot
+          chmod +x godot
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          curl -fsSL --retry 3 "$base/Godot_v${RELEASE}_export_templates.tpz" -o templates.tpz
+          echo 'f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011  templates.tpz' | sha256sum -c -
+          templates="$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          mkdir -p "$templates"
+          unzip -jq templates.tpz templates/version.txt templates/web_nothreads_release.zip -d "$templates"
+      - name: Export game
+        run: scripts/export-web.sh
+      - name: Play through the route at fixed physics ticks
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --fixed-fps 60 --script tests/route.gd | tee "$RUNNER_TEMP/ascent.log"
+          grep -Fxq 'PASS all 12 consecutive jumps, finish, lower-platform catch, void respawn, pause' "$RUNNER_TEMP/ascent.log"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish
+        id: deployment
+        uses: actions/deploy-pages@v4
