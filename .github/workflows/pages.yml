@@ -34,6 +34,8 @@ jobs:
           templates="$HOME/.local/share/godot/export_templates/4.7.2.stable"
           mkdir -p "$templates"
           unzip -jq templates.tpz templates/version.txt templates/web_nothreads_release.zip -d "$templates"
+      - name: Replay mobile controls
+        run: node --test tests/touch-controls.cjs
       - name: Export game
         run: scripts/export-web.sh
       - name: Play through the route at fixed physics ticks
@@ -41,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           godot --headless --fixed-fps 60 --script tests/route.gd | tee "$RUNNER_TEMP/ascent.log"
-          grep -Fxq 'PASS all 12 consecutive jumps, finish, lower-platform catch, void respawn, pause' "$RUNNER_TEMP/ascent.log"
+          grep -Fxq 'PASS mobile parkour: 18 landings, instant jump, sprint, orbit, edge hold, recovery' "$RUNNER_TEMP/ascent.log"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

@@ -1,141 +1,133 @@
 extends CharacterBody3D
 
-const GROUND_SPEED := 3.35
-const GRAVITY := 24.0
-const CHARGE_TIME := 0.78
-const RADIUS := 0.25
+const COURIER = preload("res://assets/character/courier.glb")
+const WALK_SPEED := 3.65
+const RUN_SPEED := 6.45
+const JUMP_SPEED := 9.25
+const GRAVITY := 15.4
+const FOOT_RADIUS := 0.285
+const COYOTE_TIME := 0.12
+const BUFFER_TIME := 0.13
+
 var aim := Vector2(0.45,-0.89).normalized()
-var charging := false
-var power := 0.0
 var grounded_ledge := -1
 var jump_count := 0
+var jump_buffer := 0.0
+var grace := 0.0
+var tap_motion := Vector3.ZERO
 var model := Node3D.new()
-var boots: Array[MeshInstance3D] = []
-var scarf: MeshInstance3D
-var dots: Array[MeshInstance3D] = []
+var animations: AnimationPlayer
+var pose := ""
 var foot_shadow: MeshInstance3D
-var gait := 0.0
-var launch_pending := false
+var heading := Node3D.new()
 signal landed(ledge: int)
-signal jumped(strength: float)
+signal jumped()
 
 func build(art) -> void:
-	floor_snap_length = 0.17
+	floor_snap_length = 0.21
+	floor_stop_on_slope = true
+	floor_max_angle = deg_to_rad(48)
+	# A flat sole keeps partial contact on ledges instead of rolling off a capsule.
 	var hit := CollisionShape3D.new()
-	var capsule := CapsuleShape3D.new()
-	capsule.radius = RADIUS
-	capsule.height = 1.13
-	hit.shape = capsule
-	hit.position.y = 0.57
+	var sole := CylinderShape3D.new()
+	sole.radius = FOOT_RADIUS
+	sole.height = 1.18
+	hit.shape = sole
+	hit.position.y = sole.height/2
 	add_child(hit)
 	add_child(model)
+	var courier: Node3D = COURIER.instantiate()
+	model.add_child(courier)
+	courier.scale = Vector3.ONE*.285
+	courier.rotation.y = PI
+	animations = courier.find_children("*","AnimationPlayer",true,false)[0]
+	for clip in ["Idle","Walking","Running"]:
+		animations.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+	set_pose("Idle")
+	get_parent().add_child(heading)
 	for side in [-1,1]:
-		boots.append(art.box(model,Vector3(side*0.128,0.15,-0.022),Vector3(0.18,0.30,0.25),"40383b"))
-	# Ochre rain cape, red knitted hood, dark face and a rolled bedroll.
-	art.cone(model,Vector3(0,0.5,0),0.52,0.37,0.22,"e0a244",7)
-	art.cone(model,Vector3(0,0.7,0),0.20,0.33,0.18,"f1bd64",7)
-	art.box(model,Vector3(0,0.91,-0.03),Vector3(0.35,0.33,0.33),"79493b")
-	art.box(model,Vector3(0,1.06,0),Vector3(0.44,0.19,0.41),"b43e2d")
-	art.box(model,Vector3(0,0.976,0.01),Vector3(0.46,0.087,0.43),"dc5737")
-	art.box(model,Vector3(0,0.89,-0.189),Vector3(0.32,0.12,0.04),"e0a579")
-	for side in [-1,1]:
-		art.box(model,Vector3(side*0.082,0.911,-0.212),Vector3(0.039,0.038,0.022),"3d3538")
-	art.box(model,Vector3(0,0.56,0.23),Vector3(0.28,0.32,0.14),"735038")
-	art.cone(model,Vector3(0,0.73,0.265),0.41,0.093,0.093,"658781",8).rotation.z = PI/2
-	scarf = art.box(model,Vector3(0.16,0.77,0.29),Vector3(0.11,0.055,0.39),"d34d36")
-	for i in 8:
-		var dot = art.cone(get_parent(),Vector3.ZERO,0.09,0.055,0.055,"ffdf87",5)
-		dot.visible = false
-		dots.append(dot)
-	foot_shadow = art.cone(get_parent(),Vector3.ZERO,0.012,0.29,0.29,"766648",12)
+		art.tube(heading,Vector3(0,0,-0.85),Vector3(side*.16,0,-0.60),.034,"f5ab43")
+	foot_shadow = art.cone(get_parent(),Vector3.ZERO,.012,.26,.26,"66625b",24)
 	foot_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 func reset_at(p: Vector3) -> void:
 	position = p + Vector3.UP*0.035
 	velocity = Vector3.ZERO
 	aim = Vector2(0.45,-0.89).normalized()
-	cancel_charge()
+	jump_buffer = 0
+	grace = 0
 	jump_count = 0
 	grounded_ledge = -1
 
-func begin_charge() -> void:
-	if is_on_floor() and not charging:
-		charging = true
-		power = 0
-		launch_pending = false
+func request_jump(move: Vector2, running: bool) -> void:
+	# A finger can lift between the tap and the next fixed physics tick.
+	tap_motion = Vector3(move.x,0,move.y)*(RUN_SPEED if running else WALK_SPEED)
+	jump_buffer = BUFFER_TIME
 
-func release_charge() -> void:
-	if charging:
-		launch_pending = true
+func ground_at(point: Vector3, depth: float) -> Dictionary:
+	var query := PhysicsRayQueryParameters3D.create(point+Vector3.UP*.16,point+Vector3.DOWN*depth)
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_ray(query)
 
-func cancel_charge() -> void:
-	charging = false
-	power = 0
-	launch_pending = false
-	for dot in dots:
-		dot.visible = false
-
-func launch_velocity() -> Vector3:
-	var speed := lerpf(2.6,7.45,power)
-	return Vector3(aim.x*speed,lerpf(5.9,12.25,power),aim.y*speed)
-
-func step(delta: float, move: Vector2) -> void:
-	var was_on_floor := is_on_floor()
-	if was_on_floor:
-		if move.length() > 0.14:
-			aim = move.normalized()
-		if charging:
-			power = minf(1.0,power + delta/CHARGE_TIME)
-			velocity = Vector3.ZERO
-			if launch_pending:
-				velocity = launch_velocity()
-				jump_count += 1
-				jumped.emit(power)
-				cancel_charge()
-		else:
-			velocity = Vector3(move.x*GROUND_SPEED,0,move.y*GROUND_SPEED)
+func step(delta: float, move: Vector2, running: bool) -> void:
+	var on_floor_before := is_on_floor()
+	if on_floor_before: grace = COYOTE_TIME
+	else: grace = maxf(0,grace-delta)
+	var direction := Vector3(move.x,0,move.y)
+	if move.length_squared() > .016: aim = move.normalized()
+	var target := direction*(RUN_SPEED if running else WALK_SPEED)
+	var taking_off := jump_buffer>0 and grace>0
+	if taking_off:
+		jump_buffer = 0
+		grace = 0
+		velocity = (tap_motion if direction.is_zero_approx() else target)+Vector3.UP*JUMP_SPEED
+		jump_count += 1
+		jumped.emit()
+	elif on_floor_before:
+		if not direction.is_zero_approx():
+			var toe := position+direction.normalized()*(FOOT_RADIUS+.16)
+			var support := ground_at(toe,.34)
+			if support.is_empty() or support.normal.y < .65: target *= .46
+		# Stick release stops immediately on a balance beam or a one-foot perch.
+		velocity = target
 	else:
 		velocity.y -= GRAVITY*delta
-		# Small corrections preserve the commitment of a charged launch.
-		velocity.x += move.x*1.05*delta
-		velocity.z += move.y*1.05*delta
+		var horizontal := Vector2(velocity.x,velocity.z)
+		# Releasing the stick brakes in midair but preserves a short natural arc.
+		var response := 13.5 if not move.is_zero_approx() else 4.8
+		horizontal = horizontal.move_toward(Vector2(target.x,target.z),response*delta)
+		velocity.x = horizontal.x
+		velocity.z = horizontal.y
+	jump_buffer = maxf(0,jump_buffer-delta)
 	move_and_slide()
 	if is_on_floor():
 		for i in get_slide_collision_count():
 			var contact := get_slide_collision(i)
-			if contact.get_normal().y < 0.7:
-				continue
 			var body := contact.get_collider() as Node3D
-			if body and body.has_meta("ledge"):
-				var index := int(body.get_meta("ledge"))
-				if index != grounded_ledge or not was_on_floor:
-					grounded_ledge = index
-					landed.emit(index)
-				break
-	elif was_on_floor and charging:
-		cancel_charge()
-	animate(delta, move)
+			if contact.get_normal().y < .66 or not body or not body.has_meta("ledge"): continue
+			var index := int(body.get_meta("ledge"))
+			if index != grounded_ledge or not on_floor_before:
+				grounded_ledge = index
+				landed.emit(index)
+			break
+	animate(delta,move,running)
 
-func animate(delta: float, move: Vector2) -> void:
-	var walking := is_on_floor() and not charging and move.length() > 0.1
-	gait += delta*(13 if walking else 3)
-	model.rotation.y = lerp_angle(model.rotation.y,atan2(-aim.x,-aim.y),minf(1,delta*14))
-	model.scale = Vector3(1+power*0.15,1-power*0.36,1+power*0.15)
-	model.position.y = absf(sin(gait))*0.045 if walking else 0.0
-	for i in boots.size():
-		boots[i].rotation.x = sin(gait+i*PI)*0.50 if walking else 0.0
-	scarf.rotation.x = sin(gait)*0.13 - (0.32 if not is_on_floor() else 0.0)
-	var launch := launch_velocity()
-	for i in dots.size():
-		dots[i].visible = charging
-		if charging:
-			var t := (i+1)*0.089
-			dots[i].global_position = global_position + Vector3.UP*0.22 + launch*t + Vector3.DOWN*(0.5*GRAVITY*t*t)
-	var query := PhysicsRayQueryParameters3D.create(global_position+Vector3.UP*0.15,global_position+Vector3.DOWN*12)
-	query.exclude = [get_rid()]
-	var contact := get_world_3d().direct_space_state.intersect_ray(query)
-	foot_shadow.visible = not contact.is_empty()
+func animate(delta: float, move: Vector2, running: bool) -> void:
+	model.rotation.y = lerp_angle(model.rotation.y,atan2(-aim.x,-aim.y),minf(1,delta*18))
+	if not is_on_floor(): set_pose("Jump")
+	elif move.length_squared()>.016: set_pose("Running" if running else "Walking")
+	else: set_pose("Idle")
+	heading.visible = is_on_floor() and move.length_squared()>.016
+	heading.position = position+Vector3.UP*.055
+	heading.rotation.y = atan2(-aim.x,-aim.y)
+	var hit := ground_at(global_position,10)
+	foot_shadow.visible = not hit.is_empty()
 	if foot_shadow.visible:
-		foot_shadow.global_position = contact.position+Vector3.UP*0.012
-		var size := clampf(1.0-(global_position.y-foot_shadow.global_position.y)*0.10,0.45,1.0)
+		foot_shadow.global_position = hit.position+Vector3.UP*.014
+		var size := clampf(1-(position.y-hit.position.y)*.11,.46,1)
 		foot_shadow.scale = Vector3(size,1,size)
+
+func set_pose(next: String) -> void:
+	if next != pose:
+		pose = next
+		animations.play(next,.10)

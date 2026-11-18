@@ -1,254 +1,232 @@
-extends Node3D
+extends "res://game/props.gd"
 
-# The Y coordinate marks the landing surface. The route doubles back over
-# lower ledges, so a missed jump can cost one ledge or an entire ascent.
 const ROUTE := [
-	Vector3(0, 0, 0), Vector3(2.4, 1.35, -4.8), Vector3(-1.0, 3.05, -8.1),
-	Vector3(-5.3, 4.95, -6.0), Vector3(-7.8, 7.05, -10.2), Vector3(-4.1, 9.1, -13.2),
-	Vector3(0.4, 11.25, -12.2), Vector3(4.1, 13.5, -15.2), Vector3(2.1, 15.75, -19.7),
-	Vector3(-2.6, 17.95, -19.1), Vector3(-5.5, 20.25, -22.5), Vector3(-2.2, 22.65, -25.7),
-	Vector3(2.45, 25.0, -25.15)
+	Vector3(0,0,0),Vector3(2.4,1.35,-4.8),Vector3(-1.0,3.05,-8.1),
+	Vector3(-5.3,4.95,-6.0),Vector3(-7.8,7.05,-10.2),Vector3(-4.1,9.1,-13.2),
+	Vector3(.4,11.25,-12.2),Vector3(4.1,13.5,-15.2),Vector3(2.1,15.75,-19.7),
+	Vector3(-2.6,17.95,-19.1),Vector3(-5.5,20.25,-22.5),Vector3(-2.2,22.65,-25.7),
+	Vector3(2.45,25,-25.15),Vector3(5.55,27.1,-21.7),Vector3(9.45,29.25,-23.9),
+	Vector3(12.7,31.45,-20.85),Vector3(10.95,33.65,-16.65),Vector3(6.65,35.85,-17.40),
+	Vector3(3.8,38,-13.85)
 ]
-const SIZES := [
-	Vector2(4.1,3.0), Vector2(1.8,1.55), Vector2(1.9,1.6), Vector2(2.15,1.55),
-	Vector2(1.6,1.45), Vector2(2.4,1.8), Vector2(1.5,1.45), Vector2(1.85,1.45),
-	Vector2(1.55,1.65), Vector2(1.65,1.35), Vector2(1.4,1.45), Vector2(1.55,1.35),
-	Vector2(1.95,1.95)
-]
-var rng := RandomNumberGenerator.new()
-var materials := {}
-var pennants: Array[Node3D] = []
-var birds: Array[Node3D] = []
-var elapsed := 0.0
-
-func material(tint: String) -> StandardMaterial3D:
-	if not materials.has(tint):
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(tint)
-		mat.roughness = 1
-		materials[tint] = mat
-	return materials[tint]
-
-func piece(parent: Node3D, mesh: Mesh, pos: Vector3, tint: String) -> MeshInstance3D:
-	var node := MeshInstance3D.new()
-	node.mesh = mesh
-	node.material_override = material(tint)
-	parent.add_child(node)
-	node.position = pos
-	return node
-
-func box(parent: Node3D, pos: Vector3, dimensions: Vector3, tint: String) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = dimensions
-	return piece(parent, mesh, pos, tint)
-
-func cone(parent: Node3D, pos: Vector3, height: float, lower: float, upper: float, tint: String, sides := 6) -> MeshInstance3D:
-	var mesh := CylinderMesh.new()
-	mesh.radial_segments = sides
-	mesh.rings = 0
-	mesh.height = height
-	mesh.bottom_radius = lower
-	mesh.top_radius = upper
-	return piece(parent, mesh, pos, tint)
-
-func beam(parent: Node3D, a: Vector3, b: Vector3, width: float, tint: String) -> MeshInstance3D:
-	var bar := box(parent, (a+b)/2, Vector3(width,a.distance_to(b),width), tint)
-	bar.quaternion = Quaternion(Vector3.UP, a.direction_to(b))
-	return bar
+const NAMES := ["士多天台","絲絨梳化","木茶几","膽機電視","皮喼","波鞋鞋底","錄音帶","手提音響","黑膠唱盤","電子琴","古董相機","滑板","玩具跑車","碼頭繫纜柱","貨櫃","電纜轆","吊臂鋼樑","速遞紙箱","失物招領枱"]
+const SOFA = preload("res://assets/props/sofa.glb")
+const SHOE = preload("res://assets/props/sneaker.glb")
+const STEREO = preload("res://assets/props/boombox.glb")
+const CAMERA = preload("res://assets/props/camera.glb")
+const CAR = preload("res://assets/props/car.glb")
+const CITY := [preload("res://assets/city/building-small-a.glb"),preload("res://assets/city/building-small-c.glb"),preload("res://assets/city/building-small-d.glb"),preload("res://assets/city/building-garage.glb")]
+const ROAD = preload("res://assets/city/road-straight-lightposts.glb")
+const CROSSING = preload("res://assets/city/road-intersection.glb")
 
 func _ready() -> void:
-	rng.seed = 341207
-	for i in ROUTE.size():
-		island(ROUTE[i], SIZES[i], i)
-	distant_scenery()
-	outcrops()
+	for index in ROUTE.size():
+		var body := StaticBody3D.new()
+		body.set_meta("ledge",index)
+		add_child(body)
+		body.position = ROUTE[index]
+		match index:
+			0: rooftop(body)
+			1: model_prop(body,SOFA,4.25,Vector3(0,-12,0))
+			2: coffee_table(body)
+			3: television(body)
+			4: suitcase(body)
+			5: model_prop(body,SHOE,4.22,Vector3(0,10,180))
+			6: cassette(body)
+			7: model_prop(body,STEREO,3.8,Vector3(0,12,0))
+			8: turntable(body)
+			9: keyboard(body)
+			10: model_prop(body,CAMERA,3.1,Vector3(0,30,0))
+			11: skateboard(body)
+			12: model_prop(body,CAR,4.05,Vector3(0,28,0))
+			13: bollard(body)
+			14: container(body)
+			15: cable_reel(body)
+			16: girder(body)
+			17: parcel(body)
+			18: finish_counter(body)
+	city()
+	crane()
+	skyline()
 
-func facet(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, tint: Color) -> void:
-	var normal := (c-a).cross(b-a).normalized()
-	for v in [a,b,c]:
-		st.set_color(tint)
-		st.set_normal(normal)
-		st.add_vertex(v)
-
-func facet_mesh(st: SurfaceTool, parent: Node3D, unlit := false) -> MeshInstance3D:
-	var result := MeshInstance3D.new()
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.vertex_color_is_srgb = true
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	if unlit:
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	result.mesh = st.commit()
-	result.material_override = mat
-	parent.add_child(result)
-	return result
-
-func island(pos: Vector3, extent: Vector2, index: int) -> void:
-	var body := StaticBody3D.new()
-	add_child(body)
-	body.position = pos
-	body.set_meta("ledge", index)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var rings: Array[PackedVector3Array] = []
-	var hull := PackedVector3Array()
-	var depth := 1.25 + extent.x * 0.8
-	var n := 10
-	for j in 4:
-		var ring := PackedVector3Array()
-		for i in n:
-			var angle := TAU*i/n + 0.13
-			var p := Vector3(cos(angle)*extent.x,0,sin(angle)*extent.y)
-			match j:
-				1: p = p*1.025 + Vector3.DOWN*rng.randf_range(0.17,0.30)
-				2: p = p*rng.randf_range(0.78,1.04) + Vector3.DOWN*depth*rng.randf_range(0.37,0.6)
-				3: p = p*rng.randf_range(0.27,0.63) + Vector3.DOWN*depth*rng.randf_range(0.86,1.18)
-			ring.append(p)
-			if j <= 1 or j == 3:
-				hull.append(p)
-		rings.append(ring)
-	var tops := ["a69d67","b1a574","b7ab79","afa371"] if index < 5 else ["c6c18a","b9be8a","c2bc86","ccc48f"]
-	var sides := [["b08c58","ba965f","b39965"],["926e58","9e775d","876556","ae8466"],["70565a","80605d","87695e","795a56"]]
-	for i in n:
-		var k := (i+1)%n
-		facet(st, Vector3.ZERO, rings[0][i], rings[0][k], Color(tops[rng.randi()%tops.size()]))
-		for j in 3:
-			var colors: Array = sides[j]
-			facet(st,rings[j][i],rings[j+1][i],rings[j+1][k],Color(colors[rng.randi()%colors.size()]))
-			facet(st,rings[j][i],rings[j+1][k],rings[j][k],Color(colors[rng.randi()%colors.size()]))
-		facet(st,rings[3][i],Vector3(0,-depth*1.29,0),rings[3][k],Color("70545a"))
-	facet_mesh(st,body)
-	var shape := ConvexPolygonShape3D.new()
-	shape.points = hull
-	var collision := CollisionShape3D.new()
-	collision.shape = shape
-	body.add_child(collision)
-	for i in (9 if index == 0 else 4):
-		var a := rng.randf()*TAU
-		var p := Vector3(cos(a)*extent.x*0.80, 0, sin(a)*extent.y*0.80)
-		tuft(body,p,rng.randf_range(0.18,0.33))
-	if index in [0,3,5,8,12]:
-		flag(body,Vector3(-extent.x*0.70,0,-extent.y*0.32), 2.8 if index == 0 else 1.8)
-	if index in [0,5,12]:
-		pine(body,Vector3(extent.x*0.64,0,extent.y*0.12),2.4 if index == 0 else 1.55)
-	if index in [2,4,7,9,10,11]:
-		cairn(body,Vector3(-extent.x*0.65,0,0.2))
-	if index == 12:
-		summit_gate(body)
-
-func tuft(parent: Node3D, p: Vector3, size: float) -> void:
-	for i in 3:
-		var blade := cone(parent,p+Vector3((i-1)*0.065,size*0.45,0),size*(1.25 if i==1 else 1.0),0.045,0,"9b894d",3)
-		blade.rotation.z = (i-1)*0.35
-
-func flag(parent: Node3D, p: Vector3, height: float) -> void:
-	cone(parent,p+Vector3.UP*height*0.5,height,0.052,0.035,"59463e",6)
+func model_prop(body: StaticBody3D, scene: PackedScene, span: float, angles: Vector3) -> void:
 	var pivot := Node3D.new()
-	parent.add_child(pivot)
-	pivot.position = p+Vector3.UP*(height-0.12)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	facet(st,Vector3.ZERO,Vector3(0,-0.6,0),Vector3(0.55,-0.38,0.07),Color("cf5838"))
-	facet(st,Vector3.ZERO,Vector3(0.55,-0.38,0.07),Vector3(0.55,-0.06,0.07),Color("e86b40"))
-	facet(st,Vector3(0.55,-0.06,0.07),Vector3(0.55,-0.38,0.07),Vector3(1.27,-0.24,-0.07),Color("ef8549"))
-	facet_mesh(st,pivot)
-	pennants.append(pivot)
+	body.add_child(pivot)
+	var model: Node3D = scene.instantiate()
+	for kind in ["Camera3D","Light3D"]:
+		for extra in model.find_children("*",kind,true,false): extra.free()
+	pivot.add_child(model)
+	pivot.rotation_degrees = angles
+	var triangles := PackedVector3Array()
+	var bounds := AABB()
+	for node: MeshInstance3D in model.find_children("*","MeshInstance3D",true,false):
+		var relative := body.global_transform.affine_inverse()*node.global_transform
+		var points := relative*node.mesh.get_faces()
+		for p in points:
+			if triangles.is_empty(): bounds = AABB(p,Vector3.ZERO)
+			else: bounds = bounds.expand(p)
+			triangles.append(p)
+	var factor := span / maxf(bounds.size.x,bounds.size.z)
+	for i in triangles.size(): triangles[i] *= factor
+	var center := bounds.get_center()*factor
+	var ray := Vector3(center.x,bounds.end.y*factor+1.0,center.z)
+	var top := -INF
+	for i in range(0,triangles.size(),3):
+		var hit = Geometry3D.ray_intersects_triangle(ray,Vector3.DOWN,triangles[i],triangles[i+1],triangles[i+2])
+		if hit == null:
+			hit = Geometry3D.ray_intersects_triangle(ray,Vector3.DOWN,triangles[i+2],triangles[i+1],triangles[i])
+		if hit != null: top = maxf(top,hit.y)
+	if not is_finite(top): top = bounds.end.y*factor
+	pivot.scale = Vector3.ONE*factor
+	pivot.position = -Vector3(center.x,top,center.z)
+	for i in triangles.size():
+		triangles[i] += pivot.position
+	var shape := ConcavePolygonShape3D.new()
+	shape.set_faces(triangles)
+	shape.backface_collision = true
+	var hit := CollisionShape3D.new()
+	hit.shape = shape
+	body.add_child(hit)
 
-func pine(parent: Node3D, p: Vector3, height: float) -> void:
-	cone(parent,p+Vector3.UP*height*0.22,height*0.44,height*0.06,height*0.045,"71594d")
-	for i in 3:
-		var h := height*(0.58-float(i)*0.09)
-		cone(parent,p+Vector3.UP*height*(0.43+0.20*i),h,height*(0.25-i*0.048),0,["455d59","53685d","677860"][i],5).rotation.y = i*0.27
-
-func cairn(parent: Node3D, p: Vector3) -> void:
-	for i in 3:
-		var stone := cone(parent,p+Vector3(0.025*i,0.065+i*0.11,0),0.13-i*0.014,0.22-i*0.044,0.17-i*0.041,["847970","a19680","bbb098"][i],5)
-		stone.rotation.y = i
-		stone.scale.z = 0.72
-
-func summit_gate(parent: Node3D) -> void:
-	var p := Vector3(0,0,-0.75)
-	for s in [-1,1]:
-		beam(parent,p+Vector3(s*0.84,0,0),p+Vector3(s*0.68,2.65,0),0.17,"65483a")
-	box(parent,p+Vector3.UP*2.6,Vector3(2.15,0.19,0.23),"84553d")
-	cone(parent,p+Vector3.UP*2.20,0.54,0.26,0.12,"d99c42",8)
-	cone(parent,p+Vector3.UP*1.90,0.09,0.31,0.28,"eab75b",8)
-
-func distant_scenery() -> void:
-	# Three ranks of folded rock run across the horizon. The mesh uses a
-	# fixed world-space silhouette, so parallax follows the moving camera.
-	for layer in 3:
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var ridge := PackedVector3Array()
-		var front := PackedVector3Array()
-		var distance_z := -175.0+layer*36.0
-		for i in 76:
-			var x := (i-38)*6.0
-			var y := -4.5 + sin(i*0.37+layer*2)*6 + sin(i*0.71+layer)*3 + rng.randf_range(-2,2) - layer*4
-			ridge.append(Vector3(x,y,distance_z+rng.randf_range(-2,2)))
-			front.append(Vector3(x+2.0,y-rng.randf_range(7,15),distance_z+8))
-		var base := Color(["d6a89b","bd9691","a58485"][layer])
-		for i in ridge.size()-1:
-			var bottom := Vector3(ridge[i].x,-330,distance_z+17)
-			var bottom_next := Vector3(ridge[i+1].x,-330,distance_z+17)
-			facet(st,ridge[i],front[i],ridge[i+1],base.lightened(rng.randf_range(0.0,0.12)))
-			facet(st,front[i],front[i+1],ridge[i+1],base.darkened(rng.randf_range(0.0,0.09)))
-			facet(st,front[i],bottom,bottom_next,base)
-			facet(st,front[i],bottom_next,front[i+1],base)
-		facet_mesh(st,self,true).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	for i in 11:
-		var bird := Node3D.new()
-		add_child(bird)
-		bird.position = Vector3(rng.randf_range(-26,30),rng.randf_range(5,17),rng.randf_range(-55,-34))
-		for side in [-1,1]:
-			beam(bird,Vector3.ZERO,Vector3(side*0.39,0.13,0.12),0.048,"62585d")
-		birds.append(bird)
-
-func _process(delta: float) -> void:
-	elapsed += delta
-	for i in pennants.size():
-		pennants[i].rotation.y = sin(elapsed*2.2+i)*0.17
-	for i in birds.size():
-		birds[i].position.x += delta*(0.8+0.05*i)
-		if birds[i].position.x > 42:
-			birds[i].position.x = -42
-		birds[i].rotation.z = sin(elapsed*1.8+i)*0.14
-
-func outcrops() -> void:
-	# Smaller, desaturated mesas frame the playable amber route.
-	for data in [
-		[-23,-2,-23,4.4,9.5], [20,0,-28,4.2,10.0], [28,5,-44,5.1,14.0],
-		[-30,6,-49,5.8,16.0], [-15,13,-62,3.2,9.4], [11,16,-73,3.5,11.0],
-		[-20,21,-82,3.0,10.0], [35,20,-66,4.2,13.0], [-29,-7,0,4.0,8.0]
-	]:
-		var pivot := Node3D.new()
-		add_child(pivot)
-		pivot.position = Vector3(data[0],data[1],data[2])
-		var w: float = data[3]
-		var deep: float = data[4]
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var rim := PackedVector3Array()
-		var waist := PackedVector3Array()
-		var base := PackedVector3Array()
-		for i in 8:
-			var angle := TAU*i/8.0 + 0.22
-			var radial := Vector3(cos(angle),0,sin(angle)*0.8)*w*rng.randf_range(0.89,1.09)
-			rim.append(radial)
-			waist.append(radial*rng.randf_range(0.73,1.06)+Vector3.DOWN*deep*rng.randf_range(0.27,0.42))
-			base.append(radial*rng.randf_range(0.17,0.38)+Vector3(w*0.12,-deep*0.81,0))
-		for i in 8:
-			var k := (i+1)%8
-			facet(st,Vector3.ZERO,rim[i],rim[k],Color("c5b9a1"))
-			facet(st,rim[i],waist[i],rim[k],Color("b39a94").lightened(rng.randf()*0.07))
-			facet(st,waist[i],waist[k],rim[k],Color("bca39a"))
-			facet(st,waist[i],base[i],waist[k],Color("a78d8d"))
-			facet(st,base[i],base[k],waist[k],Color("b19793"))
-			facet(st,base[i],Vector3(w*0.08,-deep,0),base[k],Color("a28b8d"))
-		facet_mesh(st,pivot,true)
+func rooftop(b: StaticBody3D) -> void:
+	var roof := solid(b,Vector3.DOWN*.18,Vector3(7.65,.36,5.36),"91a49b")
+	var concrete := ShaderMaterial.new()
+	concrete.shader=preload("res://game/rooftop.gdshader")
+	roof.material_override=concrete
+	# A flush drain and hazard paint leave the entire takeoff lane usable.
+	box(b,Vector3(2.81,.01,.89),Vector3(.64,.023,.78),"485758")
+	for i in 7:
+		box(b,Vector3(2.81,.027,.59+i*.10),Vector3(.55,.017,.039),"8c9990")
+	for i in 7:
+		box(b,Vector3(.40+i*.405,.015,-2.36),Vector3(.13,.016,.40),"ddad60").rotation.y=-.48
+	box(b,Vector3(0,-5.17,0),Vector3(7.38,9.8,5.10),"c39272",.10)
+	for j in 4:
 		for i in 4:
-			var offset := Vector3(rng.randf_range(-0.55,0.55)*w,0.17,rng.randf_range(-0.54,0.54)*w)
-			var tall := rng.randf_range(1.0,2.5)
-			var tree := cone(pivot,offset+Vector3.UP*tall*0.5,tall,tall*0.22,0.0,"9a9c89",5)
-			tree.material_override.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			var p := Vector3((i-1.5)*1.66,-1.51-j*2.1,2.56)
+			box(b,p,Vector3(1.16,1.38,.08),"e1c7a2")
+			box(b,p+Vector3.BACK*.06,Vector3(.97,1.18,.08),"55777c")
+			box(b,p+Vector3.BACK*.12,Vector3(.05,1.15,.03),"b9c2ac")
+	# Keep the roof edge facing the first jump clear.
+	solid(b,Vector3(-3.53,.22,0),Vector3(.25,.44,4.97),"c3b59b")
+	for i in 9:
+		box(b,Vector3((i-4)*.72,-2.41,3.0),Vector3(.73,.13,1.20),"b95843" if i%2==0 else "e5cd9f").rotation.x=.20
+	box(b,Vector3(-.11,-.93,2.66),Vector3(5.90,.85,.18),"245d61")
+	label(b,Vector3(-.11,-.91,2.77),"LOST PROPERTY",.52,"ffdea4")
+	# Printed loading-bay markings give the starting roof a sense of scale.
+	for i in 5:
+		box(b,Vector3(-2.55+i*1.14,.009,1.99),Vector3(.78,.016,.10),"d9c992")
+	label(b,Vector3(-1.98,.013,.16),"DEPOT",.41,"e8ddb9",true).rotation.y=PI/2
+
+func finish_counter(b: StaticBody3D) -> void:
+	deck(b,Vector3(3.55,.27,2.45),"a46f49")
+	box(b,Vector3(0,-.84,0),Vector3(3.27,1.49,2.18),"2f6264")
+	box(b,Vector3(0,-.81,1.103),Vector3(2.60,.72,.08),"e0c99e")
+	label(b,Vector3(0,-.81,1.151),"LOST & FOUND",.30,"30595a")
+	var p := Vector3(.97,.07,-.61)
+	cone(b,p,.12,.48,.48,"3f4441")
+	var dome := SphereMesh.new()
+	dome.radius=.38
+	dome.height=.76
+	piece(b,dome,p+Vector3.UP*.06,"d5a24e").scale.y=.77
+	cone(b,p+Vector3.UP*.40,.11,.09,.09,"e7bc69")
+	label(b,Vector3(-.60,.015,-.36),"ARRIVALS",.22,"f6dfb6",true)
+
+# Batch repeated scenery by mesh, so a whole street of the same building
+# costs one draw per material instead of one per address.
+func streetscape(scene: PackedScene, instances: Array[Transform3D]) -> void:
+	if instances.is_empty(): return
+	var template: Node3D = scene.instantiate()
+	add_child(template)
+	for part: MeshInstance3D in template.find_children("*","MeshInstance3D",true,false):
+		var batch := MultiMesh.new()
+		batch.transform_format=MultiMesh.TRANSFORM_3D
+		batch.mesh=part.mesh
+		batch.instance_count=instances.size()
+		for i in instances.size(): batch.set_instance_transform(i,instances[i]*part.global_transform)
+		var node := MultiMeshInstance3D.new()
+		node.multimesh=batch
+		var source := part.mesh.surface_get_material(0) as StandardMaterial3D
+		if source and part.mesh.get_surface_count()==1:
+			var faded := source.duplicate() as StandardMaterial3D
+			faded.albedo_color *= Color("a7a9ad")
+			node.material_override = faded
+		node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(node)
+	template.free()
+
+func city() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed=10296
+	var streets: Array[Transform3D]=[]
+	var crossings: Array[Transform3D]=[]
+	var blocks := [[],[],[],[]]
+	box(self,Vector3(0,-12.1,-13),Vector3(310,.4,310),"889697")
+	for x in range(-7,8):
+		for z in range(-8,7):
+			var p := Vector3(x*7.0,-11.9,z*7.0)
+			var road_x := posmod(x,3)==1
+			var road_z := posmod(z,3)==1
+			var angle := 0.0
+			if road_x or road_z:
+				if road_z and not road_x: angle=PI/2
+				var floor_tile := Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*7.01),p)
+				if road_x and road_z: crossings.append(floor_tile)
+				else: streets.append(floor_tile)
+			else:
+				if x==0 and z==0: continue
+				var kind := rng.randi_range(0,3)
+				if abs(x)<=2 and z>=-5 and z<=0: kind=0 if kind==1 else kind
+				var scale_y := rng.randf_range(0.82,1.26)
+				if absi(x)>3 or z<-5: scale_y *= rng.randf_range(1.0,1.8)
+				var basis := Basis(Vector3.UP,rng.randi_range(0,3)*PI/2).scaled(Vector3(6.72,6.3*scale_y,6.72))
+				blocks[kind].append(Transform3D(basis,p))
+	streetscape(ROAD,streets)
+	streetscape(CROSSING,crossings)
+	for i in CITY.size():
+		var transforms: Array[Transform3D]=[]
+		transforms.assign(blocks[i])
+		streetscape(CITY[i],transforms)
+
+func crane() -> void:
+	var p := Vector3(22,-10,-35)
+	var steel := "bf8453"
+	for x in [-.60,.60]:
+		for z in [-.60,.60]: tube(self,p+Vector3(x,0,z),p+Vector3(x,38,z),.095,steel)
+	for i in 19:
+		var a := p+Vector3(-.60,2*i,.60)
+		tube(self,a,a+Vector3(1.2,2,0),.06,steel)
+		tube(self,a+Vector3(1.2,0,-1.2),a+Vector3(1.2,2,0),.06,steel)
+	for z in [-.54,.54]:
+		tube(self,p+Vector3(-12,37,z),p+Vector3(4,37,z),.12,steel)
+		tube(self,p+Vector3(-12,38,z),p+Vector3(4,38,z),.10,steel)
+		for i in 8:
+			tube(self,p+Vector3(-12+i*2,37,z),p+Vector3(-11+i*2,38,z),.063,steel)
+			tube(self,p+Vector3(-11+i*2,38,z),p+Vector3(-10+i*2,37,z),.063,steel)
+	tube(self,p+Vector3(-10,37,0),p+Vector3(-10,31,0),.034,"50616b")
+	box(self,p+Vector3(3,36.5,0),Vector3(2.6,1.6,1.8),"78918d",.12)
+
+func skyline() -> void:
+	var towers: Array[Transform3D] = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3871
+	for i in 120:
+		var angle := i*TAU/120
+		var radius := rng.randf_range(52,90)
+		var x := cos(angle)*radius
+		var z := sin(angle)*radius-12
+		var h := rng.randf_range(8,29)
+		var width := rng.randf_range(3.2,6.3)
+		towers.append(Transform3D(Basis().scaled(Vector3(width,h,width*.83)),Vector3(x,h/2-11.9,z)))
+		if i%3==0: towers.append(Transform3D(Basis().scaled(Vector3(width*.7,3.1,width*.62)),Vector3(x,h-10.4,z)))
+	var batch := MultiMesh.new()
+	batch.transform_format=MultiMesh.TRANSFORM_3D
+	batch.mesh=BoxMesh.new()
+	batch.instance_count=towers.size()
+	for i in towers.size(): batch.set_instance_transform(i,towers[i])
+	var blocks := MultiMeshInstance3D.new()
+	blocks.multimesh=batch
+	var glass := ShaderMaterial.new()
+	glass.shader=preload("res://game/skyline.gdshader")
+	blocks.material_override=glass
+	blocks.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(blocks)
