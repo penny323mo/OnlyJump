@@ -42,18 +42,24 @@ h1{font-family:BarlowPoster,'Arial Narrow',Impact,sans-serif;font-style:italic;f
 #look{position:absolute;inset:0;touch-action:none;cursor:grab;user-select:none}
 #look:active{cursor:grabbing}html,body{overscroll-behavior:none}#touch{touch-action:none}#nextProp{font-weight:700;margin:5px 0}header{z-index:1}
 @media(max-height:550px){.brand{font-size:15px}.actions{gap:5px}.actions .pill{font-size:11px;padding:7px 9px}}
-#sprint{position:absolute;right:max(105px,calc(env(safe-area-inset-right) + 105px));bottom:max(32px,env(safe-area-inset-bottom));height:47px;padding:0 12px;border:1px solid #fbefd5b3;border-radius:28px;color:#fff5de;background:#30413bdc;pointer-events:auto;touch-action:manipulation;font-size:13px;font-weight:700}#sprint[aria-pressed=true]{color:#302d24;background:#f8bd72}
-.credits{display:block;width:max-content;color:inherit;font-size:12px;margin-top:14px}</style>
+#padZone{position:absolute;left:0;top:0;bottom:0;width:50%;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+#pad{width:clamp(132px,28vmin,158px);height:clamp(132px,28vmin,158px);pointer-events:none}
+#pad i{width:38%;height:38%}#pad[data-active]{position:fixed;bottom:auto;transform:translate(-50%,-50%);background:#30413bbd}
+#sprint{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:calc(max(25px,env(safe-area-inset-bottom)) + 91px);width:80px;height:56px;padding:0 13px;border:1px solid #fbefd5b3;border-radius:20px;color:#fff5de;background:#30413bdc;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;font-size:15px;font-weight:700}#sprint[aria-pressed=true]{color:#302d24;background:#f8bd72}
+#hud{z-index:1}#follow{display:block;width:max-content;pointer-events:auto;margin-top:5px;min-height:34px;padding:5px 12px}
+
+@media(pointer:coarse) and (max-width:600px){body[data-mode=playing] .brand{display:none}body[data-mode=playing] header{left:max(12px,env(safe-area-inset-left))}body[data-mode=playing] .actions{gap:4px}body[data-mode=playing] .actions .pill{font-size:11px;padding:7px}}
+</style>
 $GODOT_HEAD_INCLUDE
 </head>
 <body data-mode="intro">
 <canvas id="canvas" tabindex="-1" aria-label="OnlyJump 3D 遊戲場景"></canvas><div class="wash"></div>
 <div id="look" hidden aria-label="拖曳轉動視角"></div>
 <header><div class="brand" aria-label="OnlyJump"><i class="mark"></i>OnlyJump</div><div class="actions"><button class="pill" id="mute" aria-pressed="false" disabled><span class="soundmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="soundLabel">音效開</span></button><button class="pill" id="align" hidden>◎ 對準目標</button><button class="pill" id="pause" hidden><i class="pause-icon"></i>暫停</button></div></header>
-<main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1><p class="summary"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左搖桿移動，掃空白位轉視角。撳跳掣即跳，開加速可以跳遠啲。</span>跟住橙圈登上天台。</p><button class="primary" id="start" disabled><span id="start-label">載入遊戲中…</span><span class="arrow" aria-hidden="true">↗</span></button><p id="error" role="alert" hidden></p></div></main>
-<div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong>天台終點 · 38 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
-<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route">失物天台</div><div class="number"><span id="height">0.0</span><small>m</small></div><div class="route-progress"><i id="progress"></i></div><div class="stats" id="nextProp"></div><div class="stats">進度 <b id="ledge">0 / 18</b> · <span id="time">00:00</span></div></div><span id="notice" role="status" hidden></span></section>
-<div id="touch" hidden><div id="pad" aria-label="移動搖桿"><i></i></div><button id="sprint" aria-pressed="false">加速 關</button><button id="jump">跳躍</button></div>
+<main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1><p class="summary"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左半屏落指再拖動，右半屏掃動轉鏡。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>跟住橙圈登上天台。</p><button class="primary" id="start" disabled><span id="start-label">載入遊戲中…</span><span class="arrow" aria-hidden="true">↗</span></button><p id="error" role="alert" hidden></p></div></main>
+<div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong>天台終點 · 15.6 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
+<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route">失物天台</div><div class="number"><span id="height">0.0</span><small>m</small></div><div class="route-progress"><i id="progress"></i></div><div class="stats" id="nextProp"></div><div class="stats">進度 <b id="ledge">0 / 18</b> · <span id="time">00:00</span></div></div><button class="pill" id="follow" aria-pressed="true">追蹤鏡頭 開</button><span id="notice" role="status" hidden></span></section>
+<div id="touch" hidden><div id="padZone" aria-label="左半屏浮動搖桿"><div id="pad"><i></i></div></div><button id="sprint" aria-pressed="false" aria-label="按住加速，滑落跳掣起跳">加速</button><button id="jump">跳躍</button></div>
 <section id="overlay" hidden><div class="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"><div class="route">失物天台</div><h2 id="panelTitle"></h2><p id="report"></p><button class="primary" id="continue"></button><button class="secondary" id="reset">重新開始</button><button class="secondary" id="menu">返回主畫面</button><a class="credits" href="./credits.txt" target="_blank" rel="noopener">模型鳴謝</a></div></section>
 <noscript>請開啟 JavaScript 載入遊戲。</noscript>
 <script src="./controls.js"></script>
@@ -75,7 +81,7 @@ window.OnlyJumpUI = {
     el('start').disabled = el('mute').disabled = false;
     el('start-label').textContent = '開始攀登';
   },
-  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target) {
+  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,follow) {
     const changed = mode !== next;
     mode = document.body.dataset.mode = next;
     const playing = next === 'playing', intro = next === 'intro', won = next === 'won';
@@ -90,7 +96,9 @@ window.OnlyJumpUI = {
     el('time').textContent = timer(elapsed);
     el('progress').style.width = (ledge/total*100)+'%';
     el('sprint').setAttribute('aria-pressed',String(sprint));
-    el('sprint').textContent=sprint?'加速 開':'加速 關';
+    el('sprint').textContent=sprint?'加速中':'加速';
+    el('follow').setAttribute('aria-pressed',String(follow));
+    el('follow').textContent=follow?'追蹤鏡頭 開':'追蹤鏡頭 關';
     el('notice').textContent = notice;
     el('notice').hidden = !notice;
     if (!el('overlay').hidden) {
@@ -109,7 +117,12 @@ window.OnlyJumpUI = {
 };
 el('start').onclick=()=>send('start');
 el('align').onclick=()=>{send('align');restoreFocus()};
-el('sprint').onclick=e=>{if(e.detail===0)send('sprint')};
+el('follow').onclick=()=>{send('follow');restoreFocus()};
+const sprintKey = e=>['Space','Enter'].includes(e.code);
+let keyboardSprint=false;
+el('sprint').onkeydown=e=>{if(sprintKey(e)){e.preventDefault();if(!e.repeat){keyboardSprint=true;send('sprint',true)}}};
+el('sprint').onkeyup=e=>{if(sprintKey(e)){e.preventDefault();keyboardSprint=false;send('sprint',false)}};
+el('sprint').onblur=()=>{if(keyboardSprint){keyboardSprint=false;send('sprint',false)}};
 el('jump').onclick=e=>{if(e.detail===0)send('jump')};
 el('pause').onclick=()=>send('pause');
 el('mute').onclick=()=>{send('mute');restoreFocus()};

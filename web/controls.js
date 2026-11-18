@@ -5,29 +5,53 @@ function attachControls(send, isPlaying) {
   const knob = pad.firstElementChild;
   const owners = new Map();
   const active = new Map();
+  const roles = '#padZone,#pad,#jump,#sprint,#look';
+  function restorePad() {
+    pad.style.left = pad.style.top = '';
+    delete pad.dataset.active;
+    knob.style.transform = '';
+  }
   function begin(id, target, x, y) {
     if (!isPlaying()) return false;
-    const role = target.closest?.('#pad,#jump,#sprint,#look')?.id;
+    const hit = target.closest?.(roles)?.id;
+    const role = hit === 'padZone' ? 'pad' : hit;
     if (!role || active.has(role) || owners.has(id)) return false;
-    owners.set(id, {role,x,y});
+    const contact = {role,x,y};
+    owners.set(id, contact);
     active.set(role,id);
     if (role === 'jump') send('jump');
-    if (role === 'sprint') send('sprint');
-    if (role === 'pad') move(id,x,y);
+    if (role === 'sprint') send('sprint',true);
+    if (role === 'pad') {
+      contact.originX=x; contact.originY=y;
+      contact.travel=pad.getBoundingClientRect().width*.29;
+      pad.style.left=x+'px'; pad.style.top=y+'px'; pad.dataset.active='true';
+      send('stick',0,0);
+    }
     return true;
   }
   function move(id,x,y) {
     const contact = owners.get(id);
     if (!contact) return false;
     if (contact.role === 'pad') {
-      const r = pad.getBoundingClientRect();
-      let dx = (x-r.left-r.width/2)/(r.width*0.34);
-      let dy = (y-r.top-r.height/2)/(r.height*0.34);
+      let dx = (x-contact.originX)/contact.travel;
+      let dy = (y-contact.originY)/contact.travel;
       const radius = Math.hypot(dx,dy);
-      if (radius < 0.12) dx = dy = 0;
+      if (radius < 0.11) dx = dy = 0;
       else { dx /= Math.max(1,radius); dy /= Math.max(1,radius); }
-      knob.style.transform = 'translate('+dx*26+'px,'+dy*26+'px)';
+      knob.style.transform = 'translate('+dx*contact.travel+'px,'+dy*contact.travel+'px)';
       send('stick',dx,dy);
+    } else if (contact.role === 'sprint' && !contact.jumped) {
+      // Test the swept segment as well as the endpoint. A quick thumb swipe
+      // can cross the whole circular button between two touchmove events.
+      const r=document.getElementById('jump').getBoundingClientRect();
+      const cx=r.left+r.width/2, cy=r.top+r.height/2;
+      const dx=x-contact.x, dy=y-contact.y;
+      const length2=dx*dx+dy*dy;
+      const t=length2 ? Math.max(0,Math.min(1,((cx-contact.x)*dx+(cy-contact.y)*dy)/length2)) : 0;
+      if (Math.hypot(contact.x+t*dx-cx,contact.y+t*dy-cy)<=Math.min(r.width,r.height)/2) {
+        contact.jumped=true;
+        if (!active.has('jump')) send('jump');
+      }
     } else if (contact.role === 'look') {
       const span = Math.max(240,Math.min(innerWidth,innerHeight));
       send('look',(x-contact.x)/span,(y-contact.y)/span);
@@ -40,7 +64,8 @@ function attachControls(send, isPlaying) {
     if (!contact) return false;
     owners.delete(id);
     active.delete(contact.role);
-    if (contact.role==='pad') { knob.style.transform=''; send('stick',0,0); }
+    if (contact.role==='pad') { restorePad(); send('stick',0,0); }
+    if (contact.role==='sprint') send('sprint',false);
     return true;
   }
   const touchEvents = 'ontouchstart' in window;
@@ -53,7 +78,10 @@ function attachControls(send, isPlaying) {
           let handled;
           if (type==='touchstart') handled=begin(id,t.target,t.clientX,t.clientY);
           else if (type==='touchmove') handled=move(id,t.clientX,t.clientY);
-          else handled=end(id);
+          else {
+            if (type==='touchend' && owners.get(id)?.role==='sprint') move(id,t.clientX,t.clientY);
+            handled=end(id);
+          }
           used=handled || used;
         }
         const live=new Set(Array.from(e.touches,t=>'t'+t.identifier));
@@ -67,7 +95,7 @@ function attachControls(send, isPlaying) {
     if (!begin('p'+e.pointerId,e.target,e.clientX,e.clientY)) return;
     e.preventDefault();
     document.getElementById('canvas').focus({preventScroll:true});
-    const target=e.target.closest('#pad,#jump,#sprint,#look');
+    const target=e.target.closest(roles);
     try { target.setPointerCapture(e.pointerId); } catch { /* Window still receives release. */ }
   });
   window.addEventListener('pointermove',e=>{
@@ -76,11 +104,15 @@ function attachControls(send, isPlaying) {
     else move(id,e.clientX,e.clientY);
   });
   for (const type of ['pointerup','pointercancel','lostpointercapture']) {
-    window.addEventListener(type,e=>end('p'+e.pointerId),true);
+    window.addEventListener(type,e=>{
+      const id='p'+e.pointerId;
+      if(type==='pointerup' && owners.get(id)?.role==='sprint') move(id,e.clientX,e.clientY);
+      end(id);
+    },true);
   }
   document.getElementById('look').oncontextmenu=e=>e.preventDefault();
   return function reset() {
-    owners.clear(); active.clear();
-    knob.style.transform='';
+    for (const id of Array.from(owners.keys())) end(id);
+    restorePad();
   };
 }

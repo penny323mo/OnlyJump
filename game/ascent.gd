@@ -22,6 +22,12 @@ var stick := Vector2.ZERO
 var camera_yaw := 0.0
 var camera_pitch := deg_to_rad(24.0)
 var camera_distance := 6.8
+var follow_camera := true
+# Capture the view when a movement gesture begins. Automatic camera motion
+# must not feed back into that same held direction and turn it into a circle.
+var input_yaw := 0.0
+var moving_gesture := false
+var manual_look_time := 0.0
 var native_drag := false
 var sprint := false
 var hud_clock := 0.0
@@ -79,7 +85,14 @@ func _ready() -> void:
 	add_child(audio)
 	var data := ConfigFile.new()
 	if data.load("user://summit.cfg") == OK:
-		best = data.get_value("run","best",0.0)
+		follow_camera = data.get_value("controls","follow_camera",true)
+		if data.has_section_key("run","best_ledge"):
+			var index := clampi(data.get_value("run","best_ledge",0),0,Islands.ROUTE.size()-1)
+			best = Islands.ROUTE[index].y
+		else:
+			var old_height: float = data.get_value("run","best",0.0)
+			for i in Islands.PREVIOUS_HEIGHTS.size():
+				if old_height+.001 >= Islands.PREVIOUS_HEIGHTS[i]: best = Islands.ROUTE[i].y
 		muted = data.get_value("run","muted",false)
 	player.reset_at(Islands.ROUTE[0])
 	if OS.has_feature("web"):
@@ -100,7 +113,11 @@ func _ready() -> void:
 
 func save_record() -> void:
 	var data := ConfigFile.new()
-	data.set_value("run","best",best)
+	var index := 0
+	for i in Islands.ROUTE.size():
+		if best+.001 >= Islands.ROUTE[i].y: index = i
+	data.set_value("run","best_ledge",index)
+	data.set_value("controls","follow_camera",follow_camera)
 	data.set_value("run","muted",muted)
 	data.save("user://summit.cfg")
 
@@ -120,8 +137,8 @@ func web_command(args: Array) -> void:
 		"stick":
 			if phase == "playing" and args.size() == 3:
 				stick = Vector2(float(args[1]),float(args[2])).limit_length()
-				if stick.length() > 0.14 and player.is_on_floor():
-					player.aim = stick.rotated(-camera_yaw).normalized()
+				if stick.is_zero_approx() and keyboard_move().is_zero_approx():
+					moving_gesture = false
 			return
 		"look":
 			if phase == "playing" and args.size() == 3:
@@ -130,7 +147,9 @@ func web_command(args: Array) -> void:
 		"align":
 			if phase == "playing": face_target()
 		"sprint":
-			if phase == "playing": sprint = not sprint
+			if phase == "playing" and args.size()==2: sprint = bool(args[1])
+		"follow":
+			if phase == "playing": toggle_follow()
 		"jump":
 			if phase == "playing": queue_jump()
 	update_hud()
@@ -139,6 +158,8 @@ func clear_controls() -> void:
 	stick = Vector2.ZERO
 	native_drag = false
 	sprint = false
+	moving_gesture = false
+	manual_look_time = 0
 	player.jump_buffer = 0
 	if web: web.clearInputs()
 
@@ -192,6 +213,8 @@ func _input(event: InputEvent) -> void:
 				start_run()
 			elif key in [KEY_ESCAPE,KEY_P]:
 				toggle_pause()
+			elif key == KEY_C and phase == "playing":
+				toggle_follow()
 			elif key == KEY_F and phase == "playing":
 				face_target()
 			elif key == KEY_R and phase == "paused":
@@ -232,16 +255,38 @@ func keyboard_move() -> Vector2:
 		int(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT)) - int(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),
 		int(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN)) - int(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
 
+func world_move() -> Vector2:
+	var move := (keyboard_move()+stick).limit_length()
+	if move.is_zero_approx():
+		moving_gesture = false
+		return Vector2.ZERO
+	if not moving_gesture or not follow_camera:
+		input_yaw = camera_yaw
+		moving_gesture = true
+	return move.rotated(-input_yaw)
+
 func queue_jump() -> void:
-	player.request_jump((keyboard_move()+stick).limit_length().rotated(-camera_yaw),sprint or Input.is_physical_key_pressed(KEY_SHIFT))
+	player.request_jump(world_move())
+
+func toggle_follow() -> void:
+	follow_camera = not follow_camera
+	moving_gesture = false
+	save_record()
+	update_hud()
 
 func _physics_process(delta: float) -> void:
 	if phase != "playing": return
 	elapsed += delta
-	var move := keyboard_move()
 	var turn := int(Input.is_physical_key_pressed(KEY_E)) - int(Input.is_physical_key_pressed(KEY_Q))
-	camera_yaw = wrapf(camera_yaw-turn*delta*2.1,-PI,PI)
-	player.step(delta,(move+stick).limit_length().rotated(-camera_yaw),sprint or Input.is_physical_key_pressed(KEY_SHIFT))
+	if turn != 0: orbit(turn*delta*2.1/3.55,0)
+	var move := world_move()
+	player.step(delta,move,sprint or Input.is_physical_key_pressed(KEY_SHIFT))
+	manual_look_time = maxf(0,manual_look_time-delta)
+	if follow_camera and player.is_on_floor() and manual_look_time<=0 and move.length_squared()>.0225:
+		var ground_speed := Vector2(player.velocity.x,player.velocity.z)
+		if ground_speed.length_squared()>.09:
+			var behind := atan2(-ground_speed.x,-ground_speed.y)
+			camera_yaw = rotate_toward(camera_yaw,behind,delta*3.8)
 	if player.position.y < -9:
 		clear_controls()
 		var count := player.jump_count
@@ -270,6 +315,8 @@ func intro_camera() -> void:
 
 func orbit(dx: float, dy: float) -> void:
 	camera_yaw = wrapf(camera_yaw-dx*3.55,-PI,PI)
+	input_yaw = wrapf(input_yaw-dx*3.55,-PI,PI)
+	manual_look_time = 1.15
 	camera_pitch = clampf(camera_pitch+dy*2.25,deg_to_rad(9),deg_to_rad(72))
 
 func face_target() -> void:
@@ -277,6 +324,8 @@ func face_target() -> void:
 	var offset: Vector3 = Islands.ROUTE[ledge+1] - player.position
 	var direction := Vector2(offset.x,offset.z).normalized()
 	camera_yaw = atan2(-direction.x,-direction.y)
+	moving_gesture = false
+	manual_look_time = .5
 	camera_pitch = deg_to_rad(26)
 	if player.is_on_floor(): player.aim = direction
 
@@ -317,10 +366,10 @@ func update_hud() -> void:
 		landing_ring.position = target+Vector3.UP*visible_top
 	var height := maxf(0.0,player.position.y)
 	if web:
-		web.update(phase,height,best,ledge,Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,notice,Islands.NAMES[ledge+1] if ledge+1<Islands.NAMES.size() else "")
+		web.update(phase,height,best,ledge,Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,notice,Islands.NAMES[ledge+1] if ledge+1<Islands.NAMES.size() else "",follow_camera)
 	elif native_label:
 		match phase:
 			"intro": native_label.text = "ONLYJUMP   /   Lost Property\nEnter to climb"
 			"won": native_label.text = "Summit reached   ·   %d jumps    /    Enter to play again" % player.jump_count
 			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart"
-			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,ledge,Islands.ROUTE.size()-1]
+			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   C follow camera   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,ledge,Islands.ROUTE.size()-1]

@@ -209,23 +209,25 @@ func container(b: StaticBody3D) -> void:
 	box(b,Vector3(-.87,-.80,1.16),Vector3(1.9,.61,.05),"315e62")
 	label(b,Vector3(-.87,-.80,1.2),"PORT  07",.27,"e5d4aa")
 
+func reel_section(body: StaticBody3D, center: Vector3, radius: float, length: float, tint: String) -> void:
+	var wheel := cone(body,center,length,radius,radius,tint,48)
+	wheel.rotation.z=PI/2
+	var shape := CylinderShape3D.new()
+	shape.radius=radius
+	shape.height=length
+	var collider := CollisionShape3D.new()
+	collider.shape=shape
+	body.add_child(collider)
+	collider.transform=wheel.transform
+
 func cable_reel(b: StaticBody3D) -> void:
-	var r := 1.52
-	cone(b,Vector3.DOWN*.12,.24,r,r,"c39460",48)
-	cone(b,Vector3.DOWN*1.46,.24,r,r,"b3895e",48)
-	cone(b,Vector3.DOWN*.78,1.27,1.09,1.09,"454e51",40)
-	for i in 9: rim(b,Vector3.DOWN*(.29+i*.124),1.14,.07,"465658")
-	var hit := CollisionShape3D.new()
-	var cylinder := CylinderShape3D.new()
-	cylinder.radius=r
-	cylinder.height=.24
-	hit.shape=cylinder
-	b.add_child(hit)
-	hit.position.y=-.12
-	rim(b,Vector3.UP*.014,.21,.07,"746254")
-	for i in 6:
-		var p := Vector3(cos(i*TAU/6),0,sin(i*TAU/6))*.82
-		cone(b,p+Vector3.UP*.023,.046,.068,.068,"625f57",6)
+	var axle := Vector3.DOWN*1.08
+	reel_section(b,axle,1.08,2.48,"435457")
+	for side in [-1,1]:
+		reel_section(b,axle+Vector3.RIGHT*side*1.23,1.24,.17,"b38a5d")
+		cone(b,axle+Vector3.RIGHT*side*1.33,.06,.22,.22,"77614e").rotation.z=PI/2
+	for i in 10:
+		rim(b,axle+Vector3.RIGHT*(i-4.5)*.22,1.09,.043,"5c6c6b").rotation.z=PI/2
 
 func girder(b: StaticBody3D) -> void:
 	deck(b,Vector3(4.55,.16,.76),"ca6b40")
@@ -235,9 +237,38 @@ func girder(b: StaticBody3D) -> void:
 		for z in [-.23,.23]: cone(b,Vector3(x,.025,z),.05,.087,.087,"735444",6)
 
 func parcel(b: StaticBody3D) -> void:
-	deck(b,Vector3(3.18,1.47,2.31),"cda477")
-	box(b,Vector3(0,-.726,0),Vector3(.38,1.50,2.33),"ad8552")
-	box(b,Vector3(-.83,.016,-.24),Vector3(.91,.023,.73),"eee2c9")
-	for i in 13:
-		box(b,Vector3(-1.13+i*.05,.036,-.18),Vector3(.018+(.012 if i%3==0 else 0.),.012,.36),"524b44")
-	label(b,Vector3(.83,.018,.43),"AIR MAIL",.176,"884838",true)
+	# A triangular cardboard mailing tube. Both visible slopes and its ridge
+	# come from the same vertices used to build its convex collision hull.
+	var points := PackedVector3Array([
+		Vector3(-1.70,-.68,-1.15),Vector3(-1.70,0,0),Vector3(-1.70,-.68,1.15),
+		Vector3(1.70,-.68,-1.15),Vector3(1.70,0,0),Vector3(1.70,-.68,1.15)])
+	var faces := [[0,2,1],[3,4,5],[0,1,4],[0,4,3],[1,2,5],[1,5,4],[2,0,3],[2,3,5]]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var inside := Vector3(0,-.45,0)
+	for face in faces:
+		var a := points[face[0]]
+		var c := points[face[1]]
+		var d := points[face[2]]
+		var n := (d-a).cross(c-a).normalized()
+		if n.dot((a+c+d)/3-inside)<0.0:
+			var tmp:=d
+			d=c
+			c=tmp
+			n=-n
+		for vertex in [a,c,d]:
+			st.set_normal(n)
+			st.add_vertex(vertex)
+	piece(b,st.commit(),Vector3.ZERO,"cda477")
+	var hull := ConvexPolygonShape3D.new()
+	hull.points=points
+	var hit := CollisionShape3D.new()
+	hit.shape=hull
+	b.add_child(hit)
+	var slope := atan(.68/1.15)
+	for side in [-1,1]:
+		var band := box(b,Vector3(.62,-.327,side*.575),Vector3(.23,.018,1.33),"ad8552",.004)
+		band.rotation.x=side*slope
+	var tag := box(b,Vector3(-.64,-.286,.52),Vector3(.88,.02,.47),"e9dbbf",.008)
+	tag.rotation.x=slope
+	label(tag,Vector3(0,.012,0),"AIR MAIL",.145,"825440",true)

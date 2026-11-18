@@ -3,8 +3,11 @@ extends CharacterBody3D
 const COURIER = preload("res://assets/character/courier.glb")
 const WALK_SPEED := 3.65
 const RUN_SPEED := 6.45
-const JUMP_SPEED := 9.25
-const GRAVITY := 15.4
+const JUMP_SPEED := 6.4
+const GRAVITY := 16.0
+const GROUND_ACCEL := 25.0
+const STANDING_PUSH := 2.85
+const AIR_STEER := 2.8
 const FOOT_RADIUS := 0.285
 const COYOTE_TIME := 0.12
 const BUFFER_TIME := 0.13
@@ -14,7 +17,8 @@ var grounded_ledge := -1
 var jump_count := 0
 var jump_buffer := 0.0
 var grace := 0.0
-var tap_motion := Vector3.ZERO
+var tap_direction := Vector2.ZERO
+var air_speed := 0.0
 var model := Node3D.new()
 var animations: AnimationPlayer
 var pose := ""
@@ -59,9 +63,9 @@ func reset_at(p: Vector3) -> void:
 	jump_count = 0
 	grounded_ledge = -1
 
-func request_jump(move: Vector2, running: bool) -> void:
+func request_jump(move: Vector2) -> void:
 	# A finger can lift between the tap and the next fixed physics tick.
-	tap_motion = Vector3(move.x,0,move.y)*(RUN_SPEED if running else WALK_SPEED)
+	tap_direction = move
 	jump_buffer = BUFFER_TIME
 
 func ground_at(point: Vector3, depth: float) -> Dictionary:
@@ -73,31 +77,41 @@ func step(delta: float, move: Vector2, running: bool) -> void:
 	var on_floor_before := is_on_floor()
 	if on_floor_before: grace = COYOTE_TIME
 	else: grace = maxf(0,grace-delta)
-	var direction := Vector3(move.x,0,move.y)
+	var horizontal := Vector2(velocity.x,velocity.z)
 	if move.length_squared() > .016: aim = move.normalized()
-	var target := direction*(RUN_SPEED if running else WALK_SPEED)
 	var taking_off := jump_buffer>0 and grace>0
 	if taking_off:
 		jump_buffer = 0
 		grace = 0
-		velocity = (tap_motion if direction.is_zero_approx() else target)+Vector3.UP*JUMP_SPEED
+		# Push off from rest, or carry the speed built on the approach.
+		var push := tap_direction if move.is_zero_approx() else move
+		if on_floor_before and horizontal.length_squared()<0.04:
+			horizontal = push*STANDING_PUSH
+		air_speed = horizontal.length()
+		velocity.y = JUMP_SPEED-0.5*GRAVITY*delta
 		jump_count += 1
 		jumped.emit()
 	elif on_floor_before:
-		if not direction.is_zero_approx():
-			var toe := position+direction.normalized()*(FOOT_RADIUS+.16)
-			var support := ground_at(toe,.34)
-			if support.is_empty() or support.normal.y < .65: target *= .46
-		# Stick release stops immediately on a balance beam or a one-foot perch.
-		velocity = target
+		var target := move*(RUN_SPEED if running else WALK_SPEED)
+		if move.is_zero_approx():
+			horizontal = Vector2.ZERO
+		else:
+			var direction := Vector3(move.x,0,move.y).normalized()
+			var support := ground_at(position+direction*(FOOT_RADIUS+.16),.34)
+			if support.is_empty() or support.normal.y<.65:
+				target *= .88 if running else .46
+			horizontal = horizontal.move_toward(target,GROUND_ACCEL*delta)
+		velocity.y = 0
+		air_speed = horizontal.length()
 	else:
 		velocity.y -= GRAVITY*delta
-		var horizontal := Vector2(velocity.x,velocity.z)
-		# Releasing the stick brakes in midair but preserves a short natural arc.
-		var response := 13.5 if not move.is_zero_approx() else 4.8
-		horizontal = horizontal.move_toward(Vector2(target.x,target.z),response*delta)
-		velocity.x = horizontal.x
-		velocity.z = horizontal.y
+		# Keep launch momentum when the stick or sprint finger is released.
+		# In-air input steers gently, within the launch-speed envelope.
+		if not move.is_zero_approx():
+			var steer := move.normalized()*maxf(air_speed,1.05)
+			horizontal = horizontal.move_toward(steer,AIR_STEER*move.length()*delta)
+	velocity.x = horizontal.x
+	velocity.z = horizontal.y
 	jump_buffer = maxf(0,jump_buffer-delta)
 	move_and_slide()
 	if is_on_floor():

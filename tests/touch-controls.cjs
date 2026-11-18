@@ -4,66 +4,95 @@ const {readFileSync} = require('node:fs');
 const {runInNewContext} = require('node:vm');
 const {join} = require('node:path');
 
-// Replay iOS-style touch lists against the handlers shipped in the HTML shell.
-// The test deliberately does not deliver pointer capture events.
 function fixture() {
   const window = {ontouchstart:null};
   const handlers = new Map();
   window.addEventListener = (type,fn)=>handlers.set(type,fn);
   const nodes = {};
-  for(const id of ['pad','jump','sprint','look']){
-    nodes[id]={id,closest:()=>nodes[id],firstElementChild:{style:{}},
-      getBoundingClientRect:()=>({left:0,top:0,width:100,height:100})};
+  for(const id of ['padZone','pad','sprint','jump','look']){
+    nodes[id]={id,style:{},dataset:{},closest:()=>nodes[id],firstElementChild:{style:{}},
+      getBoundingClientRect:()=>id==='jump'?{left:720,top:260,width:80,height:80}:{width:136,height:136}};
   }
   const calls=[];
   const source=readFileSync(join(__dirname,'../web/controls.js'),'utf8');
   const reset=runInNewContext(source+'\nattachControls(send,()=>true)',{
-    window, document:{getElementById:id=>nodes[id]}, innerWidth:844, innerHeight:390,
+    window,document:{getElementById:id=>nodes[id]},innerWidth:844,innerHeight:390,
     send:(...args)=>calls.push(args)
   });
-  const finger=(id,role,x,y)=>({identifier:id,target:nodes[role],clientX:x,clientY:y});
-  const fire=(type,changed,live)=>handlers.get(type)({changedTouches:changed,touches:live,cancelable:true,preventDefault(){}});
-  return {fire,finger,reset,calls,knob:nodes.pad.firstElementChild};
+  const finger=(identifier,role,clientX,clientY)=>({identifier,target:nodes[role],clientX,clientY});
+  const fire=(type,changedTouches,touches)=>handlers.get(type)({changedTouches,touches,cancelable:true,preventDefault(){}});
+  return {fire,finger,reset,calls,pad:nodes.pad};
 }
 
-test('two fingers retain independent ownership through reversal, release and cancellation',()=>{
-  const {fire,finger,calls,knob}=fixture();
-  const right=finger(7,'pad',88,50), left=finger(7,'pad',12,50);
-  const tap=finger(4,'jump',720,330);
-  fire('touchstart',[right],[right]);
-  fire('touchstart',[tap],[right,tap]);
-  assert.deepEqual(calls,[['stick',1,0],['jump']]);
-  fire('touchmove',[left],[left,tap]);
-  fire('touchend',[tap],[left]);
-  assert.deepEqual(calls.at(-1),['stick',-1,0]);
-  fire('touchcancel',[left],[]);
+test('floating pad starts neutral under the thumb, reverses, and returns home on release',()=>{
+  const {fire,finger,calls,pad}=fixture();
+  const center=finger(7,'padZone',272,195);
+  const right=finger(7,'padZone',315,195),left=finger(7,'padZone',220,195);
+  fire('touchstart',[center],[center]);
   assert.deepEqual(calls.at(-1),['stick',0,0]);
-  assert.equal(knob.style.transform,'');
+  assert.deepEqual([pad.style.left,pad.style.top],['272px','195px']);
+  fire('touchmove',[right],[right]);
+  fire('touchmove',[left],[left]);
+  assert.deepEqual(calls.slice(-2),[['stick',1,0],['stick',-1,0]]);
+  fire('touchend',[left],[]);
+  assert.deepEqual(calls.at(-1),['stick',0,0]);
+  assert.deepEqual([pad.style.left,pad.style.top,pad.firstElementChild.style.transform],['','','']);
+  const second=finger(2,'padZone',39,322);
+  fire('touchstart',[second],[second]);
+  assert.deepEqual(calls.at(-1),['stick',0,0]);
+  assert.equal(pad.style.left,'39px');
 });
 
-test('missing finger and reset cannot replay a stale direction',()=>{
-  const {fire,finger,reset,calls,knob}=fixture();
-  const pad=finger(1,'pad',50,10), look=finger(2,'look',420,165);
-  fire('touchstart',[pad],[pad]);
-  fire('touchstart',[look],[look]);
+test('one right thumb can hold sprint, slide to jump once, and release independently of the pad',()=>{
+  const {fire,finger,calls}=fixture();
+  const pad=finger(4,'padZone',90,280),run=finger(8,'sprint',760,205),inside=finger(8,'sprint',757,312);
+  fire('touchstart',[pad,run],[pad,run]);
+  fire('touchmove',[inside],[pad,inside]);
+  fire('touchmove',[run],[pad,run]);
+  fire('touchmove',[inside],[pad,inside]);
+  assert.deepEqual(calls,[['stick',0,0],['sprint',true],['jump']]);
+  fire('touchend',[inside],[pad]);
+  assert.deepEqual(calls.at(-1),['sprint',false]);
+  assert(!calls.slice(1).some(c=>c[0]==='stick'));
+});
+
+test('direct jump, sprint-only hold and cancelled swipe are distinct',()=>{
+  const {fire,finger,calls}=fixture();
+  const jump=finger(1,'jump',760,300),run=finger(3,'sprint',760,200);
+  fire('touchstart',[jump],[jump]);fire('touchend',[jump],[]);
+  fire('touchstart',[run],[run]);fire('touchend',[run],[]);
+  fire('touchstart',[run],[run]);fire('touchcancel',[finger(3,'sprint',760,310)],[]);
+  assert.deepEqual(calls,[['jump'],['sprint',true],['sprint',false],['sprint',true],['sprint',false]]);
+});
+
+test('a fast slide can finish over the jump button without a final move event',()=>{
+  const {fire,finger,calls}=fixture();
+  const run=finger(1,'sprint',760,200);
+  fire('touchstart',[run],[run]);fire('touchend',[finger(1,'sprint',760,355)],[]);
+  assert.deepEqual(calls,[['sprint',true],['jump'],['sprint',false]]);
+});
+
+test('separate sprint, jump and camera fingers keep their own roles',()=>{
+  const {fire,finger,calls}=fixture();
+  const run=finger(1,'sprint',760,200), look=finger(2,'look',465,150),jump=finger(3,'jump',760,300);
+  fire('touchstart',[run,look,jump],[run,look,jump]);
+  const moved=finger(2,'look',500,165);
+  fire('touchmove',[moved],[run,moved,jump]);
+  fire('touchend',[jump],[run,moved]);
+  assert.deepEqual(calls.map(c=>c[0]),['sprint','jump','look']);
+  fire('touchcancel',[run],[moved]);
+  assert.deepEqual(calls.at(-1),['sprint',false]);
+});
+
+test('missing contacts, interruption and reset release controls exactly once',()=>{
+  const {fire,finger,reset,calls,pad}=fixture();
+  const joy=finger(1,'padZone',44,277),sprint=finger(2,'sprint',760,195);
+  fire('touchstart',[joy],[joy]);fire('touchstart',[sprint],[sprint]);
   assert.deepEqual(calls.at(-1),['stick',0,0]);
-  fire('touchstart',[pad],[pad,look]);
   reset();
   const before=calls.length;
-  fire('touchmove',[pad],[pad]);
+  fire('touchmove',[joy],[joy]);
   assert.equal(calls.length,before);
-  assert.equal(knob.style.transform,'');
-});
-
-test('look and sprint leave the active joystick contact intact',()=>{
-  const {fire,finger,calls}=fixture();
-  const pad=finger(1,'pad',50,10), look=finger(3,'look',400,100), run=finger(5,'sprint',580,250);
-  fire('touchstart',[pad,look],[pad,look]);
-  fire('touchstart',[run],[pad,look,run]);
-  const moved=finger(3,'look',440,118);
-  fire('touchmove',[moved],[pad,moved,run]);
-  assert.deepEqual(calls.map(c=>c[0]),['stick','sprint','look']);
-  assert(calls.at(-1)[1]>0 && calls.at(-1)[2]>0);
-  fire('touchend',[pad],[moved,run]);
-  assert.deepEqual(calls.at(-1),['stick',0,0]);
+  assert.equal(pad.style.top,'');
+  assert.deepEqual(calls.at(-1),['sprint',false]);
 });

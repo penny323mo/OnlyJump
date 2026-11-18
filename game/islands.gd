@@ -1,15 +1,18 @@
 extends "res://game/props.gd"
 
+# Position is the crown or usable centre of each object. Lower rises and
+# shorter approaches on narrow objects fit the standing and running arcs.
 const ROUTE := [
-	Vector3(0,0,0),Vector3(2.4,1.35,-4.8),Vector3(-1.0,3.05,-8.1),
-	Vector3(-5.3,4.95,-6.0),Vector3(-7.8,7.05,-10.2),Vector3(-4.1,9.1,-13.2),
-	Vector3(.4,11.25,-12.2),Vector3(4.1,13.5,-15.2),Vector3(2.1,15.75,-19.7),
-	Vector3(-2.6,17.95,-19.1),Vector3(-5.5,20.25,-22.5),Vector3(-2.2,22.65,-25.7),
-	Vector3(2.45,25,-25.15),Vector3(5.55,27.1,-21.7),Vector3(9.45,29.25,-23.9),
-	Vector3(12.7,31.45,-20.85),Vector3(10.95,33.65,-16.65),Vector3(6.65,35.85,-17.40),
-	Vector3(3.8,38,-13.85)
+	Vector3(0,0,0),Vector3(2.2,.62,-4.45),Vector3(-.80,1.34,-7.48),
+	Vector3(-4.63,2.10,-5.63),Vector3(-6.86,2.94,-9.40),Vector3(-3.47,3.78,-12.04),
+	Vector3(.57,4.68,-11.13),Vector3(3.90,5.52,-13.85),Vector3(2.09,6.46,-17.87),
+	Vector3(-2.12,7.35,-17.33),Vector3(-4.70,8.26,-20.42),Vector3(-1.72,9.22,-23.25),
+	Vector3(2.42,10.16,-22.70),Vector3(5.12,11.03,-19.68),Vector3(8.00,11.88,-21.25),
+	Vector3(10.95,12.80,-18.56),Vector3(9.42,13.72,-14.90),Vector3(5.62,14.64,-15.55),
+	Vector3(3.04,15.55,-12.38)
 ]
-const NAMES := ["士多天台","絲絨梳化","木茶几","膽機電視","皮喼","波鞋鞋底","錄音帶","手提音響","黑膠唱盤","電子琴","古董相機","滑板","玩具跑車","碼頭繫纜柱","貨櫃","電纜轆","吊臂鋼樑","速遞紙箱","失物招領枱"]
+const PREVIOUS_HEIGHTS := [0.,1.35,3.05,4.95,7.05,9.1,11.25,13.5,15.75,17.95,20.25,22.65,25.,27.1,29.25,31.45,33.65,35.85,38.]
+const NAMES := ["士多天台","絲絨梳化","木茶几","膽機電視","皮喼","波鞋鞋底","錄音帶","手提音響","黑膠唱盤","電子琴","古董相機","滑板","玩具跑車","碼頭繫纜柱","貨櫃","橫放電纜轆","吊臂鋼樑","三角形郵筒紙盒","失物招領枱"]
 const SOFA = preload("res://assets/props/sofa.glb")
 const SHOE = preload("res://assets/props/sneaker.glb")
 const STEREO = preload("res://assets/props/boombox.glb")
@@ -27,13 +30,13 @@ func _ready() -> void:
 		body.position = ROUTE[index]
 		match index:
 			0: rooftop(body)
-			1: model_prop(body,SOFA,4.25,Vector3(0,-12,0))
+			1: model_prop(body,SOFA,4.25,Vector3(0,-80,0))
 			2: coffee_table(body)
 			3: television(body)
 			4: suitcase(body)
 			5: model_prop(body,SHOE,4.22,Vector3(0,10,180))
 			6: cassette(body)
-			7: model_prop(body,STEREO,3.8,Vector3(0,12,0))
+			7: model_prop(body,STEREO,3.8,Vector3(0,-85,0))
 			8: turntable(body)
 			9: keyboard(body)
 			10: model_prop(body,CAMERA,3.1,Vector3(0,30,0))
@@ -41,7 +44,9 @@ func _ready() -> void:
 			12: model_prop(body,CAR,4.05,Vector3(0,28,0))
 			13: bollard(body)
 			14: container(body)
-			15: cable_reel(body)
+			15:
+				body.rotation.y=deg_to_rad(70)
+				cable_reel(body)
 			16: girder(body)
 			17: parcel(body)
 			18: finish_counter(body)
@@ -160,7 +165,9 @@ func city() -> void:
 	var streets: Array[Transform3D]=[]
 	var crossings: Array[Transform3D]=[]
 	var blocks := [[],[],[],[]]
-	box(self,Vector3(0,-12.1,-13),Vector3(310,.4,310),"889697")
+	# Road GLBs have upward-facing asphalt at local Y=0. Leave real depth
+	# clearance to the backing plane across the entire tiled district.
+	box(self,Vector3(0,-12.38,-13),Vector3(310,.4,310),"889697")
 	for x in range(-7,8):
 		for z in range(-8,7):
 			var p := Vector3(x*7.0,-11.9,z*7.0)
@@ -169,7 +176,7 @@ func city() -> void:
 			var angle := 0.0
 			if road_x or road_z:
 				if road_z and not road_x: angle=PI/2
-				var floor_tile := Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*7.01),p)
+				var floor_tile := Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*7.0),p)
 				if road_x and road_z: crossings.append(floor_tile)
 				else: streets.append(floor_tile)
 			else:
