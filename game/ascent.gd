@@ -7,6 +7,7 @@ const SOUNDS = [preload("res://audio/lift.wav"),preload("res://audio/land.wav"),
 var art := Islands.new()
 var player := Climber.new()
 var camera := Camera3D.new()
+var landing_guide := preload("res://game/landing_guide.gd").new()
 var landing_ring := MeshInstance3D.new()
 var audio := AudioStreamPlayer.new()
 var phase := "intro"
@@ -23,6 +24,8 @@ var camera_yaw := 0.0
 var camera_pitch := deg_to_rad(24.0)
 var camera_distance := 6.8
 var follow_camera := true
+var show_route_ring := false
+var show_landing_guide := true
 # Capture the view when a movement gesture begins. Automatic camera motion
 # must not feed back into that same held direction and turn it into a circle.
 var input_yaw := 0.0
@@ -74,6 +77,7 @@ func _ready() -> void:
 	landing_ring.material_override = art.material("f89d3e")
 	landing_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(landing_ring)
+	add_child(landing_guide)
 	add_child(player)
 	player.build(art)
 	player.landed.connect(on_landing)
@@ -86,6 +90,8 @@ func _ready() -> void:
 	var data := ConfigFile.new()
 	if data.load("user://summit.cfg") == OK:
 		follow_camera = data.get_value("controls","follow_camera",true)
+		show_route_ring = data.get_value("controls","route_ring",false)
+		show_landing_guide = data.get_value("controls","landing_guide",true)
 		if data.has_section_key("run","best_ledge"):
 			var index := clampi(data.get_value("run","best_ledge",0),0,Islands.ROUTE.size()-1)
 			best = Islands.ROUTE[index].y
@@ -118,6 +124,8 @@ func save_record() -> void:
 		if best+.001 >= Islands.ROUTE[i].y: index = i
 	data.set_value("run","best_ledge",index)
 	data.set_value("controls","follow_camera",follow_camera)
+	data.set_value("controls","route_ring",show_route_ring)
+	data.set_value("controls","landing_guide",show_landing_guide)
 	data.set_value("run","muted",muted)
 	data.save("user://summit.cfg")
 
@@ -150,11 +158,15 @@ func web_command(args: Array) -> void:
 			if phase == "playing" and args.size()==2: sprint = bool(args[1])
 		"follow":
 			if phase == "playing": toggle_follow()
+		"route_ring","landing_guide":
+			if phase=="paused" and args.size()==2:
+				set_hint(str(args[0]),bool(args[1]))
 		"jump":
 			if phase == "playing": queue_jump()
 	update_hud()
 
 func clear_controls() -> void:
+	landing_guide.hide()
 	stick = Vector2.ZERO
 	native_drag = false
 	sprint = false
@@ -217,6 +229,10 @@ func _input(event: InputEvent) -> void:
 				toggle_follow()
 			elif key == KEY_F and phase == "playing":
 				face_target()
+			elif key == KEY_1 and phase == "paused" and not web:
+				set_hint("route_ring",not show_route_ring)
+			elif key == KEY_2 and phase == "paused" and not web:
+				set_hint("landing_guide",not show_landing_guide)
 			elif key == KEY_R and phase == "paused":
 				start_run()
 
@@ -244,6 +260,7 @@ func on_landing(index: int) -> void:
 		save_record()
 	if index == Islands.ROUTE.size()-1:
 		phase = "won"
+		landing_guide.hide()
 		play_sound(2)
 	elif player.jump_count > last_jump_count:
 		play_sound(1)
@@ -267,6 +284,12 @@ func world_move() -> Vector2:
 
 func queue_jump() -> void:
 	player.request_jump(world_move())
+
+func set_hint(which: String, enabled: bool) -> void:
+	if which=="route_ring": show_route_ring = enabled
+	if which=="landing_guide": show_landing_guide = enabled
+	save_record()
+	update_hud()
 
 func toggle_follow() -> void:
 	follow_camera = not follow_camera
@@ -302,7 +325,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		game_camera(delta)
 	hud_clock += delta
+	if player.grab.active or (player.is_on_floor() and move.is_zero_approx()): landing_guide.hide()
 	if hud_clock >= 0.06:
+		if phase=="playing" and show_landing_guide and not player.grab.active: landing_guide.refresh(player,move,delta)
 		hud_clock = 0
 		update_hud()
 
@@ -358,7 +383,7 @@ func _process(delta: float) -> void:
 		intro_camera()
 
 func update_hud() -> void:
-	landing_ring.visible = phase == "playing" and ledge+1 < Islands.ROUTE.size()
+	landing_ring.visible = show_route_ring and phase == "playing" and ledge+1 < Islands.ROUTE.size()
 	if landing_ring.visible:
 		var target: Vector3 = Islands.ROUTE[ledge+1]
 		# Raised keys, tape reels and the turntable platter sit above their deck.
@@ -366,10 +391,12 @@ func update_hud() -> void:
 		landing_ring.position = target+Vector3.UP*visible_top
 	var height := maxf(0.0,player.position.y)
 	if web:
-		web.update(phase,height,best,ledge,Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,notice,Islands.NAMES[ledge+1] if ledge+1<Islands.NAMES.size() else "",follow_camera)
+		var message := notice
+		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
+		web.update(phase,height,best,ledge,Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,Islands.NAMES[ledge+1] if ledge+1<Islands.NAMES.size() else "",follow_camera,show_route_ring,show_landing_guide)
 	elif native_label:
 		match phase:
 			"intro": native_label.text = "ONLYJUMP   /   Lost Property\nEnter to climb"
 			"won": native_label.text = "Summit reached   ·   %d jumps    /    Enter to play again" % player.jump_count
-			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart"
+			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart\n1   Next object ring: %s    ·    2   Landing guide: %s" % [str(show_route_ring),str(show_landing_guide)]
 			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   C follow camera   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,ledge,Islands.ROUTE.size()-1]

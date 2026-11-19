@@ -90,6 +90,10 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
   #buttonSizes{margin-bottom:6px}#buttonSizes span{min-height:38px}
   .panel .primary{margin-bottom:5px}.panel .secondary{padding:5px 9px}
 }
+#hintOptions{margin:0 0 10px;font-size:14px}
+#hintOptions summary{width:max-content;padding:6px 0;font-weight:700;cursor:pointer}
+#hintOptions label{display:inline-flex;gap:6px;align-items:center;padding:7px 8px 7px 0}
+#hintOptions input{width:18px;height:18px;accent-color:var(--ink)}
 </style>
 $GODOT_HEAD_INCLUDE
 </head>
@@ -97,7 +101,7 @@ $GODOT_HEAD_INCLUDE
 <canvas id="canvas" tabindex="-1" aria-label="OnlyJump 3D 遊戲場景"></canvas><div class="wash"></div>
 <div id="look" hidden aria-label="拖曳轉動視角"></div>
 <header><div class="brand" aria-label="OnlyJump"><i class="mark"></i>OnlyJump</div><div class="actions"><button class="pill" id="mute" aria-pressed="false" disabled><span class="soundmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="soundLabel">音效開</span></button><button class="pill" id="align" hidden>◎ 對準目標</button><button class="pill" id="pause" hidden><i class="pause-icon"></i>暫停</button></div></header>
-<main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1><p class="summary"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左半屏落指再拖動，右半屏掃動轉鏡。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>跟住橙圈登上天台。</p><button class="primary" id="start" disabled><span id="start-label">載入遊戲中…</span><span class="arrow" aria-hidden="true">↗</span></button><p id="error" role="alert" hidden></p></div></main>
+<main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1><p class="summary"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左半屏落指再拖動，右半屏掃動轉鏡。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>下一站睇左上角，青白十字係預計落點。</p><button class="primary" id="start" disabled><span id="start-label">載入遊戲中…</span><span class="arrow" aria-hidden="true">↗</span></button><p id="error" role="alert" hidden></p></div></main>
 <div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong>天台終點 · 15.6 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
 <section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route">失物天台</div><div class="number"><span id="height">0.0</span><small>m</small></div><div class="route-progress"><i id="progress"></i></div><div class="stats" id="nextProp"></div><div class="stats">進度 <b id="ledge">0 / 18</b> · <span id="time">00:00</span></div></div><button class="pill" id="follow" aria-pressed="true">追蹤鏡頭 開</button><span id="notice" role="status" hidden></span></section>
 <div id="touch" hidden><div id="padZone" aria-label="左半屏浮動搖桿"><div id="pad"><i></i></div></div><button id="sprint" aria-pressed="false" aria-label="按住加速，滑落跳掣起跳">加速</button><button id="jump">跳躍</button></div>
@@ -107,6 +111,10 @@ $GODOT_HEAD_INCLUDE
 <label><input type="radio" name="buttonSize" value="standard" checked><span>標準</span></label>
 <label><input type="radio" name="buttonSize" value="large"><span>加大</span></label>
 </fieldset>
+<details id="hintOptions"><summary>提示選項</summary>
+<label><input type="checkbox" id="routeRing">下一站橙圈</label>
+<label><input type="checkbox" id="landingGuide" checked>預計落點十字</label>
+</details>
 <button class="primary" id="continue"></button><button class="secondary" id="reset">重新開始</button><button class="secondary" id="menu">返回主畫面</button><a class="credits" href="./credits.txt" target="_blank" rel="noopener">模型鳴謝</a></div></section>
 <noscript>請開啟 JavaScript 載入遊戲。</noscript>
 <script src="./controls.js"></script>
@@ -156,7 +164,7 @@ window.OnlyJumpUI = {
     el('start').disabled = el('mute').disabled = false;
     el('start-label').textContent = '開始攀登';
   },
-  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,follow) {
+  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,follow,routeRing,landingGuide) {
     const changed = mode !== next;
     mode = document.body.dataset.mode = next;
     const playing = next === 'playing', intro = next === 'intro', won = next === 'won';
@@ -166,6 +174,11 @@ window.OnlyJumpUI = {
     el('touch').hidden = !(playing || next==='paused');
     el('touch').inert = !playing;
     el('overlay').hidden = !(won || next === 'paused');
+    if (next==='paused') {
+      el('routeRing').checked=routeRing;
+      el('landingGuide').checked=landingGuide;
+    }
+    el('hintOptions').hidden=next!=='paused';
     el('mute').setAttribute('aria-pressed',String(muted));
     el('soundLabel').textContent = muted ? '音效關' : '音效開';
     el('height').textContent = height.toFixed(1);
@@ -192,6 +205,8 @@ window.OnlyJumpUI = {
     }
   }
 };
+el('routeRing').onchange=e=>send('route_ring',e.target.checked);
+el('landingGuide').onchange=e=>send('landing_guide',e.target.checked);
 el('start').onclick=()=>send('start');
 el('align').onclick=()=>{send('align');restoreFocus()};
 el('follow').onclick=()=>{send('follow');restoreFocus()};
@@ -212,7 +227,7 @@ document.addEventListener('keydown',e=>{
   if (mode==='paused' && (e.code==='Escape'||e.code==='KeyP') && e.target!==canvas) { e.preventDefault(); send('pause'); }
   else if(mode==='paused' && e.code==='KeyR' && e.target!==canvas) {e.preventDefault();send('restart');}
   else if (e.code==='Tab' && !el('overlay').hidden) {
-    const buttons=Array.from(el('overlay').querySelectorAll('button,input:checked,a[href]')).filter(node=>node.getClientRects().length);
+    const buttons=Array.from(el('overlay').querySelectorAll('button,summary,input[type=checkbox],input[type=radio]:checked,a[href]')).filter(node=>node.getClientRects().length);
     if(e.shiftKey && document.activeElement===buttons[0]){e.preventDefault();buttons.at(-1).focus()}
     else if(!e.shiftKey && document.activeElement===buttons.at(-1)){e.preventDefault();buttons[0].focus()}
   }

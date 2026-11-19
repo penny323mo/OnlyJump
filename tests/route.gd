@@ -2,6 +2,7 @@ extends SceneTree
 const Game = preload("res://game/ascent.gd")
 const Land = preload("res://game/islands.gd")
 var game: Game
+var pre_jump_marks := 0
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -33,10 +34,19 @@ func leap(index: int) -> bool:
 		var remaining := target-game.player.position
 		var velocity := Vector2(game.player.velocity.x,game.player.velocity.z)
 		if velocity.dot(aim)*t>=Vector2(remaining.x,remaining.z).dot(aim)-.07 or not game.player.is_on_floor():break
+	game.landing_guide.refresh(game.player,game.world_move(),1./60)
+	var before_mark := game.landing_guide.global_position if game.landing_guide.visible else Vector3.INF
+	var air_mark := Vector3.INF
 	game.web_command(["jump"])
 	for tick in 95:
 		await frames(1)
+		if not game.player.is_on_floor() and game.player.velocity.y<-.8 and game.landing_guide.visible:
+			if air_mark==Vector3.INF: air_mark=game.landing_guide.global_position
 		if game.player.is_on_floor() and game.ledge==index:
+			if not check(air_mark.distance_to(game.player.position)<.40,"in-flight landing guide for "+Land.NAMES[index]):return false
+			if before_mark!=Vector3.INF:
+				pre_jump_marks+=1
+				if not check(before_mark.distance_to(game.player.position)<.40,"takeoff landing guide for "+Land.NAMES[index]):return false
 			game.web_command(["stick",0,0])
 			print("landed ",index," ",Land.NAMES[index])
 			return true
@@ -47,15 +57,83 @@ func surface_normal(point: Vector3) -> Vector3:
 	var hit := game.get_world_3d().direct_space_state.intersect_ray(ray)
 	return hit.get("normal",Vector3.ZERO)
 
+func check_rescue(seed_value: int, should_catch: bool) -> bool:
+	# A deliberately short jump from the sofa to the coffee table.
+	game.start_run()
+	var player := game.player
+	player.reset_at(Land.ROUTE[1])
+	await frames(10)
+	game.face_target()
+	player.grab.rng.seed=seed_value
+	var expected_rng := RandomNumberGenerator.new()
+	expected_rng.seed=seed_value
+	expected_rng.randf()
+	game.web_command(["sprint",true])
+	game.web_command(["stick",0,-1])
+	await frames(6)
+	game.web_command(["jump"])
+	await frames(4)
+	game.web_command(["stick",0,0])
+	game.web_command(["sprint",false])
+	var saw_hang := false
+	var tested_pause := false
+	var saw_climb := false
+	for tick in 150:
+		await frames(1)
+		if player.grab.active:
+			saw_hang=true
+			if not check(should_catch and not game.landing_guide.visible,"guide hidden while hanging"):return false
+			if player.grab.elapsed>.17 and not tested_pause:
+				tested_pause=true
+				for i in player.arms.size():
+					var hand := player.rig.to_global(player.rig.get_bone_global_pose(player.arms[i][2]).origin)
+					if not check(hand.distance_to(player.grab.hands[i])<.08,"both palms on lip"):return false
+				var hang := player.position
+				var time := player.grab.elapsed
+				game.toggle_pause()
+				await frames(12)
+				if not check(is_equal_approx(time,player.grab.elapsed) and hang.is_equal_approx(player.position),"pause freezes the ledge grab"):return false
+				game.toggle_pause()
+				game.web_command(["jump"])
+			if player.grab.climb_progress()>.2: saw_climb=true
+		if not player.grab.active and player.is_on_floor() and tick>38:break
+	if not check(player.grab.rng.state==expected_rng.state,"one chance per eligible jump"):return false
+	if not check(saw_hang==should_catch and saw_climb==should_catch,"rescue outcome"):return false
+	if should_catch:
+		return check(tested_pause and game.ledge==2 and player.is_on_floor() and player.jump_count==1,"finish pull-up on the table without another jump")
+	return check(game.ledge!=2,"missed grip keeps falling")
+
+func check_blocked_grip() -> bool:
+	game.start_run()
+	var player := game.player
+	var dock: Vector3 = Land.ROUTE[14]
+	player.reset_at(dock+Vector3(0,-.65,1.62))
+	var ceiling := StaticBody3D.new()
+	game.add_child(ceiling)
+	game.art.solid(ceiling,dock+Vector3(0,1.18,1.36),Vector3(1.4,.2,1.15),"909090")
+	await frames(2)
+	player.grab.available=true
+	var state := player.grab.rng.state
+	var grabbed := player.grab.try_catch(player,Vector2.UP,0,player.FOOT_RADIUS)
+	ceiling.queue_free()
+	return check(not grabbed and player.grab.available and player.grab.rng.state==state,"no roll under a blocked lip")
+
 func run() -> void:
 	game = Game.new()
 	root.add_child(game)
 	game.best=100
 	game.muted=true
 	game.follow_camera=false
+	game.show_landing_guide=true
+	game.show_route_ring=false
 	game.start_run()
 	await frames(6)
 	if not check(root.get_camera_3d()==game.camera,"active gameplay camera"):return
+	if not check(not game.landing_ring.visible and not game.landing_guide.visible,"idle aids hidden"):return
+	game.show_route_ring=true
+	game.update_hud()
+	if not check(game.landing_ring.visible,"optional next-object ring"):return
+	game.show_route_ring=false
 	# Touch-down initiates a standing jump on the next physics step.
 	game.web_command(["jump"])
 	await frames(2)
@@ -97,6 +175,7 @@ func run() -> void:
 	await frames(6)
 	for index in range(1,Land.ROUTE.size()):
 		if not await leap(index):return
+	if not check(pre_jump_marks>=12,"takeoff guide coverage"):return
 	if not check(game.phase=="won" and game.player.jump_count==18,"summit"):return
 	# Part of the flat sole extends past a 76 cm wide steel beam.
 	game.start_run()
@@ -166,6 +245,10 @@ func run() -> void:
 	var crown := surface_normal(Land.ROUTE[15])
 	var shoulder := surface_normal(Land.ROUTE[15]+radial*.60)
 	if not check(crown.y>.97 and shoulder.y>.68 and shoulder.dot(radial)>.4,"curved cable reel contact normals"):return
+	if not await check_rescue(1,true):return
+	if not await check_rescue(2,false):return
+	if not await check_blocked_grip():return
+	print("PASS landing guidance and ledge rescues")
 	print("PASS mobile parkour: 18 landings, instant jump, sprint, orbit, edge hold, recovery")
 	game.free()
 	quit()
