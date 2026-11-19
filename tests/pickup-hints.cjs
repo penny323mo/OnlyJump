@@ -93,6 +93,7 @@ async function orbit(page) {
     }
     await page.locator('#branch').tap();
     await page.locator('#pickupHint').waitFor({state:'visible'});
+    assert.match(await page.locator('#pickupHint').textContent(), /二段跳/);
     await page.locator('#pause').tap();
     assert(await page.locator('#pickupHint').isHidden() && await page.locator('#pickupLine').isHidden());
     await page.locator('#continue').tap();
@@ -110,8 +111,21 @@ async function orbit(page) {
       window.drive('sprint',false);
     });
     await page.waitForFunction(()=>document.querySelector('#power').textContent.includes('餘 3 次'),null,{timeout:5000});
-    assert(await page.locator('#pickupHint').isHidden() && await page.locator('#pickupLine').isHidden());
-    console.log('Collected the duck, cleared the label and equipped three extra jumps');
+    // The awning can come into view beyond the trampoline as the duck disappears.
+    const hint=await page.evaluate(()=>({
+      target:window.itemHint[2],
+      text:document.querySelector('#pickupHint').textContent,
+      hidden:document.querySelector('#pickupHint').hidden,
+      lineHidden:document.querySelector('#pickupLine').hidden,
+    }));
+    if(hint.target){
+      assert.equal(hint.target,'飛爪\n扣銅環 · 一次');
+      assert.equal(hint.hidden,false);
+      assert.equal(hint.text,'道具 · '+hint.target);
+    }else{
+      assert(hint.hidden && hint.lineHidden,'No pickup should leave a label or line on screen');
+    }
+    console.log('Collected the duck, removed its hint and equipped three extra jumps');
   } finally {
     await browser.close();
   }
