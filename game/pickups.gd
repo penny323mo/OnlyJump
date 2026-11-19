@@ -6,9 +6,10 @@ const ITEMS := {
 	"double":["黃鴨仔",B.BED,Vector3(.58,.52,.39)],
 	"jet":["發條匙",B.FAN,Vector3(1.67,.53,0)],
 	"glide":["飛天襪",B.SHEET,Vector3(.75,.48,.34)],
+	"hook":["袖珍飛爪",B.AWNING,Vector3(-.64,.51,.35)],
 }
 var items := {}
-const LABELS := {"double":"二段跳","jet":"噴射器","glide":"緩降"}
+const LABELS := {"double":"二段跳","jet":"噴射器","glide":"緩降","hook":"飛爪"}
 const FRAME_TIPS := [Vector3.UP*.52,Vector3.RIGHT*.41,Vector3.DOWN*.42,Vector3.LEFT*.41,Vector3.BACK*.41,Vector3.FORWARD*.41]
 var count := 0
 var time := 0.
@@ -50,6 +51,16 @@ func build(art: Props, bodies: Dictionary) -> void:
 				art.box(obj,Vector3(0,.03,0),Vector3(.24,.37,.19),"dd624e")
 				art.box(obj,Vector3(0,.177,0),Vector3(.27,.11,.22),"fff1d2")
 				art.box(obj,Vector3(0,-.108,-.110),Vector3(.25,.18,.37),"ea8261",.08)
+			"hook":
+				art.rim(obj,Vector3.UP*.20,.095,.033,"ffd063").rotation.x=PI/2
+				art.cone(obj,Vector3.UP*.004,.32,.053,.078,"f7983c",12)
+				for prong in 3:
+					var side:=Vector3.RIGHT.rotated(Vector3.UP,prong*TAU/3)
+					var elbow:=side*.18-Vector3.UP*.21
+					var tip:=side*.25+Vector3.UP*.015
+					art.tube(obj,Vector3.DOWN*.13,elbow,.034,"eaf2e5")
+					art.tube(obj,elbow,tip,.034,"eaf2e5")
+					art.tube(obj,tip,side*.17-Vector3.UP*.035,.022,"ffcc64")
 
 func reset() -> void:
 	count=0

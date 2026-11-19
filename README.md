@@ -21,13 +21,16 @@
 
 皮喼旁邊個舊抽屜鬆脫嗰陣，可以望落去搵紅黃間條嘅士多布篷。落喺篷面就可以轉向木茶几，再跳上電視。布篷只伸到抽屜下面一部分，行到抽屜外沿仍然有機會跌返街面。
 
-沿途有三件道具，帶薄荷綠浮空菱框。行近會見到效用同時限。提示會避開角色、菱框同操作掣，移開時有條幼線指返件道具。執起新道具會取代身上嗰件，每局每件可以執一次。
+沿途有四件道具，帶薄荷綠浮空菱框。行近會見到效用同使用限制。提示會避開角色、菱框同操作掣，移開時有條幼線指返件道具。執起新道具會取代身上嗰件，每局每件可以執一次。
 
 | 道具 | 用法 |
 | --- | --- |
 | 黃鴨仔 | 15 秒內，每次離地後可以再撳跳補跳一次，合共最多補跳三次。推住方向做前空翻，放開方向就原地自轉。 |
 | 發條匙 | 執到先裝備，撳跳點火後有 3 秒推力，最多升約 2.5 米，用搖桿揀飛行方向。 |
 | 飛天襪 | 6 秒內減慢下墜，可以飄返下面嘅物件。 |
+| 袖珍飛爪 | 喺士多布篷執起，撳「對準目標」望向舊電視嘅銅環。向前跳，銅環亮起時再撳同一個跳掣收索，有機會越過茶几、落到電視頂。飛爪只可以扣環一次，射程 3.35 米，出爪太遲仍然會跌短。 |
+
+[睇 iPhone Duo 外屏飛爪操作示範](https://penny323mo.github.io/OnlyJump/awning-grapple.mp4)
 
 手機暫停時可以揀右手按掣大小。橫屏有足夠空間時可以即場預覽，選擇會儲存喺目前瀏覽器。
 
@@ -67,6 +70,7 @@ godot --headless --fixed-fps 60 --script tests/branches.gd
 godot --headless --fixed-fps 60 --script tests/grips.gd
 godot --headless --fixed-fps 60 --script tests/records.gd
 godot --headless --fixed-fps 60 --script tests/camera.gd
+godot --headless --fixed-fps 60 --script tests/grapple.gd
 ```
 
 本機裝有 Playwright 同 WebKit 時，可以開住上面嘅本機伺服器，執行 `node tests/iphone-duo.cjs`。測試會用短手暴龍跑跳上梳化，再喺同一局切換十組 iPhone Duo 視窗尺寸，逐次驗證雙指操作同跳躍次數。[WebKit 公布嘅 Safari 尺寸表](https://webkit.org/blog/18486/webkit-features-for-safari-27-1/#viewport-sizes)

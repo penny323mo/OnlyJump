@@ -26,6 +26,7 @@ var double_charges := 0
 var extra_jump := true
 var exhaust := Node3D.new()
 var grab := preload("res://game/ledge_grab.gd").new()
+var hook := preload("res://game/grappling_hook.gd").new()
 var costumes := preload("res://game/costumes.gd").new()
 var rig: Skeleton3D
 var arms: Array[PackedInt32Array] = []
@@ -48,6 +49,7 @@ signal landed(ledge: int)
 signal jumped()
 
 func build(art) -> void:
+	hook.build(art)
 	floor_snap_length = 0.21
 	floor_stop_on_slope = true
 	floor_max_angle = deg_to_rad(48)
@@ -104,6 +106,7 @@ func reset_at(p: Vector3) -> void:
 	equip("")
 
 func equip(id: String) -> void:
+	hook.release()
 	ability=id
 	double_charges=MAX_DOUBLE_CHARGES if id=="double" else 0
 	ability_time=float(ABILITY_SECONDS.get(id,0))
@@ -132,8 +135,8 @@ func steer_in_air(horizontal: Vector2, move: Vector2, speed: float, delta: float
 	var target := move.normalized()*maxf(speed,1.05)
 	return horizontal.move_toward(target,AIR_STEER*move.length()*delta)
 
-func step(delta: float, move: Vector2, running: bool) -> void:
-	if ability!="" and not jet_armed:
+func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
+	if ability_time>0 and not jet_armed:
 		ability_time=maxf(0.,ability_time-delta)
 		if ability_time<.00001: equip("")
 	if grab.active:
@@ -150,6 +153,13 @@ func step(delta: float, move: Vector2, running: bool) -> void:
 	if move.length_squared() > .016: aim = move.normalized()
 	var boosted := not spring_impulse.is_zero_approx()
 	var air_jump := ability=="double" and extra_jump and not on_floor_before and grace<=0
+	if ability=="hook" and jump_buffer>0 and not on_floor_before and grace<=0:
+		jump_buffer=0
+		if hook.time_left<=0 and hook.can_attach(self,camera):
+			hook.attach()
+			grab.available=false
+	if hook.time_left>0 and not hook.clear_line(self): equip("")
+	var pulling := hook.time_left>0
 	if jump_buffer>0 and jet_armed:
 		jet_armed=false
 		flames.show()
@@ -161,7 +171,14 @@ func step(delta: float, move: Vector2, running: bool) -> void:
 		grace=0
 		jump_count+=1
 		jumped.emit()
-	if ability=="jet" and not jet_armed:
+	if pulling:
+		var pulled:=hook.pull(self,delta)
+		velocity.y=minf(pulled.y-GRAVITY*delta,JUMP_SPEED)
+		horizontal=Vector2(pulled.x,pulled.z)
+		air_speed=horizontal.length()
+		var toward:=hook.anchor.global_position-global_position
+		aim=Vector2(toward.x,toward.z).normalized()
+	elif ability=="jet" and not jet_armed:
 		spring_impulse=Vector3.ZERO
 		var lift:=clampf((jet_ceiling-global_position.y)*2.8,0.,2.45)
 		velocity.y=move_toward(velocity.y,lift,delta*19)
@@ -213,6 +230,9 @@ func step(delta: float, move: Vector2, running: bool) -> void:
 	# A vertical jumper can reach the rim in front of their chest.
 	var reach := Vector2(-model.basis.z.x,-model.basis.z.z) if horizontal.is_zero_approx() else horizontal
 	move_and_slide()
+	if pulling:
+		if hook.time_left<=0 or get_slide_collision_count()>0 or hook.chest(self).distance_to(hook.anchor.global_position)<.38:
+			equip("")
 	if is_on_floor():
 		grab.available=false
 		stop_stunt()
@@ -244,6 +264,12 @@ func step(delta: float, move: Vector2, running: bool) -> void:
 		var angle:=TAU*smoothstep(0,1,1.-stunt_time/STUNT_SECONDS)
 		stunt_pivot.basis=Basis(stunt_axis,angle) if stunt_time>0 else Basis.IDENTITY
 	animate(delta,move,running)
+	if hook.time_left>0:
+		var arm:=arms[1]
+		var target:=rig.to_local(hook.anchor.global_position)
+		aim_bone(arm[0],arm[1],target)
+		aim_bone(arm[1],arm[2],target)
+		hook.draw_line(rig.to_global(rig.get_bone_global_pose(arm[2]).origin))
 
 func stop_stunt() -> void:
 	stunt_time=0

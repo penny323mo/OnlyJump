@@ -28,6 +28,7 @@ var camera_yaw := 0.0
 var camera_pitch := deg_to_rad(24.0)
 var camera_distance := CAMERA_REACH
 var camera_pitch_offset := 0.0
+var frame_aerial := false
 var camera_sweep := PhysicsShapeQueryParameters3D.new()
 var follow_camera := true
 var show_route_ring := false
@@ -206,6 +207,7 @@ func show_intro() -> void:
 	update_hud()
 
 func start_run() -> void:
+	frame_aerial=false
 	phase = "playing"
 	elapsed = 0
 	falls = 0
@@ -279,6 +281,7 @@ func play_sound(id: int, pitch := 1.0) -> void:
 
 func on_landing(index: int) -> void:
 	if phase != "playing": return
+	if index!=Islands.Branches.AWNING or player.ability!="hook": frame_aerial=false
 	if art.stage(index) < art.stage(ledge):
 		falls += 1
 		notice = "下層平台接住咗你"
@@ -341,7 +344,8 @@ func _physics_process(delta: float) -> void:
 	var turn := int(Input.is_physical_key_pressed(KEY_E)) - int(Input.is_physical_key_pressed(KEY_Q))
 	if turn != 0: orbit(turn*delta*2.1/3.55,0)
 	var move := world_move()
-	player.step(delta,move,sprint or Input.is_physical_key_pressed(KEY_SHIFT))
+	player.step(delta,move,sprint or Input.is_physical_key_pressed(KEY_SHIFT),camera)
+	if player.hook.time_left>0: landing_guide.hide()
 	if player.is_on_floor() and player.grounded_ledge>=0 and not player.grab.active:
 		var foot_height:=snappedf(player.position.y,.1)
 		if foot_height>best:
@@ -389,6 +393,7 @@ func intro_camera() -> void:
 	camera.look_at(Vector3(0.3 if portrait else -3.6,1.55 if portrait else 2.35,-3.5), Vector3.UP)
 
 func orbit(dx: float, dy: float) -> void:
+	frame_aerial=false
 	camera_yaw = wrapf(camera_yaw-dx*3.55,-PI,PI)
 	input_yaw = wrapf(input_yaw-dx*3.55,-PI,PI)
 	manual_look_time = 1.15
@@ -397,7 +402,9 @@ func orbit(dx: float, dy: float) -> void:
 func face_target() -> void:
 	var next:=art.destination(ledge,alternate)
 	if next<0: return
-	var offset:=art.stop_position(next)-player.position
+	frame_aerial=aiming_at_aerial()
+	var target:=art.aerial.global_position if frame_aerial else art.stop_position(next)
+	var offset:=target-player.position
 	var direction := Vector2(offset.x,offset.z).normalized()
 	camera_yaw = atan2(-direction.x,-direction.y)
 	moving_gesture = false
@@ -468,6 +475,19 @@ func frame_climber(back: Vector3, delta: float, snap: bool) -> void:
 		framing = framing.slerp(middle,1.-smoothstep(1.65,FULL_BODY_DISTANCE,camera_distance))
 		var span := 2.*maxf(framing.angle_to(feet),framing.angle_to(head))
 		field_of_view = clampf(rad_to_deg(span)+5.,59.,78.)
+	if tracking_aerial():
+		# Keep the marked antenna and takeoff edge in the same shot. Turning
+		# the view by hand immediately returns control to the player.
+		var forward:=Vector3(-sin(camera_yaw),0,-cos(camera_yaw))
+		var low:=player.position-camera.position
+		var high:=art.aerial.global_position+Vector3.UP*.30-camera.position
+		var bottom:=atan2(low.y,low.dot(forward))
+		var top:=atan2(high.y,high.dot(forward))
+		if high.dot(forward)>0 and top>bottom:
+			field_of_view=clampf(maxf(field_of_view,rad_to_deg(top-bottom)+12.),59.,78.)
+			var half_angle:=deg_to_rad(field_of_view*.5-5.)
+			var pitch:=clampf(asin(framing.y),minf(top-half_angle,bottom+half_angle),bottom+half_angle)
+			framing=forward*cos(pitch)+Vector3.UP*sin(pitch)
 	if snap or field_of_view > camera.fov:
 		camera.fov = field_of_view
 	else:
@@ -493,8 +513,15 @@ func climber_screen_bounds(viewport_size: Vector2) -> Rect2:
 			bounds=bounds.expand(camera.unproject_position(point)/viewport_size)
 	return bounds
 
+func aiming_at_aerial() -> bool:
+	return ledge==Islands.Branches.AWNING and player.ability=="hook"
+
+func tracking_aerial() -> bool:
+	return frame_aerial and ledge==Islands.Branches.AWNING and player.position.distance_squared_to(art.aerial.global_position)<25.
+
 func update_hud() -> void:
 	var next:=art.destination(ledge,alternate)
+	if aiming_at_aerial(): next=3
 	landing_ring.visible = show_route_ring and phase == "playing" and next>=0
 	if landing_ring.visible and art.branches.bodies.has(next):
 		landing_ring.visible = art.branches.bodies[next].collision_layer!=0
@@ -504,11 +531,21 @@ func update_hud() -> void:
 		var visible_top: float = {6:.12,8:.18,9:.22,14:.06,17:.055,24:.10}.get(next,.05)
 		landing_ring.position = target+Vector3.UP*visible_top
 	var height := maxf(0.0,player.position.y)
+	var hook_hint:=""
+	if player.ability=="hook":
+		if player.hook.time_left>0: hook_hint="收索中"
+		elif player.is_on_floor(): hook_hint="向銅環跳 · 再撳跳"
+		elif player.hook.can_attach(player,camera): hook_hint="撳跳扣環"
+		else: hook_hint="靠近並對準銅環"
+	var brass:=art.material("80ffe0" if hook_hint=="撳跳扣環" or hook_hint=="收索中" else "e4a842")
+	if art.aerial.material_override!=brass: art.aerial.material_override=brass
 	if web:
 		var message := notice
 		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
-		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,art.stop_name(next) if next>=0 else "",follow_camera,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges)
-		var hint: Node3D=art.pickups.visible_hint(camera,player) if phase=="playing" else null
+		var destination:="電視銅環" if aiming_at_aerial() else (art.stop_name(next) if next>=0 else "")
+		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,follow_camera,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint)
+		var casting:=player.hook.time_left>0 or tracking_aerial()
+		var hint: Node3D=art.pickups.visible_hint(camera,player) if phase=="playing" and not casting else null
 		if hint:
 			var viewport_size:=get_viewport().get_visible_rect().size
 			var centre:=camera.unproject_position(hint.global_position)/viewport_size
@@ -517,7 +554,7 @@ func update_hud() -> void:
 			var last:=frame.end/viewport_size
 			var climber:=climber_screen_bounds(viewport_size)
 			var key: String=art.pickups.items.find_key(hint)
-			var effect: String="%s\n%d 秒" % [art.pickups.LABELS[key],player.ABILITY_SECONDS[key]]
+			var effect: String="飛爪\n扣銅環 · 一次" if key=="hook" else "%s\n%d 秒" % [art.pickups.LABELS[key],player.ABILITY_SECONDS[key]]
 			if key=="double": effect+=" · 最多 %d 次" % player.MAX_DOUBLE_CHARGES
 			web.pickupHint(centre.x,centre.y,effect,first.x,first.y,last.x,last.y,
 				climber.position.x,climber.position.y,climber.end.x,climber.end.y)
@@ -528,3 +565,4 @@ func update_hud() -> void:
 			"won": native_label.text = "Summit reached   ·   %d jumps    /    Enter to play again" % player.jump_count
 			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart\n1   Next object ring: %s    ·    2   Landing guide: %s" % [str(show_route_ring),str(show_landing_guide)]
 			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   C follow camera   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,art.stage(ledge),Islands.ROUTE.size()-1]
+		if hook_hint!="" and phase=="playing": native_label.text+="\n飛爪 · "+hook_hint

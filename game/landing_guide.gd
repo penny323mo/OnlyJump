@@ -20,7 +20,7 @@ func _ready() -> void:
 # jumps, so the top of a narrow beam can support part of the player's sole.
 func refresh(player: Climber, move: Vector2, tick: float) -> void:
 	hide()
-	if player.ability=="glide" or player.ability=="jet": return
+	if player.ability=="glide" or player.ability=="jet" or player.hook.time_left>0: return
 	var grounded := player.is_on_floor()
 	if grounded and move.is_zero_approx(): return
 	var at := player.global_transform
