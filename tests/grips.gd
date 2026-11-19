@@ -46,7 +46,7 @@ func moving_grip(stage: int, target: int, delay: int, runup: int) -> bool:
 	var min_travel:=.35 if target==B.FAN else 3.
 	return check(travel>min_travel,"ledge moved during the catch")
 
-func jump_from_sheet(direction: float, seed_value: int, collapse: bool) -> bool:
+func jump_from_sheet(direction: float, seed_value: int, collapse: bool, quick := false) -> bool:
 	game.start_run()
 	var player:=game.player
 	player.reset_at(game.art.stop_position(B.SHEET)+Vector3.LEFT*1.12)
@@ -63,20 +63,30 @@ func jump_from_sheet(direction: float, seed_value: int, collapse: bool) -> bool:
 	if collapse:
 		# An already-loaded board gives way before the pull-up completes.
 		game.art.branches.land(B.BOARD)
+	if quick: player.equip("double")
 	game.web_command(["jump"])
 	var caught:=false
 	var lost_support:=false
+	var hanging_ticks:=0
 	for tick in 150:
 		await frames(1)
 		if tick==3 and not check(Vector2(player.velocity.x,player.velocity.z).length()<.001,"jump starts vertically"):return false
 		if player.grab.active:
 			if not check(player.grab.support_body==game.art.branches.bodies[B.BOARD],"hands caught the board"):return false
+			hanging_ticks+=1
+			if quick and hanging_ticks in [1,12]:
+				game.web_command(["jump"])
+			if quick and hanging_ticks<7 and not check(player.grab.climb_progress()==0,"settle onto the rim before pushing up"):return false
 			caught=true
 		elif caught and game.art.branches.bodies[B.BOARD].collision_layer==0:
 			lost_support=true
 		if tick>30 and player.is_on_floor() and not player.grab.active:break
 	if not check(caught==should_catch and player.grab.rng.state==expected_rng.state,"one roll for a reachable rim ahead"):return false
 	if not check(player.jump_count==1 and player.is_on_floor(),"resolved one standing jump"):return false
+	if caught and not collapse:
+		var expected_ticks: int=34 if quick else 54
+		if not check(absi(hanging_ticks-expected_ticks)<=1,"pull-up duration: %d ticks, expected %d" % [hanging_ticks,expected_ticks]):return false
+	if quick and not check(player.double_charges==player.MAX_DOUBLE_CHARGES and player.jump_buffer==0,"pull-up taps preserve air jumps and cannot queue a bounce"):return false
 	if collapse and not check(lost_support,"release when the board drops"):return false
 	var destination:=B.BOARD if should_catch and not collapse else B.SHEET
 	return check(game.ledge==destination,"standing jump lands on the correct object")
@@ -89,6 +99,7 @@ func run() -> void:
 	game.follow_camera=false
 	game.player.costumes.select("dino")
 	if not await jump_from_sheet(1,1,false):return
+	if not await jump_from_sheet(1,1,false,true):return
 	if not await jump_from_sheet(-1,1,false):return
 	if not await jump_from_sheet(1,2,false):return
 	if not await jump_from_sheet(1,1,true):return

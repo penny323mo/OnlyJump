@@ -116,8 +116,10 @@ func equip(id: String) -> void:
 	flames.hide()
 
 func request_jump(move: Vector2) -> void:
+	if grab.active:
+		grab.pull_up()
+		return
 	# A finger can lift between the tap and the next fixed physics tick.
-	if grab.active: return
 	tap_direction = move
 	jump_buffer = BUFFER_TIME
 

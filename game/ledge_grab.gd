@@ -2,12 +2,14 @@ extends RefCounted
 
 const CHANCE := .70
 const REACH := .57
+const SETTLE_TIME := .10
 const HANG_TIME := .43
 const CLIMB_TIME := .46
 var rng := RandomNumberGenerator.new()
 var available := false
 var active := false
 var elapsed := 0.0
+var climb_start := HANG_TIME
 var anchor := Vector3.ZERO
 var crest := Vector3.ZERO
 var stand := Vector3.ZERO
@@ -78,11 +80,18 @@ func try_catch(player: CharacterBody3D, approach: Vector2, last_ledge: int, foot
 	forward=inward
 	hands=found_hands
 	elapsed=0
+	climb_start=HANG_TIME
 	active=true
 	return true
 
+func can_pull_up() -> bool:
+	return active and climb_start==HANG_TIME and elapsed<climb_start
+
+func pull_up() -> void:
+	if can_pull_up(): climb_start=maxf(elapsed,SETTLE_TIME)
+
 func climb_progress() -> float:
-	return clampf((elapsed-HANG_TIME)/CLIMB_TIME,0,1)
+	return clampf((elapsed-climb_start)/CLIMB_TIME,0,1)
 
 func advance(player: CharacterBody3D, delta: float) -> void:
 	if not is_instance_valid(support_body) or support_body.collision_layer==0:
@@ -99,7 +108,7 @@ func advance(player: CharacterBody3D, delta: float) -> void:
 	for i in hands.size(): hands[i]=shift*hands[i]
 	elapsed+=delta
 	var progress := climb_progress()
-	var next := start.lerp(anchor,smoothstep(0,.10,elapsed))
+	var next := start.lerp(anchor,smoothstep(0,SETTLE_TIME,elapsed))
 	if progress>0:
 		next = anchor.lerp(crest,smoothstep(0,.52,progress))
 		next = next.lerp(over_lip,smoothstep(.52,.88,progress))

@@ -52,7 +52,7 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
 #touch{position:absolute;inset:0;pointer-events:none;display:none}
 #pad,#jump{pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;position:absolute;border-radius:50%;border:1px solid #fff5dba6;background:#30413ba8;color:#fff2d8;display:grid;place-items:center}#pad{left:max(20px,var(--safe-left));bottom:max(25px,var(--safe-bottom));width:96px;height:96px}#pad i{width:36px;height:36px;border-radius:50%;background:#f8edd09e;border:1px solid #fff4d7aa}
 #jump,#sprint{right:var(--control-right);width:var(--action-width);font-size:clamp(18px,5vmin,22px);font-weight:700}
-#jump{bottom:var(--action-bottom);height:var(--action-height)}#jump:active,#jump[data-pressed]{color:#302d24;background:#f8bd72;box-shadow:inset 0 0 0 3px #fff2d8}
+#jump{bottom:var(--action-bottom);height:var(--action-height)}#jump[data-grip]{color:#fff4dc;background:#79411a;border:2px solid #ffd59a}#jump:active,#jump[data-pressed]{color:#302d24;background:#f8bd72;box-shadow:inset 0 0 0 3px #fff2d8}
 .touch-copy{display:none}body[data-mode=playing] .brand{color:#263b34;background:#fbefdde3;border-radius:4px;padding:6px 10px;font-size:19px}body[data-mode=playing] .mark{width:24px;height:20px}
 @media(any-pointer:coarse){#touch:not([hidden]){display:block}.key-copy{display:none!important}.touch-copy{display:inline}.controls{display:none}}
 @media(max-width:660px) and (orientation:portrait){:root{--gut:21px}.wash{background:linear-gradient(0deg,#f1e3cc 4%,#f1e3cfee 24%,#f2e4ceaa 45%,transparent 66%)}#intro{align-items:end;padding-bottom:72px}.intro-content{width:100%}h1{font-size:clamp(78px,19vw,120px);line-height:.87;margin:8px 0}h1 span{display:inline}h1 span+span{margin-left:.10em}.summary{margin:12px 0 15px;max-width:24em;font-size:14px}.bottom{bottom:max(18px,var(--safe-bottom))}.route-sign{padding:6px 10px}.controls{gap:7px}.route-sign small{display:none}.brand{font-size:21px}.route-sign strong{font-size:11px}#hud{top:calc(max(24px,var(--safe-top)) + 51px)}.alt-card{min-width:136px}}
@@ -283,7 +283,7 @@ window.OnlyJumpUI = {
     el('pickCast').disabled = el('start').disabled = el('mute').disabled = false;
     el('start-label').textContent = '開始攀登';
   },
-  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,follow,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges,itemTotal,hookHint) {
+  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,follow,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges,itemTotal,hookHint,gripAction) {
     const changed = mode !== next;
     const playing = next === 'playing', intro = next === 'intro', won = next === 'won';
     if(changed){
@@ -324,6 +324,8 @@ window.OnlyJumpUI = {
     setText('time',timer(elapsed));
     setPressed('sprint',sprint);
     setText('sprint',sprint?'加速中':'加速');
+    setText('jump',playing && gripAction || '跳躍');
+    el('jump').toggleAttribute('data-grip',playing && gripAction==='撐上');
     setPressed('follow',follow);
     setText('follow',follow?'追蹤鏡頭 開':'追蹤鏡頭 關');
     setText('notice',notice);

@@ -531,6 +531,8 @@ func update_hud() -> void:
 		var visible_top: float = {6:.12,8:.18,9:.22,14:.06,17:.055,24:.10}.get(next,.05)
 		landing_ring.position = target+Vector3.UP*visible_top
 	var height := maxf(0.0,player.position.y)
+	var grip_action:=""
+	if player.grab.active: grip_action="撐上" if player.grab.can_pull_up() else "攀爬中"
 	var hook_hint:=""
 	if player.ability=="hook":
 		if player.hook.time_left>0: hook_hint="收索中"
@@ -543,9 +545,9 @@ func update_hud() -> void:
 		var message := notice
 		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
 		var destination:="電視銅環" if aiming_at_aerial() else (art.stop_name(next) if next>=0 else "")
-		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,follow_camera,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint)
-		var casting:=player.hook.time_left>0 or tracking_aerial()
-		var hint: Node3D=art.pickups.visible_hint(camera,player) if phase=="playing" and not casting else null
+		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,follow_camera,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action)
+		var show_pickups:=phase=="playing" and not player.grab.active and player.hook.time_left<=0 and not tracking_aerial()
+		var hint: Node3D=art.pickups.visible_hint(camera,player) if show_pickups else null
 		if hint:
 			var viewport_size:=get_viewport().get_visible_rect().size
 			var centre:=camera.unproject_position(hint.global_position)/viewport_size
@@ -566,3 +568,4 @@ func update_hud() -> void:
 			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart\n1   Next object ring: %s    ·    2   Landing guide: %s" % [str(show_route_ring),str(show_landing_guide)]
 			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   C follow camera   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,art.stage(ledge),Islands.ROUTE.size()-1]
 		if hook_hint!="" and phase=="playing": native_label.text+="\n飛爪 · "+hook_hint
+		if grip_action!="" and phase=="playing": native_label.text+="\n"+("Space · 撐上" if player.grab.can_pull_up() else grip_action)
