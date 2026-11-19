@@ -53,6 +53,35 @@ func check_double_jump() -> bool:
 	if not check(game.elapsed>=15 and game.elapsed<18 and game.art.pickups.count==1,"timed duck expires without collecting twice"):return false
 	return true
 
+func check_moving_takeoff(source: int, phase_ticks: int, aim: int, landing: int) -> bool:
+	game.start_run()
+	await frames(phase_ticks)
+	var platform: Node3D=game.art.branches.bodies[source]
+	var foot:=Vector3.RIGHT.rotated(Vector3.UP,TAU/3)*1.28 if source==B.FAN else Vector3.ZERO
+	var player:=game.player
+	player.reset_at(platform.to_global(foot)+Vector3.UP*.035)
+	player.grab.rng.seed=2
+	await frames(7)
+	var to_target:=game.art.stop_position(aim)-player.position
+	var direction:=Vector2(to_target.x,to_target.z).normalized()
+	game.web_command(["sprint",true])
+	game.web_command(["stick",direction.x,direction.y])
+	await frames(9)
+	if not check(player.is_on_floor() and game.ledge==source and player.get_platform_velocity().length()>.6,"moving support before jump"):return false
+	game.landing_guide.refresh(player,game.world_move(),1./60)
+	if not check(game.landing_guide.visible,"visible takeoff prediction"):return false
+	var mark:=game.landing_guide.global_position
+	game.web_command(["jump"])
+	await frames(2)
+	if not check(not player.is_on_floor(),"left moving platform"):return false
+	for tick in 90:
+		await frames(1)
+		if player.is_on_floor():
+			var error:=mark.distance_to(player.position)
+			print("moving takeoff ",source," to ",game.ledge," error ",snappedf(error,.001)," m")
+			return check(game.ledge==landing and error<.30,"moving takeoff matches first landing")
+	return check(false,"no landing after moving takeoff")
+
 func run() -> void:
 	game=Game.new()
 	root.add_child(game)
@@ -169,6 +198,9 @@ func run() -> void:
 	await start_on(21)
 	if not await leap(B.BOARD,Vector3.ZERO,false):return
 	if not await leap(24,Vector3.ZERO,false):return
+	if not await check_moving_takeoff(B.FAN,165,10,10):return
+	if not await check_moving_takeoff(B.LIFT,205,22,22):return
+	if not await check_moving_takeoff(B.LIFT,403,22,20):return
 	game.start_run()
 	if not check(game.art.branches.timers.is_empty() and game.art.branches.bodies[B.BOARD].collision_layer==1,"restart restores props"):return
 	print("PASS branches, rotating fan, timed pickups, double-jump stunts, lower recovery and five characters")

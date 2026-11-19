@@ -5,7 +5,7 @@ const {runInNewContext} = require('node:vm');
 const {join} = require('node:path');
 
 function fixture(jumpBounds={left:720,top:260,width:80,height:80}) {
-  const window = {ontouchstart:null};
+  const window = {ontouchstart:null,innerWidth:844,innerHeight:390};
   const handlers = new Map();
   window.addEventListener = (type,fn)=>handlers.set(type,fn);
   const nodes = {};
@@ -22,7 +22,7 @@ function fixture(jumpBounds={left:720,top:260,width:80,height:80}) {
   });
   const finger=(identifier,role,clientX,clientY)=>({identifier,target:nodes[role],clientX,clientY});
   const fire=(type,changedTouches,touches)=>handlers.get(type)({changedTouches,touches,cancelable:true,preventDefault(){}});
-  return {fire,finger,reset,calls,pad:nodes.pad,layoutSize};
+  return {fire,finger,reset,calls,pad:nodes.pad,layoutSize,window};
 }
 
 test('floating pad starts neutral under the thumb, reverses, and returns home on release',()=>{
@@ -166,6 +166,39 @@ test('changing only the split-window height still releases contacts',()=>{
   layoutSize.offsetHeight-=60;
   fire('resize');
   fire('touchend',[finger(2,'sprint',760,300)],[]);
+  assert.deepEqual(calls,[['sprint',true],['sprint',false]]);
+});
+
+test('the first press on the unfolded display survives a delayed resize event',()=>{
+  const {fire,finger,calls,layoutSize,window}=fixture({left:505,top:720,width:144,height:144});
+  window.innerWidth=layoutSize.offsetWidth=382;
+  window.innerHeight=layoutSize.offsetHeight=618;
+  fire('resize');
+  const old=finger(1,'padZone',74,400);
+  fire('touchstart',[old],[old]);
+  fire('touchmove',[finger(1,'padZone',20,400)],[old]);
+  window.innerWidth=layoutSize.offsetWidth=669;
+  window.innerHeight=layoutSize.offsetHeight=902;
+  const run=finger(2,'sprint',577,644);
+  fire('touchstart',[run],[run]);
+  fire('resize');
+  fire('touchend',[finger(2,'sprint',577,792)],[]);
+  assert.deepEqual(calls.slice(-4),[['stick',0,0],['sprint',true],['jump'],['sprint',false]]);
+});
+
+test('a release from the outer display cannot jump on the relocated button',()=>{
+  const bounds={left:467,top:226,width:125,height:125};
+  const {fire,finger,calls,layoutSize,window}=fixture(bounds);
+  window.innerWidth=layoutSize.offsetWidth=594;
+  window.innerHeight=layoutSize.offsetHeight=368;
+  fire('resize');
+  const run=finger(2,'sprint',526,172);
+  fire('touchstart',[run],[run]);
+  window.innerWidth=layoutSize.offsetWidth=385;
+  window.innerHeight=layoutSize.offsetHeight=571;
+  Object.assign(bounds,{left:229,top:408,width:144,height:144});
+  fire('touchend',[finger(2,'sprint',301,480)],[]);
+  fire('resize');
   assert.deepEqual(calls,[['sprint',true],['sprint',false]]);
 });
 

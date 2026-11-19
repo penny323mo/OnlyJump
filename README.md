@@ -29,6 +29,8 @@
 
 手機暫停時可以揀右手按掣大小。橫屏有足夠空間時可以即場預覽，選擇會儲存喺目前瀏覽器。
 
+iPhone Duo 可以用外屏、展開嘅內屏，或者 Safari 雙視窗玩。摺合或展開會保留當局進度，重新落指就可以繼續控制。Safari 工具列收起時，按住嘅方向同加速會繼續生效。
+
 下一站嘅物件名喺左上角。標示下一站嘅橙圈預設收埋，可喺「暫停 → 提示選項」開啟，預計落點十字亦可以獨立開關。助跑時，青白十字會標示而家起跳嘅預計落點。離地後會按你嘅速度同方向更新，前面有牆擋住、落點會郁或鬆脫，或者暫時冇可企嘅落點，十字就會收起。原地撳跳會垂直起跳，推住方向起跳會向前。起跳沿用助跑慣性，空中放手會繼續向前。追蹤鏡頭預設開啟，落地移動時會跟到身後，離地時保持起跳方向。靠近窄邊會減速，放開搖桿就收腳。腳掌部分伸出鋼樑時仍然可以企穩。
 
 原作點樣用圓喉、路軌同斜面改變落腳方式，可以睇[《Only Up!》玩法考察](docs/only-up-reference.md)。
@@ -57,5 +59,7 @@ godot --headless --import
 godot --headless --fixed-fps 60 --script tests/route.gd
 godot --headless --fixed-fps 60 --script tests/branches.gd
 ```
+
+本機裝有 Playwright 同 WebKit 時，可以開住上面嘅本機伺服器，執行 `node tests/iphone-duo.cjs`。測試會用短手暴龍跑跳上梳化，再喺同一局切換十組 iPhone Duo 視窗尺寸，逐次驗證雙指操作同跳躍次數。[WebKit 公布嘅 Safari 尺寸表](https://webkit.org/blog/18486/webkit-features-for-safari-27-1/#viewport-sizes)
 
 角色、城市及部分道具的作者、授權及改動記錄載於[模型鳴謝](web/credits.txt)。

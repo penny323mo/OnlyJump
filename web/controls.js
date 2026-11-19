@@ -6,6 +6,23 @@ function attachControls(send, isPlaying) {
   const owners = new Map();
   const active = new Map();
   const roles = '#padZone,#pad,#jump,#sprint,#look';
+  // Safari can deliver input on the new display before its resize event.
+  // Large viewport units stay fixed during browser toolbar transitions.
+  const layoutSize=document.getElementById('layoutSize');
+  let width=layoutSize.offsetWidth, height=layoutSize.offsetHeight;
+  let viewWidth=window.innerWidth, viewHeight=window.innerHeight;
+  function syncLayout() {
+    viewWidth=window.innerWidth;
+    viewHeight=window.innerHeight;
+    const w=layoutSize.offsetWidth, h=layoutSize.offsetHeight;
+    if (w===width && h===height) return;
+    width=w;
+    height=h;
+    reset();
+  }
+  function syncBeforeInput() {
+    if (window.innerWidth!==viewWidth || window.innerHeight!==viewHeight) syncLayout();
+  }
   function restorePad() {
     pad.style.left = pad.style.top = '';
     delete pad.dataset.active;
@@ -76,6 +93,7 @@ function attachControls(send, isPlaying) {
   if (touchEvents) {
     for (const type of ['touchstart','touchmove','touchend','touchcancel']) {
       window.addEventListener(type,e=>{
+        syncBeforeInput();
         // Retire a missing or reused finger before a new one claims its role.
         // Keep ending fingers long enough to process their final swipe segment.
         const keep=new Set(Array.from(e.touches,t=>'t'+t.identifier));
@@ -103,6 +121,7 @@ function attachControls(send, isPlaying) {
   }
   window.addEventListener('pointerdown',e=>{
     if ((touchEvents && e.pointerType==='touch') || (e.button!==0 && e.button!==2)) return;
+    syncBeforeInput();
     if (!begin('p'+e.pointerId,e.target,e.clientX,e.clientY)) return;
     e.preventDefault();
     document.getElementById('canvas').focus({preventScroll:true});
@@ -111,12 +130,16 @@ function attachControls(send, isPlaying) {
   });
   window.addEventListener('pointermove',e=>{
     const id='p'+e.pointerId;
+    if (!owners.has(id)) return;
+    syncBeforeInput();
     if (e.buttons===0) end(id);
     else move(id,e.clientX,e.clientY);
   });
   for (const type of ['pointerup','pointercancel','lostpointercapture']) {
     window.addEventListener(type,e=>{
       const id='p'+e.pointerId;
+      if (!owners.has(id)) return;
+      syncBeforeInput();
       if(type==='pointerup' && owners.get(id)?.role==='sprint') move(id,e.clientX,e.clientY);
       end(id);
     },true);
@@ -126,16 +149,6 @@ function attachControls(send, isPlaying) {
     for (const id of Array.from(owners.keys())) end(id);
     restorePad();
   }
-  // The large viewport stays the same when mobile browser toolbars retract.
-  // A fold or split-window resize changes its actual width or height.
-  const layoutSize=document.getElementById('layoutSize');
-  let width=layoutSize.offsetWidth, height=layoutSize.offsetHeight;
-  window.addEventListener('resize',()=>{
-    const w=layoutSize.offsetWidth, h=layoutSize.offsetHeight;
-    if (w===width && h===height) return;
-    width=w;
-    height=h;
-    reset();
-  });
+  window.addEventListener('resize',syncLayout);
   return reset;
 }

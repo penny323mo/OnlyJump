@@ -30,7 +30,11 @@ func refresh(player: Climber, move: Vector2, tick: float) -> void:
 	if grounded:
 		horizontal = player.launch_horizontal(horizontal,move)
 		speed = horizontal.length()
-		vertical = player.JUMP_SPEED + .5*player.GRAVITY*tick
+		# move_and_slide adds the support's contact velocity on takeoff.
+		# Air steering still uses the runner's speed relative to the support.
+		var carry := player.get_platform_velocity()
+		horizontal += Vector2(carry.x,carry.z)
+		vertical = player.JUMP_SPEED + .5*player.GRAVITY*tick + carry.y
 	for segment in MAX_CASTS:
 		var motion := Vector3.ZERO
 		for k in TICKS_PER_CAST:
