@@ -4,14 +4,14 @@ const {readFileSync} = require('node:fs');
 const {runInNewContext} = require('node:vm');
 const {join} = require('node:path');
 
-function fixture() {
+function fixture(jumpBounds={left:720,top:260,width:80,height:80}) {
   const window = {ontouchstart:null};
   const handlers = new Map();
   window.addEventListener = (type,fn)=>handlers.set(type,fn);
   const nodes = {};
   for(const id of ['padZone','pad','sprint','jump','look']){
     nodes[id]={id,style:{},dataset:{},closest:()=>nodes[id],firstElementChild:{style:{}},
-      getBoundingClientRect:()=>id==='jump'?{left:720,top:260,width:80,height:80}:{width:136,height:136}};
+      getBoundingClientRect:()=>id==='jump'?jumpBounds:{width:136,height:136}};
   }
   const calls=[];
   const source=readFileSync(join(__dirname,'../web/controls.js'),'utf8');
@@ -69,6 +69,16 @@ test('a fast slide can finish over the jump button without a final move event',(
   const {fire,finger,calls}=fixture();
   const run=finger(1,'sprint',760,200);
   fire('touchstart',[run],[run]);fire('touchend',[finger(1,'sprint',760,355)],[]);
+  assert.deepEqual(calls,[['sprint',true],['jump'],['sprint',false]]);
+});
+
+test('a wide jump button accepts its outer edge and ignores the empty corner',()=>{
+  const {fire,finger,calls}=fixture({left:700,top:230,width:144,height:100});
+  const run=finger(1,'sprint',708,180), corner=finger(1,'sprint',708,232);
+  fire('touchstart',[run],[run]);fire('touchmove',[corner],[corner]);
+  assert.deepEqual(calls,[['sprint',true]]);
+  const beyond=finger(1,'sprint',708,335);
+  fire('touchmove',[beyond],[beyond]);fire('touchend',[beyond],[]);
   assert.deepEqual(calls,[['sprint',true],['jump'],['sprint',false]]);
 });
 

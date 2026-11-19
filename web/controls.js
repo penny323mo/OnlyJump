@@ -41,14 +41,16 @@ function attachControls(send, isPlaying) {
       knob.style.transform = 'translate('+dx*contact.travel+'px,'+dy*contact.travel+'px)';
       send('stick',dx,dy);
     } else if (contact.role === 'sprint' && !contact.jumped) {
-      // Test the swept segment as well as the endpoint. A quick thumb swipe
-      // can cross the whole circular button between two touchmove events.
+      // In button-radius units the ellipse is a unit circle. Check the
+      // whole swipe segment so coalesced events can still cross its edge.
       const r=document.getElementById('jump').getBoundingClientRect();
-      const cx=r.left+r.width/2, cy=r.top+r.height/2;
-      const dx=x-contact.x, dy=y-contact.y;
+      if (!r.width || !r.height) return false;
+      const rx=r.width/2, ry=r.height/2;
+      const startX=(contact.x-r.left-rx)/rx, startY=(contact.y-r.top-ry)/ry;
+      const dx=(x-contact.x)/rx, dy=(y-contact.y)/ry;
       const length2=dx*dx+dy*dy;
-      const t=length2 ? Math.max(0,Math.min(1,((cx-contact.x)*dx+(cy-contact.y)*dy)/length2)) : 0;
-      if (Math.hypot(contact.x+t*dx-cx,contact.y+t*dy-cy)<=Math.min(r.width,r.height)/2) {
+      const t=length2 ? Math.max(0,Math.min(1,-(startX*dx+startY*dy)/length2)) : 0;
+      if (Math.hypot(startX+t*dx,startY+t*dy)<=1) {
         contact.jumped=true;
         if (!active.has('jump')) send('jump');
       }
