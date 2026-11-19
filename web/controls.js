@@ -113,8 +113,11 @@ function attachControls(send, isPlaying) {
     },true);
   }
   document.getElementById('look').oncontextmenu=e=>e.preventDefault();
-  return function reset() {
+  function reset() {
     for (const id of Array.from(owners.keys())) end(id);
     restorePad();
-  };
+  }
+  // A fold or a split-window resize can move controls under a held finger.
+  window.addEventListener('resize',reset);
+  return reset;
 }

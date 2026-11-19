@@ -106,3 +106,19 @@ test('missing contacts, interruption and reset release controls exactly once',()
   assert.equal(pad.style.top,'');
   assert.deepEqual(calls.at(-1),['sprint',false]);
 });
+
+test('resizing a foldable viewport releases held sprint and movement until a fresh contact',()=>{
+  const {fire,finger,calls,pad}=fixture();
+  const joy=finger(1,'padZone',60,290),run=finger(2,'sprint',760,205);
+  fire('touchstart',[joy,run],[joy,run]);
+  fire('touchmove',[finger(1,'padZone',18,290)],[joy,run]);
+  fire('resize');
+  assert.deepEqual(calls.slice(-2),[['stick',0,0],['sprint',false]]);
+  assert.equal(pad.style.left,'');
+  const released=calls.length;
+  fire('touchmove',[finger(2,'sprint',760,300)],[joy,run]);
+  fire('touchend',[joy,run],[]);
+  assert.equal(calls.length,released);
+  fire('touchstart',[joy],[joy]);
+  assert.equal(pad.style.left,'60px');
+});
