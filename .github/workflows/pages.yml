@@ -50,6 +50,8 @@ jobs:
           grep -Fxq 'PASS standing and moving ledge grabs, failed rolls and collapsing support' "$RUNNER_TEMP/grips.log"
           godot --headless --fixed-fps 60 --quit-after 1500 --script tests/records.gd | tee "$RUNNER_TEMP/records.log"
           grep -Fxq 'PASS standing height, moving basket, old saves and relaunch' "$RUNNER_TEMP/records.log"
+          godot --headless --fixed-fps 60 --quit-after 3500 --script tests/camera.gd | tee "$RUNNER_TEMP/camera.log"
+          grep -Fxq 'PASS continuous orbit keeps manual heading and a clear view on eight objects' "$RUNNER_TEMP/camera.log"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

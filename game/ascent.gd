@@ -3,6 +3,8 @@ extends Node3D
 const Islands = preload("res://game/islands.gd")
 const Climber = preload("res://game/climber.gd")
 const SKY_SHADER = preload("res://game/sky.gdshader")
+const CAMERA_REACH := 6.8
+const FULL_BODY_DISTANCE := 2.65
 const SOUNDS = [preload("res://audio/lift.wav"),preload("res://audio/land.wav"),preload("res://audio/summit.wav")]
 var art := Islands.new()
 var player := Climber.new()
@@ -24,7 +26,9 @@ var native_label: Label
 var stick := Vector2.ZERO
 var camera_yaw := 0.0
 var camera_pitch := deg_to_rad(24.0)
-var camera_distance := 6.8
+var camera_distance := CAMERA_REACH
+var camera_pitch_offset := 0.0
+var camera_sweep := PhysicsShapeQueryParameters3D.new()
 var follow_camera := true
 var show_route_ring := false
 var show_landing_guide := true
@@ -82,6 +86,10 @@ func _ready() -> void:
 	add_child(landing_guide)
 	add_child(player)
 	player.build(art)
+	var column := BoxShape3D.new()
+	column.size = Vector3(.30,player.BODY_HEIGHT+.06,.30)
+	camera_sweep.shape = column
+	camera_sweep.exclude = [player.get_rid()]
 	player.landed.connect(on_landing)
 	player.jumped.connect(on_jump)
 	add_child(camera)
@@ -397,35 +405,74 @@ func face_target() -> void:
 	camera_pitch = deg_to_rad(26)
 	if player.is_on_floor(): player.aim = direction
 
+func boom_clearance(back: Vector3) -> float:
+	camera_sweep.motion = back*CAMERA_REACH
+	var travel := get_world_3d().direct_space_state.cast_motion(camera_sweep)
+	if travel[0] >= 1.: return CAMERA_REACH
+	return maxf(.42,travel[0]*CAMERA_REACH-.12)
+
 func game_camera(delta: float, snap := false) -> void:
-	camera.fov = 59
+	const MIN_DISTANCE := 1.95
+	const LOW := deg_to_rad(3.)
+	const HIGH := deg_to_rad(78.)
 	var pivot := player.position+Vector3.UP*1.08
-	var back := Vector3(sin(camera_yaw)*cos(camera_pitch),sin(camera_pitch),cos(camera_yaw)*cos(camera_pitch))
-	var right := Vector3(cos(camera_yaw),0,-sin(camera_yaw))
-	var safe_distance := 6.8
-	var query := PhysicsRayQueryParameters3D.new()
-	query.exclude = [player.get_rid()]
-	query.hit_back_faces = true
-	var space := get_world_3d().direct_space_state
-	for side in [-0.18,0.0,0.18]:
-		query.from = pivot+right*side
-		query.to = query.from+back*6.8
-		var hit := space.intersect_ray(query)
-		if not hit.is_empty():
-			safe_distance = minf(safe_distance,maxf(0.42,query.from.distance_to(hit.position)-0.20))
-	# A low foreground prop can hide the landing even when the head is clear.
-	query.from = player.position+Vector3.UP*.12
-	query.to = pivot+back*safe_distance
-	var obstruction:=space.intersect_ray(query)
-	if not obstruction.is_empty():
-		var fraction:=query.from.distance_to(obstruction.position)/query.from.distance_to(query.to)
-		safe_distance=maxf(.42,safe_distance*fraction-.20)
-	if snap or safe_distance < camera_distance:
-		camera_distance = safe_distance
+	var horizontal := Vector3(sin(camera_yaw),0,cos(camera_yaw))
+	var axis := horizontal.cross(Vector3.UP)
+	# The column starts just above the sole and includes the head. Sweeping
+	# its volume catches rails and board edges at any height in between.
+	camera_sweep.transform.origin = player.position+Vector3.UP*(.09+player.BODY_HEIGHT*.5)
+	var pitch := camera_pitch
+	var back := horizontal.rotated(axis,pitch)
+	var distance := boom_clearance(back)
+	for limit: float in [HIGH,LOW]:
+		var candidate_pitch := camera_pitch
+		while distance < FULL_BODY_DISTANCE and not is_equal_approx(candidate_pitch,limit):
+			candidate_pitch = move_toward(candidate_pitch,limit,deg_to_rad(8))
+			var candidate := horizontal.rotated(axis,candidate_pitch)
+			var clearance := boom_clearance(candidate)
+			# Under a low ceiling there may be more room below the obstacle.
+			if clearance >= FULL_BODY_DISTANCE or clearance > distance+.08:
+				pitch = candidate_pitch
+				back = candidate
+				distance = clearance
+
+	var offset := pitch-camera_pitch
+	if not snap and not is_equal_approx(camera_pitch_offset,offset):
+		var rate := 3.5 if absf(offset)>absf(camera_pitch_offset) else 1.4
+		var eased := move_toward(camera_pitch_offset,offset,rate*delta)
+		eased = clampf(eased,LOW-camera_pitch,HIGH-camera_pitch)
+		var direction := horizontal.rotated(axis,camera_pitch+eased)
+		var clearance := boom_clearance(direction)
+		# Ease through open space. Cross a lip immediately if an intermediate
+		# angle would push the eye into the climber.
+		if clearance >= minf(MIN_DISTANCE,distance):
+			offset = eased
+			back = direction
+			distance = clearance
+	camera_pitch_offset = offset
+	if snap or distance < camera_distance:
+		camera_distance = distance
 	else:
-		camera_distance = lerpf(camera_distance,safe_distance,1.0-exp(-7*delta))
+		var eased := lerpf(camera_distance,distance,1.-exp(-7.*delta))
+		camera_distance = maxf(minf(distance,MIN_DISTANCE),eased)
 	camera.position = pivot+back*camera_distance
-	camera.look_at(pivot,Vector3.UP)
+	frame_climber(back,delta,snap)
+
+func frame_climber(back: Vector3, delta: float, snap: bool) -> void:
+	var framing := -back
+	var field_of_view := 59.
+	if camera_distance < FULL_BODY_DISTANCE:
+		var feet := camera.position.direction_to(player.position)
+		var head := camera.position.direction_to(player.position+Vector3.UP*(player.BODY_HEIGHT+.12))
+		var middle := (feet+head).normalized()
+		framing = framing.slerp(middle,1.-smoothstep(1.65,FULL_BODY_DISTANCE,camera_distance))
+		var span := 2.*maxf(framing.angle_to(feet),framing.angle_to(head))
+		field_of_view = clampf(rad_to_deg(span)+5.,59.,78.)
+	if snap or field_of_view > camera.fov:
+		camera.fov = field_of_view
+	else:
+		camera.fov = move_toward(camera.fov,field_of_view,delta*60.)
+	camera.look_at(camera.position+framing,Vector3.UP)
 
 func _process(delta: float) -> void:
 	if phase == "intro":
