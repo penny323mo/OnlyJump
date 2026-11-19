@@ -76,6 +76,15 @@ function attachControls(send, isPlaying) {
   if (touchEvents) {
     for (const type of ['touchstart','touchmove','touchend','touchcancel']) {
       window.addEventListener(type,e=>{
+        // Retire a missing or reused finger before a new one claims its role.
+        // Keep ending fingers long enough to process their final swipe segment.
+        const keep=new Set(Array.from(e.touches,t=>'t'+t.identifier));
+        for (const t of e.changedTouches) {
+          const id='t'+t.identifier;
+          if (type==='touchstart') keep.delete(id);
+          else if (type==='touchend' || type==='touchcancel') keep.add(id);
+        }
+        for (const id of owners.keys()) if (id.startsWith('t') && !keep.has(id)) end(id);
         let used=false;
         for (const t of e.changedTouches) {
           const id='t'+t.identifier;
@@ -88,8 +97,6 @@ function attachControls(send, isPlaying) {
           }
           used=handled || used;
         }
-        const live=new Set(Array.from(e.touches,t=>'t'+t.identifier));
-        for (const id of owners.keys()) if (id.startsWith('t') && !live.has(id)) end(id);
         if (used && e.cancelable) e.preventDefault();
       },{capture:true,passive:false});
     }

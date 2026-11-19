@@ -98,8 +98,11 @@ test('separate sprint, jump and camera fingers keep their own roles',()=>{
 test('missing contacts, interruption and reset release controls exactly once',()=>{
   const {fire,finger,reset,calls,pad}=fixture();
   const joy=finger(1,'padZone',44,277),sprint=finger(2,'sprint',760,195);
-  fire('touchstart',[joy],[joy]);fire('touchstart',[sprint],[sprint]);
-  assert.deepEqual(calls.at(-1),['stick',0,0]);
+  fire('touchstart',[joy],[joy]);
+  fire('touchmove',[finger(1,'padZone',90,277)],[joy]);
+  fire('touchstart',[sprint],[sprint]);
+  assert.deepEqual(calls.filter(c=>c[0]==='stick'),[['stick',0,0],['stick',1,0],['stick',0,0]]);
+  assert.deepEqual(calls.filter(c=>c[0]==='sprint'),[['sprint',true]]);
   reset();
   const before=calls.length;
   fire('touchmove',[joy],[joy]);
@@ -164,4 +167,28 @@ test('changing only the split-window height still releases contacts',()=>{
   fire('resize');
   fire('touchend',[finger(2,'sprint',760,300)],[]);
   assert.deepEqual(calls,[['sprint',true],['sprint',false]]);
+});
+
+test('the first retouch claims the stick when its release was lost but sprint is still held',()=>{
+  const {fire,finger,calls,pad}=fixture();
+  const old=finger(1,'padZone',60,280), run=finger(2,'sprint',760,205);
+  fire('touchstart',[old,run],[old,run]);
+  fire('touchmove',[finger(1,'padZone',15,280)],[old,run]);
+  const next=finger(3,'padZone',100,265);
+  fire('touchstart',[next],[run,next]);
+  assert.equal(pad.style.left,'100px');
+  fire('touchmove',[finger(3,'padZone',145,265)],[run,next]);
+  assert.deepEqual(calls.at(-1),['stick',1,0]);
+  assert(!calls.some(c=>c[0]==='sprint'&&c[1]===false));
+  fire('touchend',[next,run],[]);
+  assert.deepEqual(calls.slice(-2),[['stick',0,0],['sprint',false]]);
+});
+
+test('a reused touch identifier releases its old role before a new press',()=>{
+  const {fire,finger,calls}=fixture();
+  const sprint=finger(3,'sprint',760,205),jump=finger(3,'jump',760,300);
+  fire('touchstart',[sprint],[sprint]);
+  fire('touchstart',[jump],[jump]);
+  fire('touchend',[jump],[]);
+  assert.deepEqual(calls,[['sprint',true],['sprint',false],['jump']]);
 });
