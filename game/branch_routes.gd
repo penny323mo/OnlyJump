@@ -9,11 +9,13 @@ const BOARD := 104
 const SHEET := 105
 const COIL := 106
 const FAN := 107
-# Off-route objects have independent IDs. Save files only store main landmarks.
+const AWNING := 108
+# Each branch lists its position, equivalent main-route stage and next stop.
 const STOPS := {
 	FAN: ["天台大風扇",Vector3(-.75,7.32,-21.55),9,10],
 	BED: ["迷你彈床",Vector3(-3.70,.67,-2.55),1,3],
 	DRAWER: ["鬆脫抽屜",Vector3(-3.18,3.78,-8.94),5,6],
+	AWNING: ["士多布篷",Vector3(-3.34,1.03,-9.64),1,2],
 	POLE: ["斜晾衫桿",Vector3(-2.16,16.87,-13.24),19,21],
 	LIFT: ["走索吊籃",Vector3(-.35,17.05,-7.42),20,22],
 	BOARD: ["裂紋木板",Vector3(-6.94,19.32,-6.78),22,24],
@@ -47,6 +49,8 @@ func build(art: Props, main: Array) -> void:
 				b.set_meta("spring_target",main[STOPS[id][3]])
 				b.set_meta("spring_radius",.27 if id==BED else .215)
 				build_spring(art,b,id==BED)
+			AWNING:
+				build_awning(art,b)
 			FAN:
 				var hub:=art.cone(b,Vector3.DOWN*.08,.16,.46,.44,"e1a735",24)
 				var axle:=CollisionShape3D.new()
@@ -107,6 +111,43 @@ func build(art: Props, main: Array) -> void:
 				art.deck(b,Vector3(2.64,.085,2.72),"668eb7")
 				for side: float in [-1,1]:
 					art.box(b,Vector3(side*1.19,.003,0),Vector3(.085,.012,2.71),"e5d8bd")
+
+func build_awning(art: Props, body: StaticBody3D) -> void:
+	const WIDTH := 2.44
+	const DEPTH := 1.70
+	const STRIPES := 7
+	body.rotation.x=deg_to_rad(12)
+	var hit:=CollisionShape3D.new()
+	var surface:=BoxShape3D.new()
+	surface.size=Vector3(WIDTH,.06,DEPTH)
+	hit.shape=surface
+	hit.position.y=-surface.size.y*.5
+	body.add_child(hit)
+	var cloth:=SurfaceTool.new()
+	cloth.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var fabric:=StandardMaterial3D.new()
+	fabric.vertex_color_use_as_albedo=true
+	fabric.cull_mode=BaseMaterial3D.CULL_DISABLED
+	fabric.roughness=.9
+	cloth.set_material(fabric)
+	for i in STRIPES:
+		cloth.set_color(Color("dc584c" if i%2==0 else "ffe5af").srgb_to_linear())
+		var left:=Vector3(WIDTH*(float(i)/STRIPES-.5),0,DEPTH*.5)
+		var right:=left+Vector3.RIGHT*(WIDTH/STRIPES)
+		var back:=Vector3.FORWARD*DEPTH
+		cloth.set_normal(Vector3.UP)
+		for p: Vector3 in [left,left+back,right,right,left+back,right+back]: cloth.add_vertex(p)
+		cloth.set_normal(Vector3.BACK)
+		var mid:=(left+right)*.5+Vector3.DOWN*.24
+		for p: Vector3 in [left,right,mid,left,mid,left+Vector3.DOWN*.14,right,right+Vector3.DOWN*.14,mid]: cloth.add_vertex(p)
+	var skin:=MeshInstance3D.new()
+	skin.mesh=cloth.commit()
+	body.add_child(skin)
+	art.tube(body,Vector3(-WIDTH*.52,-.06,-DEPTH*.5),Vector3(WIDTH*.52,-.06,-DEPTH*.5),.065,"477777")
+	for x: float in [-WIDTH*.45,WIDTH*.45]:
+		var hinge:=Vector3(x,-.42,-DEPTH*.5)
+		art.tube(body,hinge,Vector3(x,-.055,DEPTH*.47),.034,"477777")
+		art.tube(body,hinge,Vector3(x,-.055,-DEPTH*.5),.034,"477777")
 
 func build_spring(art: Props, b: StaticBody3D, bed: bool) -> void:
 	var radius := .93 if bed else .52
@@ -198,8 +239,11 @@ func advance(delta: float) -> void:
 			body.position=home+Vector3.RIGHT*(sin(t*42)*.026)
 		elif t<limit+1.1:
 			body.collision_layer=0
-			body.position=home+Vector3.DOWN*8*(t-limit)*(t-limit)
-			body.rotation.z=(t-limit)*.65
+			var falling:=t-limit
+			body.position=home+Vector3.DOWN*8*falling*falling
+			if id==DRAWER:
+				body.position+=Vector3(-.65,0,1.60)*smoothstep(.04,.63,falling)
+			body.rotation.z=falling*.65
 		elif t<limit+4.:
 			body.hide()
 		else:

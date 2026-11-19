@@ -16,6 +16,7 @@ var falls := 0
 var ledge := 0
 var alternate := false
 var best := 0.0
+var record_path := "user://summit.cfg"
 var muted := false
 var web: JavaScriptObject
 var web_callback: JavaScriptObject
@@ -89,12 +90,14 @@ func _ready() -> void:
 	camera.far = 320
 	add_child(audio)
 	var data := ConfigFile.new()
-	if data.load("user://summit.cfg") == OK:
+	if data.load(record_path) == OK:
 		player.costumes.select(str(data.get_value("controls","character","courier")))
 		follow_camera = data.get_value("controls","follow_camera",true)
 		show_route_ring = data.get_value("controls","route_ring",false)
 		show_landing_guide = data.get_value("controls","landing_guide",true)
-		if data.has_section_key("run","best_ledge"):
+		if data.has_section_key("run","best_height"):
+			best = data.get_value("run","best_height",0.0)
+		elif data.has_section_key("run","best_ledge"):
 			var index := clampi(data.get_value("run","best_ledge",0),0,Islands.ROUTE.size()-1)
 			best = Islands.ROUTE[index].y
 		else:
@@ -121,16 +124,13 @@ func _ready() -> void:
 
 func save_record() -> void:
 	var data := ConfigFile.new()
-	var index := 0
-	for i in Islands.ROUTE.size():
-		if best+.001 >= Islands.ROUTE[i].y: index = i
-	data.set_value("run","best_ledge",index)
+	data.set_value("run","best_height",best)
 	data.set_value("controls","character",player.costumes.key)
 	data.set_value("controls","follow_camera",follow_camera)
 	data.set_value("controls","route_ring",show_route_ring)
 	data.set_value("controls","landing_guide",show_landing_guide)
 	data.set_value("run","muted",muted)
-	data.save("user://summit.cfg")
+	data.save(record_path)
 
 func web_command(args: Array) -> void:
 	if args.is_empty():
@@ -286,10 +286,7 @@ func on_landing(index: int) -> void:
 		Islands.Branches.BOARD,Islands.Branches.DRAWER: notice="開始鬆脫，快跳！"
 		Islands.Branches.BED,Islands.Branches.COIL: notice="跳落細圈先會彈起"
 		Islands.Branches.SHEET: notice="被單接住咗你"
-	var landmark: Vector3=Islands.ROUTE[art.stage(index)]
-	if landmark.y > best:
-		best = landmark.y
-		save_record()
+		Islands.Branches.AWNING: notice="布篷接住咗你，跳返木茶几"
 	if index == Islands.ROUTE.size()-1:
 		phase = "won"
 		landing_guide.hide()
@@ -297,7 +294,7 @@ func on_landing(index: int) -> void:
 	elif player.jump_count > last_jump_count:
 		play_sound(1)
 	last_jump_count = player.jump_count
-	update_hud()
+	hud_clock = .06 # Publish the landing after this tick's height and pickup updates.
 
 func keyboard_move() -> Vector2:
 	return Vector2(
@@ -337,6 +334,11 @@ func _physics_process(delta: float) -> void:
 	if turn != 0: orbit(turn*delta*2.1/3.55,0)
 	var move := world_move()
 	player.step(delta,move,sprint or Input.is_physical_key_pressed(KEY_SHIFT))
+	if player.is_on_floor() and player.grounded_ledge>=0 and not player.grab.active:
+		var foot_height:=snappedf(player.position.y,.1)
+		if foot_height>best:
+			best=foot_height
+			save_record()
 	if phase=="playing":
 		var found:=art.pickups.collect(player.position,delta)
 		if found!="":
@@ -411,6 +413,13 @@ func game_camera(delta: float, snap := false) -> void:
 		var hit := space.intersect_ray(query)
 		if not hit.is_empty():
 			safe_distance = minf(safe_distance,maxf(0.42,query.from.distance_to(hit.position)-0.20))
+	# A low foreground prop can hide the landing even when the head is clear.
+	query.from = player.position+Vector3.UP*.12
+	query.to = pivot+back*safe_distance
+	var obstruction:=space.intersect_ray(query)
+	if not obstruction.is_empty():
+		var fraction:=query.from.distance_to(obstruction.position)/query.from.distance_to(query.to)
+		safe_distance=maxf(.42,safe_distance*fraction-.20)
 	if snap or safe_distance < camera_distance:
 		camera_distance = safe_distance
 	else:

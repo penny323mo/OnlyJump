@@ -134,11 +134,27 @@ func run() -> void:
 	if not await leap(B.DRAWER,Vector3.ZERO,false):return
 	if not await leap(6,Vector3.ZERO,false):return
 	await start_on(4)
+	game.web_command(["branch"])
 	if not await leap(B.DRAWER,Vector3.ZERO,false):return
-	await frames(110)
+	await frames(145)
 	if not check(game.art.branches.bodies[B.DRAWER].collision_layer==0,"drawer gives way"):return
-	await frames(246)
+	if not check(game.player.is_on_floor() and game.ledge==B.AWNING and game.falls==1,"striped awning catches drawer fall"):return
+	for height: float in [.12,.65,1.12]:
+		var subject:=game.player.position+Vector3.UP*height
+		var sight:=PhysicsRayQueryParameters3D.create(game.camera.position,subject)
+		sight.exclude=[game.player.get_rid()]
+		if not check(game.camera.is_position_in_frustum(subject) and game.get_world_3d().direct_space_state.intersect_ray(sight).is_empty(),"suitcase leaves recovered climber visible"):return
+	var normal:=game.player.get_floor_normal()
+	if not check(normal.y>.94 and normal.z>.18 and game.art.destination(game.ledge,false)==2,"awning cloth slopes towards the coffee table"):return
+	if not await leap(2):return
+	if not await leap(3):return
+	if not check(game.falls==1,"rejoin main route without respawning"):return
+	await frames(226)
 	if not check(game.art.branches.bodies[B.DRAWER].collision_layer==1,"drawer returns"):return
+	await start_on(4)
+	if not await leap(B.DRAWER,Vector3(0,0,.68),false):return
+	await frames(210)
+	if not check(game.ledge==0 and game.falls==1 and game.player.position.length()<.12,"outer lip misses the awning"):return
 	await start_on(8)
 	if not await leap(B.FAN,Vector3.ZERO,false):return
 	var local_foot: Vector3=game.art.branches.bodies[B.FAN].to_local(game.player.position)
