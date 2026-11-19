@@ -207,6 +207,8 @@ func step(delta: float, move: Vector2, running: bool) -> void:
 	velocity.z = horizontal.y
 	jump_buffer = maxf(0,jump_buffer-delta)
 	var falling_speed := velocity.y
+	# A vertical jumper can reach the rim in front of their chest.
+	var reach := Vector2(-model.basis.z.x,-model.basis.z.z) if horizontal.is_zero_approx() else horizontal
 	move_and_slide()
 	if is_on_floor():
 		grab.available=false
@@ -222,13 +224,11 @@ func step(delta: float, move: Vector2, running: bool) -> void:
 					prime_spring(body)
 				landed.emit(index)
 			break
-	elif falling_speed<-.2 and falling_speed> -8.5 and grab.try_catch(self,horizontal,grounded_ledge,FOOT_RADIUS):
+	elif falling_speed<-.2 and falling_speed> -8.5 and grab.try_catch(self,reach,grounded_ledge,FOOT_RADIUS):
 		stop_stunt()
 		velocity=Vector3.ZERO
 		grace=0
 		jump_buffer=0
-		aim=Vector2(grab.forward.x,grab.forward.z)
-		model.rotation.y=atan2(-aim.x,-aim.y)
 		animations.play("Jump")
 		animations.seek(.18,true)
 		animations.pause()
@@ -261,6 +261,8 @@ func end_grab_pose() -> void:
 		set_pose("Idle")
 
 func pose_on_ledge() -> void:
+	aim=Vector2(grab.forward.x,grab.forward.z).normalized()
+	model.rotation.y=atan2(-aim.x,-aim.y)
 	model.rotation.x=-.20*sin(PI*grab.climb_progress())
 	for i in arms.size():
 		var arm := arms[i]

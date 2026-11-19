@@ -37,6 +37,8 @@ iPhone Duo 可以用外屏、展開嘅內屏，或者 Safari 雙視窗玩。摺�
 
 跳短少少、向住物件邊沿跌落時，如果雙手掂到上沿而上方有位企，每跳有一次 70% 機會捉住。成功會短暫吊住，再自動撐上去，全程毋須額外撳掣。[睇茶几扶邊示範](https://penny323mo.github.io/OnlyJump/ledge-grab.mp4)
 
+喺接人被單上面，可以企近裂紋木板嘅側邊，面向木板、放開方向桿再原地跳。雙手夠到就有同一次扶邊機會。捉住扇葉時身體會跟住轉，吊籃移動期間亦可以一路扶住爬上去。木板如果中途鬆脫，角色會放手跌返落去。
+
 ## 本機開發
 
 使用標準版 Godot 4.7.2 開啟 `project.godot`，按 F5 執行專案。桌面版由 Enter 開始。
@@ -58,6 +60,7 @@ python3 -m http.server 8137 --bind 127.0.0.1 --directory build/web
 godot --headless --import
 godot --headless --fixed-fps 60 --script tests/route.gd
 godot --headless --fixed-fps 60 --script tests/branches.gd
+godot --headless --fixed-fps 60 --script tests/grips.gd
 ```
 
 本機裝有 Playwright 同 WebKit 時，可以開住上面嘅本機伺服器，執行 `node tests/iphone-duo.cjs`。測試會用短手暴龍跑跳上梳化，再喺同一局切換十組 iPhone Duo 視窗尺寸，逐次驗證雙指操作同跳躍次數。[WebKit 公布嘅 Safari 尺寸表](https://webkit.org/blog/18486/webkit-features-for-safari-27-1/#viewport-sizes)

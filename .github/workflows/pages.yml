@@ -46,6 +46,8 @@ jobs:
           grep -Fxq 'PASS mobile parkour: 24 landings, instant jump, sprint, orbit, edge hold, recovery' "$RUNNER_TEMP/ascent.log"
           godot --headless --fixed-fps 60 --quit-after 7500 --script tests/branches.gd | tee "$RUNNER_TEMP/branches.log"
           grep -Fxq 'PASS branches, rotating fan, timed pickups, double-jump stunts, lower recovery and five characters' "$RUNNER_TEMP/branches.log"
+          godot --headless --fixed-fps 60 --quit-after 2400 --script tests/grips.gd | tee "$RUNNER_TEMP/grips.log"
+          grep -Fxq 'PASS standing and moving ledge grabs, failed rolls and collapsing support' "$RUNNER_TEMP/grips.log"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
