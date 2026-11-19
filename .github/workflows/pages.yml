@@ -42,8 +42,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          godot --headless --fixed-fps 60 --script tests/route.gd | tee "$RUNNER_TEMP/ascent.log"
-          grep -Fxq 'PASS mobile parkour: 18 landings, instant jump, sprint, orbit, edge hold, recovery' "$RUNNER_TEMP/ascent.log"
+          godot --headless --fixed-fps 60 --quit-after 6500 --script tests/route.gd | tee "$RUNNER_TEMP/ascent.log"
+          grep -Fxq 'PASS mobile parkour: 24 landings, instant jump, sprint, orbit, edge hold, recovery' "$RUNNER_TEMP/ascent.log"
+          godot --headless --fixed-fps 60 --quit-after 7500 --script tests/branches.gd | tee "$RUNNER_TEMP/branches.log"
+          grep -Fxq 'PASS branches, rotating fan, timed pickups, double-jump stunts, lower recovery and five characters' "$RUNNER_TEMP/branches.log"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

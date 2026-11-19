@@ -8,7 +8,7 @@ touch build/.gdignore
 "$editor" --headless --export-release Web build/web/index.html
 mkdir -p build/web/fonts
 cp web/fonts/BarlowCondensed-ExtraBoldItalic.ttf web/fonts/OFL.txt build/web/fonts/
-cp web/controls.js web/credits.txt web/ledge-grab.mp4 build/web/
+cp web/controls.js web/credits.txt web/ledge-grab.mp4 web/characters.webp build/web/
 # Pages caches subresources independently of HTML. A new shell must load
 # the matching input bridge and game pack even if Safari cached the old ones.
 python3 - <<'PYTHON'
@@ -17,7 +17,7 @@ from pathlib import Path
 out = Path('build/web')
 page = out / 'index.html'
 html = page.read_text()
-for name in ('index.pck', 'controls.js'):
+for name in ('index.pck', 'controls.js', 'characters.webp'):
     source = out / name
     digest = sha256(source.read_bytes()).hexdigest()[:12]
     versioned = source.with_name(f'{source.stem}-{digest}{source.suffix}')

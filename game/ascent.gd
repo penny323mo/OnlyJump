@@ -14,6 +14,7 @@ var phase := "intro"
 var elapsed := 0.0
 var falls := 0
 var ledge := 0
+var alternate := false
 var best := 0.0
 var muted := false
 var web: JavaScriptObject
@@ -48,22 +49,22 @@ func _ready() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_sky_contribution = 0.0
-	env.ambient_light_energy = 0.47
+	env.ambient_light_energy = 0.42
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	env.tonemap_exposure = 0.85
+	env.tonemap_exposure = 0.93
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.ambient_light_color = Color("e9edf5")
 	env.fog_enabled = true
-	env.fog_light_color = Color("b8bbc3")
-	env.fog_density = 0.008
+	env.fog_light_color = Color("a4b9cb")
+	env.fog_density = 0.0085
 	env.fog_sky_affect = 0.23
 	var world := WorldEnvironment.new()
 	world.environment = env
 	add_child(world)
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-47,-32,0)
-	light.light_color = Color("fff1da")
-	light.light_energy = 0.31
+	light.light_color = Color("ffebce")
+	light.light_energy = 0.49
 	light.shadow_enabled = true
 	light.directional_shadow_max_distance = 46
 	add_child(light)
@@ -89,6 +90,7 @@ func _ready() -> void:
 	add_child(audio)
 	var data := ConfigFile.new()
 	if data.load("user://summit.cfg") == OK:
+		player.costumes.select(str(data.get_value("controls","character","courier")))
 		follow_camera = data.get_value("controls","follow_camera",true)
 		show_route_ring = data.get_value("controls","route_ring",false)
 		show_landing_guide = data.get_value("controls","landing_guide",true)
@@ -123,6 +125,7 @@ func save_record() -> void:
 	for i in Islands.ROUTE.size():
 		if best+.001 >= Islands.ROUTE[i].y: index = i
 	data.set_value("run","best_ledge",index)
+	data.set_value("controls","character",player.costumes.key)
 	data.set_value("controls","follow_camera",follow_camera)
 	data.set_value("controls","route_ring",show_route_ring)
 	data.set_value("controls","landing_guide",show_landing_guide)
@@ -133,6 +136,10 @@ func web_command(args: Array) -> void:
 	if args.is_empty():
 		return
 	match str(args[0]):
+		"character":
+			if phase=="intro" and args.size()==2 and player.costumes.NAMES.has(str(args[1])):
+				player.costumes.select(str(args[1]))
+				save_record()
 		"start": start_run()
 		"pause": toggle_pause()
 		"hide":
@@ -152,6 +159,10 @@ func web_command(args: Array) -> void:
 			if phase == "playing" and args.size() == 3:
 				orbit(float(args[1]),float(args[2]))
 			return
+		"branch":
+			if phase=="playing" and Islands.Branches.FORKS.has(ledge):
+				alternate=not alternate
+				face_target()
 		"align":
 			if phase == "playing": face_target()
 		"sprint":
@@ -177,6 +188,10 @@ func clear_controls() -> void:
 
 func show_intro() -> void:
 	phase = "intro"
+	ledge=0
+	alternate=false
+	art.branches.reset()
+	art.pickups.reset()
 	clear_controls()
 	player.reset_at(Islands.ROUTE[0])
 	intro_camera()
@@ -186,6 +201,9 @@ func start_run() -> void:
 	phase = "playing"
 	elapsed = 0
 	falls = 0
+	art.branches.reset()
+	art.pickups.reset()
+	alternate=false
 	ledge = 0
 	last_jump_count = 0
 	clear_controls()
@@ -223,10 +241,14 @@ func _input(event: InputEvent) -> void:
 		elif event.pressed:
 			if key == KEY_ENTER and phase in ["won","intro"]:
 				start_run()
+			elif key>=KEY_1 and key<=KEY_5 and phase=="intro" and not web:
+				web_command(["character",player.costumes.NAMES.keys()[key-KEY_1]])
 			elif key in [KEY_ESCAPE,KEY_P]:
 				toggle_pause()
 			elif key == KEY_C and phase == "playing":
 				toggle_follow()
+			elif key == KEY_TAB and phase == "playing" and not web:
+				web_command(["branch"])
 			elif key == KEY_F and phase == "playing":
 				face_target()
 			elif key == KEY_1 and phase == "paused" and not web:
@@ -249,14 +271,24 @@ func play_sound(id: int, pitch := 1.0) -> void:
 
 func on_landing(index: int) -> void:
 	if phase != "playing": return
-	if index < ledge:
+	if art.stage(index) < art.stage(ledge):
 		falls += 1
 		notice = "下層平台接住咗你"
-	elif index > ledge:
+	elif index != ledge:
 		notice = ""
+	if index!=ledge: alternate=false
 	ledge = index
-	if Islands.ROUTE[index].y > best:
-		best = Islands.ROUTE[index].y
+	art.branches.land(index)
+	match index:
+		Islands.Branches.FAN: notice="企穩扇葉，轉到對面先起跳"
+		Islands.Branches.POLE: notice="沿桿行到高端，再跳洗衣機"
+		Islands.Branches.LIFT: notice="搭到另一端，再跳晾衫架"
+		Islands.Branches.BOARD,Islands.Branches.DRAWER: notice="開始鬆脫，快跳！"
+		Islands.Branches.BED,Islands.Branches.COIL: notice="跳落細圈先會彈起"
+		Islands.Branches.SHEET: notice="被單接住咗你"
+	var landmark: Vector3=Islands.ROUTE[art.stage(index)]
+	if landmark.y > best:
+		best = landmark.y
 		save_record()
 	if index == Islands.ROUTE.size()-1:
 		phase = "won"
@@ -300,10 +332,17 @@ func toggle_follow() -> void:
 func _physics_process(delta: float) -> void:
 	if phase != "playing": return
 	elapsed += delta
+	art.branches.advance(delta)
 	var turn := int(Input.is_physical_key_pressed(KEY_E)) - int(Input.is_physical_key_pressed(KEY_Q))
 	if turn != 0: orbit(turn*delta*2.1/3.55,0)
 	var move := world_move()
 	player.step(delta,move,sprint or Input.is_physical_key_pressed(KEY_SHIFT))
+	if phase=="playing":
+		var found:=art.pickups.collect(player.position,delta)
+		if found!="":
+			player.equip(found)
+			notice="執到"+str(art.pickups.ITEMS[found][0])
+			play_sound(0,1.55)
 	manual_look_time = maxf(0,manual_look_time-delta)
 	if follow_camera and player.is_on_floor() and manual_look_time<=0 and move.length_squared()>.0225:
 		var ground_speed := Vector2(player.velocity.x,player.velocity.z)
@@ -314,6 +353,7 @@ func _physics_process(delta: float) -> void:
 		clear_controls()
 		var count := player.jump_count
 		falls += 1
+		alternate=false
 		ledge = 0
 		player.reset_at(Islands.ROUTE[0])
 		player.jump_count = count
@@ -345,8 +385,9 @@ func orbit(dx: float, dy: float) -> void:
 	camera_pitch = clampf(camera_pitch+dy*2.25,deg_to_rad(9),deg_to_rad(72))
 
 func face_target() -> void:
-	if ledge+1 >= Islands.ROUTE.size(): return
-	var offset: Vector3 = Islands.ROUTE[ledge+1] - player.position
+	var next:=art.destination(ledge,alternate)
+	if next<0: return
+	var offset:=art.stop_position(next)-player.position
 	var direction := Vector2(offset.x,offset.z).normalized()
 	camera_yaw = atan2(-direction.x,-direction.y)
 	moving_gesture = false
@@ -383,20 +424,28 @@ func _process(delta: float) -> void:
 		intro_camera()
 
 func update_hud() -> void:
-	landing_ring.visible = show_route_ring and phase == "playing" and ledge+1 < Islands.ROUTE.size()
+	var next:=art.destination(ledge,alternate)
+	landing_ring.visible = show_route_ring and phase == "playing" and next>=0
+	if landing_ring.visible and art.branches.bodies.has(next):
+		landing_ring.visible = art.branches.bodies[next].collision_layer!=0
 	if landing_ring.visible:
-		var target: Vector3 = Islands.ROUTE[ledge+1]
+		var target:=art.stop_position(next)
 		# Raised keys, tape reels and the turntable platter sit above their deck.
-		var visible_top: float = {6:.12,8:.18,9:.22,14:.06,17:.055}.get(ledge+1,.05)
+		var visible_top: float = {6:.12,8:.18,9:.22,14:.06,17:.055,24:.10}.get(next,.05)
 		landing_ring.position = target+Vector3.UP*visible_top
 	var height := maxf(0.0,player.position.y)
 	if web:
+		var hint: Node3D=art.pickups.visible_hint(camera,player) if phase=="playing" else null
+		if hint:
+			var screen:=camera.unproject_position(hint.global_position+Vector3.UP*.53)/get_viewport().get_visible_rect().size
+			web.pickupHint(screen.x,screen.y,art.pickups.LABELS[art.pickups.items.find_key(hint)])
+		else: web.pickupHint(0,0,"")
 		var message := notice
 		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
-		web.update(phase,height,best,ledge,Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,Islands.NAMES[ledge+1] if ledge+1<Islands.NAMES.size() else "",follow_camera,show_route_ring,show_landing_guide)
+		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,art.stop_name(next) if next>=0 else "",follow_camera,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges)
 	elif native_label:
 		match phase:
-			"intro": native_label.text = "ONLYJUMP   /   Lost Property\nEnter to climb"
+			"intro": native_label.text = "ONLYJUMP   /   Lost Property\nEnter to climb    /    1–5 change character    ·    %s" % player.costumes.NAMES[player.costumes.key]
 			"won": native_label.text = "Summit reached   ·   %d jumps    /    Enter to play again" % player.jump_count
 			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart\n1   Next object ring: %s    ·    2   Landing guide: %s" % [str(show_route_ring),str(show_landing_guide)]
-			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   C follow camera   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,ledge,Islands.ROUTE.size()-1]
+			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   C follow camera   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,art.stage(ledge),Islands.ROUTE.size()-1]

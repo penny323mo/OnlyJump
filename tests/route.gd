@@ -16,12 +16,12 @@ func check(ok: bool, message: String) -> bool:
 		quit(1)
 	return ok
 
-func leap(index: int) -> bool:
+func leap(index: int, offset := Vector3.ZERO, check_guide := true) -> bool:
 	# Run up on the actual previous object, then take a ballistic jump. The
 	# test only drives the controls available to the player, including sprint.
 	game.web_command(["stick",0,0])
 	await frames(2)
-	var target: Vector3 = Land.ROUTE[index]
+	var target := game.art.stop_position(index)+offset
 	var gap := target-game.player.position
 	var aim := Vector2(gap.x,gap.z).normalized()
 	var t := (game.player.JUMP_SPEED+sqrt(maxf(.01,game.player.JUMP_SPEED**2-2*game.player.GRAVITY*gap.y)))/game.player.GRAVITY
@@ -43,14 +43,14 @@ func leap(index: int) -> bool:
 		if not game.player.is_on_floor() and game.player.velocity.y<-.8 and game.landing_guide.visible:
 			if air_mark==Vector3.INF: air_mark=game.landing_guide.global_position
 		if game.player.is_on_floor() and game.ledge==index:
-			if not check(air_mark.distance_to(game.player.position)<.40,"in-flight landing guide for "+Land.NAMES[index]):return false
-			if before_mark!=Vector3.INF:
+			if check_guide and not check(air_mark.distance_to(game.player.position)<.40,"in-flight landing guide for "+game.art.stop_name(index)):return false
+			if check_guide and before_mark!=Vector3.INF:
 				pre_jump_marks+=1
-				if not check(before_mark.distance_to(game.player.position)<.40,"takeoff landing guide for "+Land.NAMES[index]):return false
+				if not check(before_mark.distance_to(game.player.position)<.40,"takeoff landing guide for "+game.art.stop_name(index)):return false
 			game.web_command(["stick",0,0])
-			print("landed ",index," ",Land.NAMES[index])
+			print("landed ",index," ",game.art.stop_name(index))
 			return true
-	return check(false,"could not land on "+Land.NAMES[index])
+	return check(false,"could not land on "+game.art.stop_name(index))
 
 func surface_normal(point: Vector3) -> Vector3:
 	var ray := PhysicsRayQueryParameters3D.create(point+Vector3.UP*.7,point+Vector3.DOWN)
@@ -176,7 +176,7 @@ func run() -> void:
 	for index in range(1,Land.ROUTE.size()):
 		if not await leap(index):return
 	if not check(pre_jump_marks>=12,"takeoff guide coverage"):return
-	if not check(game.phase=="won" and game.player.jump_count==18,"summit"):return
+	if not check(game.phase=="won" and game.player.jump_count==24 and game.art.pickups.count==0,"summit"):return
 	# Part of the flat sole extends past a 76 cm wide steel beam.
 	game.start_run()
 	game.player.reset_at(Land.ROUTE[16])
@@ -249,6 +249,6 @@ func run() -> void:
 	if not await check_rescue(2,false):return
 	if not await check_blocked_grip():return
 	print("PASS landing guidance and ledge rescues")
-	print("PASS mobile parkour: 18 landings, instant jump, sprint, orbit, edge hold, recovery")
+	print("PASS mobile parkour: 24 landings, instant jump, sprint, orbit, edge hold, recovery")
 	game.free()
 	quit()

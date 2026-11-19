@@ -15,11 +15,14 @@ var over_lip := Vector3.ZERO
 var forward := Vector3.FORWARD
 var hands: Array[Vector3] = []
 var start := Vector3.ZERO
+var support_body: CollisionObject3D
+var support_transform := Transform3D.IDENTITY
 
 func reset() -> void:
 	available = false
 	active = false
 	elapsed = 0
+	support_body = null
 
 func ray(player: CharacterBody3D, a: Vector3, b: Vector3) -> Dictionary:
 	var q := PhysicsRayQueryParameters3D.create(a,b)
@@ -65,6 +68,8 @@ func try_catch(player: CharacterBody3D, approach: Vector2, last_ledge: int, foot
 	# One roll for the whole jump, after the lip and the climb path qualify.
 	available = false
 	if rng.randf()>=CHANCE: return false
+	support_body=body
+	support_transform=support_body.global_transform
 	start=foot
 	anchor=hang
 	crest=high
@@ -80,6 +85,18 @@ func climb_progress() -> float:
 	return clampf((elapsed-HANG_TIME)/CLIMB_TIME,0,1)
 
 func advance(player: CharacterBody3D, delta: float) -> void:
+	if not is_instance_valid(support_body) or support_body.collision_layer==0:
+		active=false
+		return
+	var shift:=support_body.global_transform*support_transform.affine_inverse()
+	support_transform=support_body.global_transform
+	start=shift*start
+	anchor=shift*anchor
+	crest=shift*crest
+	stand=shift*stand
+	over_lip=shift*over_lip
+	forward=shift.basis*forward
+	for i in hands.size(): hands[i]=shift*hands[i]
 	elapsed+=delta
 	var progress := climb_progress()
 	var next := start.lerp(anchor,smoothstep(0,.10,elapsed))

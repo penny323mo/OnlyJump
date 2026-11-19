@@ -20,6 +20,7 @@ func _ready() -> void:
 # jumps, so the top of a narrow beam can support part of the player's sole.
 func refresh(player: Climber, move: Vector2, tick: float) -> void:
 	hide()
+	if player.ability=="glide" or player.ability=="jet": return
 	var grounded := player.is_on_floor()
 	if grounded and move.is_zero_approx(): return
 	var at := player.global_transform
@@ -43,6 +44,7 @@ func refresh(player: Climber, move: Vector2, tick: float) -> void:
 				var normal := contact.get_normal(i)
 				var body := contact.get_collider(i)
 				if normal.y<cos(player.floor_max_angle) or not body.has_meta("ledge"): continue
+				if body.has_meta("mobile_surface") or body.has_meta("drop_surface"): return
 				# Use the surface under the centre of the sole where it exists.
 				# On an overhang the actual contact is the supported edge instead.
 				var point := contact.get_position(i)

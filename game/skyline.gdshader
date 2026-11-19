@@ -11,8 +11,8 @@ void fragment(){
 	vec2 uv=p/vec2(.98,1.35);
 	vec2 footprint=max(fwidth(uv),vec2(.0001));
 	vec2 edge=vec2(.26,.235)-abs(fract(uv)-vec2(.50,.555));
-	vec2 coverage=smoothstep(-.5*footprint,.5*footprint,edge);
-	float detail=1.-smoothstep(.30,.85,max(footprint.x,footprint.y));
+	vec2 coverage=smoothstep(-.75*footprint,.75*footprint,edge);
+	float detail=1.-smoothstep(.19,.62,max(footprint.x,footprint.y));
 	float windows=coverage.x*coverage.y;
 	float light=fract(sin(dot(floor(p/vec2(.98,1.35)),vec2(19.5,72.8)))*13271.);
 	vec3 wall=mix(vec3(.44,.48,.52),vec3(.54,.54,.56),max(0.,facing.x));

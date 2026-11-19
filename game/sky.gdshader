@@ -2,8 +2,8 @@ shader_type sky;
 
 void sky() {
 	vec3 ray = EYEDIR;
-	vec3 horizon = vec3(0.96, 0.81, 0.69);
-	vec3 dusk = vec3(0.37, 0.60, 0.75);
+	vec3 horizon = vec3(0.99, 0.76, 0.60);
+	vec3 dusk = vec3(0.18, 0.58, 0.83);
 	vec3 color = mix(horizon, dusk, smoothstep(0.02, 0.58, ray.y));
 	color = mix(color, vec3(0.78, 0.58, 0.53), smoothstep(0.03, 0.45, -ray.y));
 	vec3 sun = normalize(vec3(0.085, 0.12, -1.0));

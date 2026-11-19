@@ -89,14 +89,16 @@ func label(parent: Node3D, p: Vector3, words: String, height: float, tint: Strin
 	if flat: text.rotation.x = -PI/2
 	return text
 
-func solid(body: StaticBody3D, p: Vector3, size: Vector3, tint: String, bevel := 0.06) -> MeshInstance3D:
+func solid(body: StaticBody3D, p: Vector3, size: Vector3, tint: String, bevel := 0.06, yaw := 0.) -> MeshInstance3D:
 	var item := box(body,p,size,tint,bevel)
+	item.rotation.y=yaw
 	var hit := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = size
 	hit.shape = shape
 	body.add_child(hit)
 	hit.position = p
+	hit.rotation.y=yaw
 	return item
 
 func deck(body: StaticBody3D, size: Vector3, tint: String, bevel := 0.06) -> void:

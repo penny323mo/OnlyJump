@@ -9,10 +9,16 @@ const ROUTE := [
 	Vector3(-2.12,7.35,-17.33),Vector3(-4.70,8.26,-20.42),Vector3(-1.72,9.22,-23.25),
 	Vector3(2.42,10.16,-22.70),Vector3(5.12,11.03,-19.68),Vector3(8.00,11.88,-21.25),
 	Vector3(10.95,12.80,-18.56),Vector3(9.42,13.72,-14.90),Vector3(5.62,14.64,-15.55),
-	Vector3(3.04,15.55,-12.38)
+	Vector3(3.04,15.55,-12.38),Vector3(-.65,16.38,-10.65),Vector3(-3.95,17.16,-8.72),
+	Vector3(-7.0,18.06,-10.52),Vector3(-10.27,18.87,-8.46),Vector3(-10.62,19.72,-4.90),
+	Vector3(-7.22,20.65,-3.00)
 ]
+const Branches = preload("res://game/branch_routes.gd")
+var branches := Branches.new()
+var pickups := preload("res://game/pickups.gd").new()
+const LAUNDRY_START := 18
 const PREVIOUS_HEIGHTS := [0.,1.35,3.05,4.95,7.05,9.1,11.25,13.5,15.75,17.95,20.25,22.65,25.,27.1,29.25,31.45,33.65,35.85,38.]
-const NAMES := ["士多天台","絲絨梳化","木茶几","膽機電視","皮喼","波鞋鞋底","錄音帶","手提音響","黑膠唱盤","電子琴","古董相機","滑板","玩具跑車","碼頭繫纜柱","貨櫃","橫放電纜轆","吊臂鋼樑","三角形郵筒紙盒","失物招領枱"]
+const NAMES := ["士多天台","絲絨梳化","木茶几","膽機電視","皮喼","波鞋鞋底","錄音帶","手提音響","黑膠唱盤","電子琴","古董相機","滑板","玩具跑車","碼頭繫纜柱","貨櫃","橫放電纜轆","吊臂鋼樑","三角形郵筒紙盒","失物招領枱","熨衫板","木衣夾","滾筒洗衣機","晾衫架","鋁摺梯","天台太陽傘"]
 const SOFA = preload("res://assets/props/sofa.glb")
 const SHOE = preload("res://assets/props/sneaker.glb")
 const STEREO = preload("res://assets/props/boombox.glb")
@@ -23,6 +29,7 @@ const ROAD = preload("res://assets/city/road-straight-lightposts.glb")
 const CROSSING = preload("res://assets/city/road-intersection.glb")
 
 func _ready() -> void:
+	var laundry := preload("res://game/laundry.gd").new(self)
 	for index in ROUTE.size():
 		var body := StaticBody3D.new()
 		body.set_meta("ledge",index)
@@ -50,9 +57,41 @@ func _ready() -> void:
 			16: girder(body)
 			17: parcel(body)
 			18: finish_counter(body)
+			19:
+				body.rotation.y=deg_to_rad(26)
+				laundry.ironing_board(body)
+			20:
+				body.rotation.y=deg_to_rad(18)
+				laundry.clothes_peg(body)
+			21:
+				body.rotation.y=deg_to_rad(28)
+				laundry.washer(body)
+			22:
+				body.rotation.y=deg_to_rad(-22)
+				laundry.drying_rack(body)
+			23:
+				body.rotation.y=deg_to_rad(-30)
+				laundry.folding_ladder(body)
+			24: laundry.parasol(body)
+	branches.build(self,ROUTE)
+	pickups.build(self,branches.bodies)
 	city()
 	crane()
 	skyline()
+
+func stage(id: int) -> int:
+	return Branches.STOPS[id][2] if Branches.STOPS.has(id) else id
+
+func stop_name(id: int) -> String:
+	return Branches.STOPS[id][0] if Branches.STOPS.has(id) else NAMES[id]
+
+func destination(id: int, alternate: bool) -> int:
+	if alternate and Branches.FORKS.has(id): return Branches.FORKS[id]
+	if Branches.STOPS.has(id): return Branches.STOPS[id][3]
+	return id+1 if id+1<ROUTE.size() else -1
+
+func stop_position(id: int) -> Vector3:
+	return branches.target(id) if Branches.STOPS.has(id) else ROUTE[id]
 
 func model_prop(body: StaticBody3D, scene: PackedScene, span: float, angles: Vector3) -> void:
 	var pivot := Node3D.new()

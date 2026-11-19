@@ -94,6 +94,20 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
 #hintOptions summary{width:max-content;padding:6px 0;font-weight:700;cursor:pointer}
 #hintOptions label{display:inline-flex;gap:6px;align-items:center;padding:7px 8px 7px 0}
 #hintOptions input{width:18px;height:18px;accent-color:var(--ink)}
+#branch{pointer-events:auto;border:0;background:#244e50;color:#fff3d9;padding:5px 9px;border-radius:4px;font-weight:700}
+.destination{display:flex;align-items:center;gap:7px;min-height:24px}
+#pickCast{margin:5px 0 0 5px}
+#cast{color:var(--ink);background:var(--paper);width:min(660px,94vw);max-height:91dvh;border:0;border-radius:9px;padding:clamp(14px,3vw,25px);box-shadow:0 12px 50px #20343855}
+#cast::backdrop{background:#1c393897}#cast h2{margin:0;font-size:21px}
+.cast-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.cast-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.cast-grid button{min-width:0;border:2px solid transparent;border-radius:6px;background:#e7dcc7;padding:0 0 6px;overflow:hidden;font-size:13px;font-weight:700}
+.cast-grid button[aria-pressed=true]{border-color:#287766;background:#c9dfbc}
+.portrait{display:block;aspect-ratio:1;background-image:url('./characters.webp');background-size:500% 100%;background-position:var(--pos) 0;margin-bottom:5px}
+@media(max-width:515px) and (orientation:portrait){.cast-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+#pickupHint{position:absolute;transform:translate(-50%,-100%);pointer-events:none;background:#173d39;color:#fff7d6;border:1px solid #aaffdf;border-radius:5px;padding:3px 7px;font:700 12px/1.3 system-ui;white-space:nowrap}
+#pickupHint::before{content:'◆';color:#91ffdb;margin-right:4px}
+#power{font-weight:800;color:#155652;background:#d7ecd3;border-radius:3px;margin-top:4px;padding:3px 6px;width:max-content}
 </style>
 $GODOT_HEAD_INCLUDE
 </head>
@@ -101,9 +115,10 @@ $GODOT_HEAD_INCLUDE
 <canvas id="canvas" tabindex="-1" aria-label="OnlyJump 3D 遊戲場景"></canvas><div class="wash"></div>
 <div id="look" hidden aria-label="拖曳轉動視角"></div>
 <header><div class="brand" aria-label="OnlyJump"><i class="mark"></i>OnlyJump</div><div class="actions"><button class="pill" id="mute" aria-pressed="false" disabled><span class="soundmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="soundLabel">音效開</span></button><button class="pill" id="align" hidden>◎ 對準目標</button><button class="pill" id="pause" hidden><i class="pause-icon"></i>暫停</button></div></header>
-<main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1><p class="summary"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左半屏落指再拖動，右半屏掃動轉鏡。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>下一站睇左上角，青白十字係預計落點。</p><button class="primary" id="start" disabled><span id="start-label">載入遊戲中…</span><span class="arrow" aria-hidden="true">↗</span></button><p id="error" role="alert" hidden></p></div></main>
-<div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong>天台終點 · 15.6 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
-<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route">失物天台</div><div class="number"><span id="height">0.0</span><small>m</small></div><div class="route-progress"><i id="progress"></i></div><div class="stats" id="nextProp"></div><div class="stats">進度 <b id="ledge">0 / 18</b> · <span id="time">00:00</span></div></div><button class="pill" id="follow" aria-pressed="true">追蹤鏡頭 開</button><span id="notice" role="status" hidden></span></section>
+<main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1><p class="summary"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左半屏落指再拖動，右半屏掃動轉鏡。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>分岔位撳「揀路」睇另一條路，青白十字係預計落點。</p><button class="primary" id="start" disabled><span id="start-label">載入遊戲中…</span><span class="arrow" aria-hidden="true">↗</span></button><button class="secondary" id="pickCast" disabled>角色 · <span id="chosenCast">天台速遞員</span></button><p id="error" role="alert" hidden></p></div></main>
+<div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong>太陽傘頂 · 20.7 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
+<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route" id="sectionName">失物天台</div><div class="number"><span id="height">0.0</span><small>m</small></div><div class="route-progress"><i id="progress"></i></div><div class="destination"><span class="stats" id="nextProp"></span><button id="branch" hidden aria-label="揀另一條路">⇄ 揀路</button></div><div class="stats">進度 <b id="ledge">0 / 24</b> · <span id="time">00:00</span></div><div class="stats" id="power" hidden></div></div><button class="pill" id="follow" aria-pressed="true">追蹤鏡頭 開</button><span id="notice" role="status" hidden></span></section>
+<span id="pickupHint" hidden></span>
 <div id="touch" hidden><div id="padZone" aria-label="左半屏浮動搖桿"><div id="pad"><i></i></div></div><button id="sprint" aria-pressed="false" aria-label="按住加速，滑落跳掣起跳">加速</button><button id="jump">跳躍</button></div>
 <section id="overlay" hidden><div class="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"><div class="route">失物天台</div><h2 id="panelTitle"></h2><p id="report"></p>
 <fieldset id="buttonSizes"><legend>右手按掣大小</legend>
@@ -116,6 +131,7 @@ $GODOT_HEAD_INCLUDE
 <label><input type="checkbox" id="landingGuide" checked>預計落點十字</label>
 </details>
 <button class="primary" id="continue"></button><button class="secondary" id="reset">重新開始</button><button class="secondary" id="menu">返回主畫面</button><a class="credits" href="./credits.txt" target="_blank" rel="noopener">模型鳴謝</a></div></section>
+<dialog id="cast" aria-labelledby="castTitle"><div class="cast-header"><h2 id="castTitle">揀角色</h2><button class="secondary" id="closeCast">返回</button></div><div class="cast-grid" id="castList"></div></dialog>
 <noscript>請開啟 JavaScript 載入遊戲。</noscript>
 <script src="./controls.js"></script>
 <script>
@@ -157,18 +173,52 @@ function timer(seconds) {
 function restoreFocus() {
   if (mode === 'playing') canvas.focus({preventScroll:true});
 }
+const cast = [['courier','天台速遞員'],['bun','菠蘿油俠'],['fish','鹹魚仔'],['cone','雪糕筒工頭'],['dino','短手暴龍']];
+const castButtons = cast.map(([id,name],i)=>{
+  const button=document.createElement('button'), portrait=document.createElement('span');
+  portrait.className='portrait';
+  portrait.style.setProperty('--pos',(i*25)+'%');
+  button.append(portrait,document.createTextNode(name));
+  button.onclick=()=>{send('character',id);el('cast').close()};
+  el('castList').append(button);
+  return button;
+});
+let selectedCast;
+el('pickCast').onclick=()=>{el('cast').showModal();castButtons[Math.max(0,cast.findIndex(([id])=>id===selectedCast))].focus()};
+el('closeCast').onclick=()=>el('cast').close();
+el('branch').onclick=()=>{send('branch');restoreFocus()};
 window.OnlyJumpUI = {
   clearInputs,
+  pickupHint(x,y,name) {
+    const tag=el('pickupHint');
+    tag.hidden=!name || x<0 || x>1 || y<0 || y>1;
+    if(tag.hidden)return;
+    tag.style.left=(x*100)+'%';
+    tag.style.top=(y*100)+'%';
+    tag.textContent='道具 · '+name;
+  },
   bindGame(callback) {
     send = callback;
-    el('start').disabled = el('mute').disabled = false;
+    el('pickCast').disabled = el('start').disabled = el('mute').disabled = false;
     el('start-label').textContent = '開始攀登';
   },
-  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,follow,routeRing,landingGuide) {
+  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,follow,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges) {
     const changed = mode !== next;
     mode = document.body.dataset.mode = next;
     const playing = next === 'playing', intro = next === 'intro', won = next === 'won';
     el('intro').hidden = el('legend').hidden = !intro;
+    const powers={double:'二段跳',jet:'噴射器',glide:'滑翔襪'};
+    el('power').hidden=!ability;
+    if(ability)el('power').textContent=powers[ability]+' · '+(armed?'撳跳點火':Math.ceil(seconds)+' 秒')+(ability==='double'?' · 餘 '+charges+' 次':'');
+    el('branch').hidden=!playing || !fork;
+    el('sectionName').textContent=laundry?'天台晾衣場':'失物天台';
+    if(character!==selectedCast){
+      selectedCast=character;
+      cast.forEach(([id,name],i)=>{
+        castButtons[i].setAttribute('aria-pressed',String(id===character));
+        if(id===character)el('chosenCast').textContent=name;
+      });
+    }
     el('nextProp').textContent = target ? '下一站 · '+target : '';
     el('look').hidden = el('align').hidden = el('pause').hidden = el('hud').hidden = !playing;
     el('touch').hidden = !(playing || next==='paused');
@@ -192,8 +242,8 @@ window.OnlyJumpUI = {
     el('notice').textContent = notice;
     el('notice').hidden = !notice;
     if (!el('overlay').hidden) {
-      el('panelTitle').textContent = won ? '天台送達' : '已暫停';
-      el('report').textContent = (won ? '抵達失物招領站。' : '')+'用時 '+timer(elapsed)+' · '+jumps+' 次起跳 · '+falls+' 次跌落。最高落腳點 '+best.toFixed(1)+' m。';
+      el('panelTitle').textContent = won ? '登上太陽傘' : '已暫停';
+      el('report').textContent = (won ? '抵達天台最高點。' : '')+'用時 '+timer(elapsed)+' · '+jumps+' 次起跳 · '+falls+' 次跌落。最高落腳點 '+best.toFixed(1)+' m。執到道具 '+finds+' / 3。';
       el('continue').textContent = won ? '再攀一次 ↗' : '繼續攀登 ↗';
       el('reset').hidden = won;
     }
