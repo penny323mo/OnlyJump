@@ -17,6 +17,9 @@ const MAX_DOUBLE_CHARGES := 3
 
 var aim := Vector2(0.45,-0.89).normalized()
 var grounded_ledge := -1
+var standing_platform: Node3D
+var local_foot := Vector3.ZERO
+var platform_yaw := 0.0
 var spring_impulse := Vector3.ZERO
 var ability := ""
 var ability_time := 0.0
@@ -101,6 +104,7 @@ func reset_at(p: Vector3) -> void:
 	grace = 0
 	jump_count = 0
 	grounded_ledge = -1
+	standing_platform = null
 	spring_impulse = Vector3.ZERO
 	stop_stunt()
 	equip("")
@@ -136,6 +140,21 @@ func steer_in_air(horizontal: Vector2, move: Vector2, speed: float, delta: float
 	if move.is_zero_approx(): return horizontal
 	var target := move.normalized()*maxf(speed,1.05)
 	return horizontal.move_toward(target,AIR_STEER*move.length()*delta)
+
+func settle_on_platform(body: Node3D) -> void:
+	if body!=standing_platform:
+		local_foot=body.to_local(global_position)
+	else:
+		# The solver carries us along the instantaneous tangent. Keep the sole
+		# at its place on the rotating deck without pulling it through a wall.
+		var correction:=(body.to_global(local_foot)-global_position).slide(get_floor_normal())
+		if not correction.is_zero_approx() and move_and_collide(correction):
+			local_foot=body.to_local(global_position)
+		var turn:=angle_difference(platform_yaw,body.global_rotation.y)
+		aim=aim.rotated(-turn)
+		model.rotation.y+=turn
+	standing_platform=body
+	platform_yaw=body.global_rotation.y
 
 func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 	if ability_time>0 and not jet_armed:
@@ -232,6 +251,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 	# A vertical jumper can reach the rim in front of their chest.
 	var reach := Vector2(-model.basis.z.x,-model.basis.z.z) if horizontal.is_zero_approx() else horizontal
 	move_and_slide()
+	if not is_on_floor(): standing_platform=null
 	if pulling:
 		if hook.time_left<=0 or get_slide_collision_count()>0 or hook.chest(self).distance_to(hook.anchor.global_position)<.38:
 			equip("")
@@ -242,6 +262,8 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 			var contact := get_slide_collision(i)
 			var body := contact.get_collider() as Node3D
 			if contact.get_normal().y < .66 or not body or not body.has_meta("ledge"): continue
+			if move.is_zero_approx() and body.has_meta("mobile_surface"): settle_on_platform(body)
+			else: standing_platform=null
 			var index := int(body.get_meta("ledge"))
 			if index != grounded_ledge or not on_floor_before:
 				grounded_ledge = index

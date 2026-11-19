@@ -53,6 +53,38 @@ func check_double_jump() -> bool:
 	if not check(game.elapsed>=15 and game.elapsed<18 and game.art.pickups.count==1,"timed duck expires without collecting twice"):return false
 	return true
 
+func check_fan_footing() -> bool:
+	game.start_run()
+	var blade: Node3D=game.art.branches.bodies[B.FAN]
+	var player:=game.player
+	# Ride the unladen blade so the jump button stays a normal jump.
+	player.reset_at(blade.to_global(Vector3(2.13,.04,0).rotated(Vector3.UP,TAU/3)))
+	await frames(40)
+	var sole:=blade.to_local(player.position)
+	var facing:=blade.basis.inverse()*(-player.model.basis.z)
+	var yaw:=game.camera_yaw
+	for quarter in 5:
+		await frames(188)
+		if not check(player.is_on_floor() and game.ledge==B.FAN,"remain on blade tip"):return false
+		if not check(sole.distance_to(blade.to_local(player.position))<.006,"feet stay planted through each turn"):return false
+		if not check(facing.angle_to(blade.basis.inverse()*(-player.model.basis.z))<.015,"rider turns with the blade"):return false
+		if not check(is_equal_approx(game.camera_yaw,yaw),"idle ride keeps selected camera heading"):return false
+	var previous:=player.position
+	await frames(1)
+	var carry:=(player.position-previous)*Engine.physics_ticks_per_second
+	game.web_command(["jump"])
+	await frames(2)
+	var airborne:=Vector2(player.velocity.x,player.velocity.z)
+	if not check(not player.is_on_floor() and airborne.distance_to(Vector2(carry.x,carry.z))<.06 and airborne.length()>.9,"neutral jump inherits the blade tangent once"):return false
+	player.reset_at(blade.to_global(sole))
+	await frames(10)
+	var outward:=player.position-blade.position
+	var stick:=Vector2(outward.x,outward.z).normalized().rotated(game.camera_yaw)
+	game.web_command(["stick",stick.x,stick.y])
+	await frames(35)
+	game.web_command(["stick",0,0])
+	return check(player.position.y<blade.position.y-.15 and player.jump_count==0,"stepping off the tip releases the foothold")
+
 func check_moving_takeoff(source: int, phase_ticks: int, aim: int, landing: int) -> bool:
 	game.start_run()
 	await frames(phase_ticks)
@@ -228,6 +260,7 @@ func run() -> void:
 	if not await check_moving_takeoff(B.FAN,165,10,10):return
 	if not await check_moving_takeoff(B.LIFT,205,22,22):return
 	if not await check_moving_takeoff(B.LIFT,403,22,20):return
+	if not await check_fan_footing():return
 	game.start_run()
 	if not check(game.art.branches.timers.is_empty() and game.art.branches.bodies[B.BOARD].collision_layer==1,"restart restores props"):return
 	print("PASS branches, rotating fan, timed pickups, double-jump stunts, lower recovery and five characters")
