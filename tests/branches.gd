@@ -93,6 +93,17 @@ func run() -> void:
 		if not check(game.player.costumes.key==id,"select "+id):return
 		if id!="courier" and not check(game.player.costumes.mounts.size()>=2,"animated costume mounts"):return
 	await start_on(0)
+	var view:=game.camera.global_transform
+	var duck: Node3D=game.art.pickups.items["double"]
+	game.camera.position=Vector3(0,3,4)
+	game.camera.look_at(duck.global_position)
+	if not check(game.art.pickups.visible_hint(game.camera,game.player)==duck,"label on visible duck"):return
+	var frame:=game.art.pickups.frame_bounds(game.camera,duck)
+	if not check(frame.has_area() and frame.has_point(game.camera.unproject_position(duck.global_position)),"projected frame surrounds duck"):return
+	game.camera.position=Vector3(0,-3,0)
+	game.camera.look_at(duck.global_position)
+	if not check(game.art.pickups.visible_hint(game.camera,game.player)==null,"rooftop blocks duck label"):return
+	game.camera.global_transform=view
 	game.web_command(["branch"])
 	if not check(game.alternate and game.art.destination(0,true)==B.BED,"choose optional route"):return
 	game.web_command(["branch"])

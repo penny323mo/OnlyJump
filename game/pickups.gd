@@ -8,7 +8,8 @@ const ITEMS := {
 	"glide":["飛天襪",B.SHEET,Vector3(.75,.48,.34)],
 }
 var items := {}
-const LABELS := {"double":"二段跳","jet":"噴射器","glide":"滑翔襪"}
+const LABELS := {"double":"二段跳","jet":"噴射器","glide":"緩降"}
+const FRAME_TIPS := [Vector3.UP*.52,Vector3.RIGHT*.41,Vector3.DOWN*.42,Vector3.LEFT*.41,Vector3.BACK*.41,Vector3.FORWARD*.41]
 var count := 0
 var time := 0.
 
@@ -22,11 +23,10 @@ func build(art: Props, bodies: Dictionary) -> void:
 		var glow:=StandardMaterial3D.new()
 		glow.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
 		glow.albedo_color=Color("8dffe4")
-		var points: Array[Vector3]=[Vector3.UP*.52,Vector3.RIGHT*.41,Vector3.DOWN*.42,Vector3.LEFT*.41]
-		for plane in 2:
+		for ring: Array in [[0,1,2,3],[0,4,2,5]]:
 			for i in 4:
-				var a:=points[i].rotated(Vector3.UP,plane*PI*.5)
-				var b:=points[(i+1)%4].rotated(Vector3.UP,plane*PI*.5)
+				var a: Vector3=FRAME_TIPS[ring[i]]
+				var b: Vector3=FRAME_TIPS[ring[(i+1)%4]]
 				var wire:=art.cone(obj,(a+b)*.5,a.distance_to(b),.014,.014,"8dffe4",6)
 				wire.quaternion=Quaternion(Vector3.UP,a.direction_to(b))
 				wire.material_override=glow
@@ -55,6 +55,14 @@ func reset() -> void:
 	count=0
 	time=0
 	for obj: Node3D in items.values(): obj.show()
+
+func frame_bounds(camera: Camera3D, item: Node3D) -> Rect2:
+	var bounds:=Rect2(camera.unproject_position(item.global_position),Vector2.ZERO)
+	for tip: Vector3 in FRAME_TIPS:
+		var point:=item.to_global(tip)
+		if camera.is_position_behind(point):return camera.get_viewport().get_visible_rect()
+		bounds=bounds.expand(camera.unproject_position(point))
+	return bounds
 
 func collect(foot: Vector3, delta: float) -> String:
 	time+=delta

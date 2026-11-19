@@ -9,8 +9,11 @@ const GROUND_ACCEL := 25.0
 const STANDING_PUSH := 2.85
 const AIR_STEER := 2.8
 const FOOT_RADIUS := 0.285
+const BODY_HEIGHT := 1.18
 const COYOTE_TIME := 0.12
 const BUFFER_TIME := 0.13
+const ABILITY_SECONDS := {"double":15,"jet":3,"glide":6}
+const MAX_DOUBLE_CHARGES := 3
 
 var aim := Vector2(0.45,-0.89).normalized()
 var grounded_ledge := -1
@@ -52,7 +55,7 @@ func build(art) -> void:
 	var hit := CollisionShape3D.new()
 	var sole := CylinderShape3D.new()
 	sole.radius = FOOT_RADIUS
-	sole.height = 1.18
+	sole.height = BODY_HEIGHT
 	hit.shape = sole
 	hit.position.y = sole.height/2
 	add_child(hit)
@@ -102,8 +105,8 @@ func reset_at(p: Vector3) -> void:
 
 func equip(id: String) -> void:
 	ability=id
-	double_charges=3 if id=="double" else 0
-	ability_time=float({"double":15,"jet":3,"glide":6}.get(id,0))
+	double_charges=MAX_DOUBLE_CHARGES if id=="double" else 0
+	ability_time=float(ABILITY_SECONDS.get(id,0))
 	jet_armed=id=="jet"
 	extra_jump=true
 	exhaust.visible=id=="jet"

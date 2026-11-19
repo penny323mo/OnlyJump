@@ -423,6 +423,20 @@ func _process(delta: float) -> void:
 		menu_time += delta
 		intro_camera()
 
+func climber_screen_bounds(viewport_size: Vector2) -> Rect2:
+	var foot:=player.global_position
+	var head:=foot+Vector3.UP*(player.BODY_HEIGHT+.12)
+	var radius:=player.FOOT_RADIUS+.06
+	var side:=camera.global_basis.x*radius
+	var depth:=side.cross(Vector3.UP)
+	var bounds:=Rect2(camera.unproject_position(foot)/viewport_size,Vector2.ZERO)
+	for centre: Vector3 in [foot,head]:
+		for offset: Vector3 in [side+depth,side-depth,-side+depth,-side-depth]:
+			var point:=centre+offset
+			if camera.is_position_behind(point):return Rect2(0,0,1,1)
+			bounds=bounds.expand(camera.unproject_position(point)/viewport_size)
+	return bounds
+
 func update_hud() -> void:
 	var next:=art.destination(ledge,alternate)
 	landing_ring.visible = show_route_ring and phase == "playing" and next>=0
@@ -435,14 +449,23 @@ func update_hud() -> void:
 		landing_ring.position = target+Vector3.UP*visible_top
 	var height := maxf(0.0,player.position.y)
 	if web:
-		var hint: Node3D=art.pickups.visible_hint(camera,player) if phase=="playing" else null
-		if hint:
-			var screen:=camera.unproject_position(hint.global_position+Vector3.UP*.53)/get_viewport().get_visible_rect().size
-			web.pickupHint(screen.x,screen.y,art.pickups.LABELS[art.pickups.items.find_key(hint)])
-		else: web.pickupHint(0,0,"")
 		var message := notice
 		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
 		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,art.stop_name(next) if next>=0 else "",follow_camera,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges)
+		var hint: Node3D=art.pickups.visible_hint(camera,player) if phase=="playing" else null
+		if hint:
+			var viewport_size:=get_viewport().get_visible_rect().size
+			var centre:=camera.unproject_position(hint.global_position)/viewport_size
+			var frame:=art.pickups.frame_bounds(camera,hint)
+			var first:=frame.position/viewport_size
+			var last:=frame.end/viewport_size
+			var climber:=climber_screen_bounds(viewport_size)
+			var key: String=art.pickups.items.find_key(hint)
+			var effect: String="%s\n%d 秒" % [art.pickups.LABELS[key],player.ABILITY_SECONDS[key]]
+			if key=="double": effect+=" · 最多 %d 次" % player.MAX_DOUBLE_CHARGES
+			web.pickupHint(centre.x,centre.y,effect,first.x,first.y,last.x,last.y,
+				climber.position.x,climber.position.y,climber.end.x,climber.end.y)
+		else: web.pickupHint(0,0,"")
 	elif native_label:
 		match phase:
 			"intro": native_label.text = "ONLYJUMP   /   Lost Property\nEnter to climb    /    1–5 change character    ·    %s" % player.costumes.NAMES[player.costumes.key]
