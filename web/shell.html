@@ -57,6 +57,7 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
 @media(any-pointer:coarse){#touch:not([hidden]){display:block}.key-copy{display:none!important}.touch-copy{display:inline}.controls{display:none}}
 @media(max-width:660px) and (orientation:portrait){:root{--gut:21px}.wash{background:linear-gradient(0deg,#f1e3cc 4%,#f1e3cfee 24%,#f2e4ceaa 45%,transparent 66%)}#intro{align-items:end;padding-bottom:72px}.intro-content{width:100%}h1{font-size:clamp(78px,19vw,120px);line-height:.87;margin:8px 0}h1 span{display:inline}h1 span+span{margin-left:.10em}.summary{margin:12px 0 15px;max-width:24em;font-size:14px}.bottom{bottom:max(18px,var(--safe-bottom))}.route-sign{padding:6px 10px}.controls{gap:7px}.route-sign small{display:none}.brand{font-size:21px}.route-sign strong{font-size:11px}#hud{top:calc(max(24px,var(--safe-top)) + 51px)}.alt-card{min-width:136px}}
 @media(max-height:550px){header{top:max(13px,var(--safe-top))}.brand{font-size:19px}.mark{width:24px;height:21px}#intro{padding-top:45px;padding-bottom:40px}.intro-content{width:48vw}h1{font-size:clamp(56px,16vh,85px);margin:8px 0}.summary{font-size:12px;line-height:1.45;margin:8px 0}.primary{padding:9px 13px;min-width:132px}.bottom{bottom:max(10px,var(--safe-bottom))}.route-sign{padding:5px 9px}.route-sign small{display:none}#hud{top:calc(max(13px,var(--safe-top)) + 42px)}.alt-card{padding:7px 10px}.number{font-size:33px}.pill{padding:6px 11px}}
+#layoutSize{position:fixed;top:0;left:0;width:100vw;height:100vh;width:100lvw;height:100lvh;visibility:hidden;pointer-events:none}
 #look{position:absolute;inset:0;touch-action:none;cursor:grab;user-select:none}
 #look:active{cursor:grabbing}html,body{overscroll-behavior:none}#touch{touch-action:none}#nextProp{font-weight:700;margin:5px 0}header{z-index:1}
 @media(max-height:550px){.brand{font-size:15px}.actions{gap:5px}.actions .pill{font-size:11px;padding:7px 9px}}
@@ -132,6 +133,7 @@ $GODOT_HEAD_INCLUDE
 </head>
 <body data-mode="intro">
 <canvas id="canvas" tabindex="-1" aria-label="OnlyJump 3D 遊戲場景"></canvas><div class="wash"></div>
+<div id="layoutSize" aria-hidden="true"></div>
 <div id="look" hidden aria-label="拖曳轉動視角"></div>
 <header><div class="brand" aria-label="OnlyJump"><i class="mark"></i>OnlyJump</div><div class="actions"><button class="pill" id="mute" aria-pressed="false" disabled><span class="soundmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="soundLabel">音效開</span></button><button class="pill" id="align" hidden>◎ 對準目標</button><button class="pill" id="pause" hidden><i class="pause-icon"></i>暫停</button></div></header>
 <main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1><p class="summary"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左半屏落指再拖動，右半屏掃動轉鏡。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>分岔位撳「揀路」睇另一條路，青白十字係預計落點。</p><button class="primary" id="start" disabled><span id="start-label">載入遊戲中…</span><span class="arrow" aria-hidden="true">↗</span></button><button class="secondary" id="pickCast" disabled>角色 · <span id="chosenCast">天台速遞員</span></button><p id="error" role="alert" hidden></p></div></main>
@@ -156,7 +158,7 @@ $GODOT_HEAD_INCLUDE
 <script>
 const el = id => document.getElementById(id);
 const canvas = el('canvas');
-let send, mode = 'intro';
+let send, mode;
 const jumpButton = el('jump');
 let jumpFlash;
 function sendControl(action,...args) {
@@ -206,15 +208,28 @@ let selectedCast;
 el('pickCast').onclick=()=>{el('cast').showModal();castButtons[Math.max(0,cast.findIndex(([id])=>id===selectedCast))].focus()};
 el('closeCast').onclick=()=>el('cast').close();
 el('branch').onclick=()=>{send('branch');restoreFocus()};
+function setText(id,value) {
+  const node=el(id);
+  if(node.textContent!==value)node.textContent=value;
+}
+function setHidden(id,hidden) {
+  const node=el(id);
+  if(node.hidden!==hidden)node.hidden=hidden;
+}
+function setPressed(id,pressed) {
+  const node=el(id), value=String(pressed);
+  if(node.getAttribute('aria-pressed')!==value)node.setAttribute('aria-pressed',value);
+}
 window.OnlyJumpUI = {
   clearInputs,
   pickupHint(x,y,name) {
     const tag=el('pickupHint');
-    tag.hidden=!name || x<0 || x>1 || y<0 || y>1;
+    setHidden('pickupHint',!name || x<0 || x>1 || y<0 || y>1);
     if(tag.hidden)return;
-    tag.style.left=(x*100)+'%';
-    tag.style.top=(y*100)+'%';
-    tag.textContent='道具 · '+name;
+    const left=Math.round(x*innerWidth)+'px', top=Math.round(y*innerHeight)+'px';
+    if(tag.style.left!==left)tag.style.left=left;
+    if(tag.style.top!==top)tag.style.top=top;
+    setText('pickupHint','道具 · '+name);
   },
   bindGame(callback) {
     send = callback;
@@ -223,14 +238,21 @@ window.OnlyJumpUI = {
   },
   update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,follow,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges) {
     const changed = mode !== next;
-    mode = document.body.dataset.mode = next;
     const playing = next === 'playing', intro = next === 'intro', won = next === 'won';
-    el('intro').hidden = el('legend').hidden = !intro;
+    if(changed){
+      mode=document.body.dataset.mode=next;
+      el('intro').hidden=el('legend').hidden=!intro;
+      el('look').hidden=el('align').hidden=el('pause').hidden=el('hud').hidden=!playing;
+      el('touch').hidden=!(playing || next==='paused');
+      el('touch').inert=!playing;
+      el('overlay').hidden=!(won || next==='paused');
+      el('hintOptions').hidden=next!=='paused';
+    }
     const powers={double:'二段跳',jet:'噴射器',glide:'滑翔襪'};
-    el('power').hidden=!ability;
-    if(ability)el('power').textContent=powers[ability]+' · '+(armed?'撳跳點火':Math.ceil(seconds)+' 秒')+(ability==='double'?' · 餘 '+charges+' 次':'');
-    el('branch').hidden=!playing || !fork;
-    el('sectionName').textContent=laundry?'天台晾衣場':'失物天台';
+    setHidden('power',!ability);
+    if(ability)setText('power',powers[ability]+' · '+(armed?'撳跳點火':Math.ceil(seconds)+' 秒')+(ability==='double'?' · 餘 '+charges+' 次':''));
+    setHidden('branch',!playing || !fork);
+    setText('sectionName',laundry?'天台晾衣場':'失物天台');
     if(character!==selectedCast){
       selectedCast=character;
       cast.forEach(([id,name],i)=>{
@@ -238,33 +260,31 @@ window.OnlyJumpUI = {
         if(id===character)el('chosenCast').textContent=name;
       });
     }
-    el('nextProp').textContent = target ? '下一站 · '+target : '';
-    el('look').hidden = el('align').hidden = el('pause').hidden = el('hud').hidden = !playing;
-    el('touch').hidden = !(playing || next==='paused');
-    el('touch').inert = !playing;
-    el('overlay').hidden = !(won || next === 'paused');
-    if (next==='paused') {
+    setText('nextProp',target?'下一站 · '+target:'');
+    if(next==='paused'){
       el('routeRing').checked=routeRing;
       el('landingGuide').checked=landingGuide;
     }
-    el('hintOptions').hidden=next!=='paused';
-    el('mute').setAttribute('aria-pressed',String(muted));
-    el('soundLabel').textContent = muted ? '音效關' : '音效開';
-    el('height').textContent = height.toFixed(1);
-    el('ledge').textContent = ledge+' / '+total;
-    el('time').textContent = timer(elapsed);
-    el('progress').style.width = (ledge/total*100)+'%';
-    el('sprint').setAttribute('aria-pressed',String(sprint));
-    el('sprint').textContent=sprint?'加速中':'加速';
-    el('follow').setAttribute('aria-pressed',String(follow));
-    el('follow').textContent=follow?'追蹤鏡頭 開':'追蹤鏡頭 關';
-    el('notice').textContent = notice;
-    el('notice').hidden = !notice;
-    if (!el('overlay').hidden) {
-      el('panelTitle').textContent = won ? '登上太陽傘' : '已暫停';
-      el('report').textContent = (won ? '抵達天台最高點。' : '')+'用時 '+timer(elapsed)+' · '+jumps+' 次起跳 · '+falls+' 次跌落。最高落腳點 '+best.toFixed(1)+' m。執到道具 '+finds+' / 3。';
-      el('continue').textContent = won ? '再攀一次 ↗' : '繼續攀登 ↗';
-      el('reset').hidden = won;
+    setPressed('mute',muted);
+    setText('soundLabel',muted?'音效關':'音效開');
+    setText('height',height.toFixed(1));
+    const stageText=ledge+' / '+total;
+    if(el('ledge').textContent!==stageText){
+      el('ledge').textContent=stageText;
+      el('progress').style.width=(ledge/total*100)+'%';
+    }
+    setText('time',timer(elapsed));
+    setPressed('sprint',sprint);
+    setText('sprint',sprint?'加速中':'加速');
+    setPressed('follow',follow);
+    setText('follow',follow?'追蹤鏡頭 開':'追蹤鏡頭 關');
+    setText('notice',notice);
+    setHidden('notice',!notice);
+    if(won || next==='paused'){
+      setText('panelTitle',won?'登上太陽傘':'已暫停');
+      setText('report',(won?'抵達天台最高點。':'')+'用時 '+timer(elapsed)+' · '+jumps+' 次起跳 · '+falls+' 次跌落。最高落腳點 '+best.toFixed(1)+' m。執到道具 '+finds+' / 3。');
+      setText('continue',won?'再攀一次 ↗':'繼續攀登 ↗');
+      setHidden('reset',won);
     }
     if (changed) {
       if (!playing) clearInputs();

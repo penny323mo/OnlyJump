@@ -13,6 +13,7 @@ function fixture(jumpBounds={left:720,top:260,width:80,height:80}) {
     nodes[id]={id,style:{},dataset:{},closest:()=>nodes[id],firstElementChild:{style:{}},
       getBoundingClientRect:()=>id==='jump'?jumpBounds:{width:136,height:136}};
   }
+  const layoutSize=nodes.layoutSize={offsetWidth:844,offsetHeight:390};
   const calls=[];
   const source=readFileSync(join(__dirname,'../web/controls.js'),'utf8');
   const reset=runInNewContext(source+'\nattachControls(send,()=>true)',{
@@ -21,7 +22,7 @@ function fixture(jumpBounds={left:720,top:260,width:80,height:80}) {
   });
   const finger=(identifier,role,clientX,clientY)=>({identifier,target:nodes[role],clientX,clientY});
   const fire=(type,changedTouches,touches)=>handlers.get(type)({changedTouches,touches,cancelable:true,preventDefault(){}});
-  return {fire,finger,reset,calls,pad:nodes.pad};
+  return {fire,finger,reset,calls,pad:nodes.pad,layoutSize};
 }
 
 test('floating pad starts neutral under the thumb, reverses, and returns home on release',()=>{
@@ -108,10 +109,11 @@ test('missing contacts, interruption and reset release controls exactly once',()
 });
 
 test('resizing a foldable viewport releases held sprint and movement until a fresh contact',()=>{
-  const {fire,finger,calls,pad}=fixture();
+  const {fire,finger,calls,pad,layoutSize}=fixture();
   const joy=finger(1,'padZone',60,290),run=finger(2,'sprint',760,205);
   fire('touchstart',[joy,run],[joy,run]);
   fire('touchmove',[finger(1,'padZone',18,290)],[joy,run]);
+  layoutSize.offsetWidth=594;
   fire('resize');
   assert.deepEqual(calls.slice(-2),[['stick',0,0],['sprint',false]]);
   assert.equal(pad.style.left,'');
@@ -121,4 +123,45 @@ test('resizing a foldable viewport releases held sprint and movement until a fre
   assert.equal(calls.length,released);
   fire('touchstart',[joy],[joy]);
   assert.equal(pad.style.left,'60px');
+});
+
+test('browser toolbar resizes preserve moving and sprinting fingers until the swipe or release',()=>{
+  const {fire,finger,calls,pad}=fixture();
+  const joy=finger(1,'padZone',90,280), left=finger(1,'padZone',38,280);
+  const run=finger(2,'sprint',760,205), jump=finger(2,'sprint',760,300);
+  fire('touchstart',[joy,run],[joy,run]);
+  fire('touchmove',[left],[left,run]);
+  const held=calls.length;
+  fire('resize');
+  fire('resize');
+  assert.equal(calls.length,held);
+  assert.equal(pad.dataset.active,'true');
+  fire('touchmove',[jump],[left,jump]);
+  fire('touchend',[left,jump],[]);
+  assert.deepEqual(calls.slice(held),[['jump'],['stick',0,0],['sprint',false]]);
+});
+
+test('a jump button moving under a held sprint finger does not count as a swipe',()=>{
+  const bounds={left:720,top:260,width:80,height:80};
+  const {fire,finger,calls}=fixture(bounds);
+  const run=finger(2,'sprint',760,248);
+  const outside=finger(2,'sprint',760,215),inside=finger(2,'sprint',760,265);
+  fire('touchstart',[run],[run]);
+  bounds.top=220;
+  fire('resize');
+  fire('touchmove',[run],[run]);
+  fire('touchmove',[outside],[outside]);
+  assert.deepEqual(calls,[['sprint',true]]);
+  fire('touchend',[inside],[]);
+  assert.deepEqual(calls,[['sprint',true],['jump'],['sprint',false]]);
+});
+
+test('changing only the split-window height still releases contacts',()=>{
+  const {fire,finger,calls,layoutSize}=fixture();
+  const run=finger(2,'sprint',760,205);
+  fire('touchstart',[run],[run]);
+  layoutSize.offsetHeight-=60;
+  fire('resize');
+  fire('touchend',[finger(2,'sprint',760,300)],[]);
+  assert.deepEqual(calls,[['sprint',true],['sprint',false]]);
 });

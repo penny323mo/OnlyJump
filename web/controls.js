@@ -50,7 +50,9 @@ function attachControls(send, isPlaying) {
       const dx=(x-contact.x)/rx, dy=(y-contact.y)/ry;
       const length2=dx*dx+dy*dy;
       const t=length2 ? Math.max(0,Math.min(1,-(startX*dx+startY*dy)/length2)) : 0;
-      if (Math.hypot(startX+t*dx,startY+t*dy)<=1) {
+      // A toolbar animation can move the button under a stationary finger.
+      // Require the finger to enter the current button from outside.
+      if (length2>0 && Math.hypot(startX,startY)>1 && Math.hypot(startX+t*dx,startY+t*dy)<=1) {
         contact.jumped=true;
         if (!active.has('jump')) send('jump');
       }
@@ -117,7 +119,16 @@ function attachControls(send, isPlaying) {
     for (const id of Array.from(owners.keys())) end(id);
     restorePad();
   }
-  // A fold or a split-window resize can move controls under a held finger.
-  window.addEventListener('resize',reset);
+  // The large viewport stays the same when mobile browser toolbars retract.
+  // A fold or split-window resize changes its actual width or height.
+  const layoutSize=document.getElementById('layoutSize');
+  let width=layoutSize.offsetWidth, height=layoutSize.offsetHeight;
+  window.addEventListener('resize',()=>{
+    const w=layoutSize.offsetWidth, h=layoutSize.offsetHeight;
+    if (w===width && h===height) return;
+    width=w;
+    height=h;
+    reset();
+  });
   return reset;
 }
