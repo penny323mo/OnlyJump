@@ -62,4 +62,6 @@ godot --headless --fixed-fps 60 --script tests/branches.gd
 
 本機裝有 Playwright 同 WebKit 時，可以開住上面嘅本機伺服器，執行 `node tests/iphone-duo.cjs`。測試會用短手暴龍跑跳上梳化，再喺同一局切換十組 iPhone Duo 視窗尺寸，逐次驗證雙指操作同跳躍次數。[WebKit 公布嘅 Safari 尺寸表](https://webkit.org/blog/18486/webkit-features-for-safari-27-1/#viewport-sizes)
 
+執行 `node tests/scenery-motion.cjs` 可以重播外屏同內屏嘅慢速轉鏡。測試會先確認六個街景取樣區喺定鏡時冇變化，再逐幀量度轉鏡時嘅像素跳變。
+
 角色、城市及部分道具的作者、授權及改動記錄載於[模型鳴謝](web/credits.txt)。
