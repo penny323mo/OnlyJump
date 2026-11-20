@@ -1,5 +1,6 @@
 extends CharacterBody3D
 
+const SpringPad = preload("res://game/spring_pad.gd")
 const COURIER = preload("res://assets/character/courier.glb")
 const WALK_SPEED := 3.65
 const RUN_SPEED := 6.45
@@ -20,7 +21,7 @@ var grounded_ledge := -1
 var standing_platform: Node3D
 var local_foot := Vector3.ZERO
 var platform_yaw := 0.0
-var spring_impulse := Vector3.ZERO
+var spring_pad: SpringPad
 var ability := ""
 var ability_time := 0.0
 var jet_armed := false
@@ -49,7 +50,7 @@ var pose := ""
 var foot_shadow: MeshInstance3D
 var heading := Node3D.new()
 signal landed(ledge: int)
-signal jumped()
+signal jumped(from_spring: bool)
 
 func build(art) -> void:
 	hook.build(art)
@@ -105,7 +106,7 @@ func reset_at(p: Vector3) -> void:
 	jump_count = 0
 	grounded_ledge = -1
 	standing_platform = null
-	spring_impulse = Vector3.ZERO
+	spring_pad = null
 	stop_stunt()
 	equip("")
 
@@ -120,6 +121,7 @@ func equip(id: String) -> void:
 	flames.hide()
 
 func request_jump(move: Vector2) -> void:
+	if spring_pad: return
 	if grab.active:
 		grab.pull_up()
 		return
@@ -166,13 +168,15 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		if not grab.active: end_grab_pose()
 		return
 	var on_floor_before := is_on_floor()
+	if spring_pad and (not on_floor_before or grounded_ledge!=spring_pad.get_meta("ledge")):
+		spring_pad=null
 	if on_floor_before:
 		grace = COYOTE_TIME
 		extra_jump = true
 	else: grace = maxf(0,grace-delta)
 	var horizontal := Vector2(velocity.x,velocity.z)
 	if move.length_squared() > .016: aim = move.normalized()
-	var boosted := not spring_impulse.is_zero_approx()
+	var boosted := spring_pad!=null and not spring_pad.loading
 	var air_jump := ability=="double" and extra_jump and not on_floor_before and grace<=0
 	if ability=="hook" and jump_buffer>0 and not on_floor_before and grace<=0:
 		jump_buffer=0
@@ -191,8 +195,11 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		grab.available=false
 		grace=0
 		jump_count+=1
-		jumped.emit()
-	if pulling:
+		jumped.emit(false)
+	if spring_pad and spring_pad.loading:
+		horizontal=Vector2.ZERO
+		velocity.y=-.5
+	elif pulling:
 		var pulled:=hook.pull(self,delta)
 		velocity.y=minf(pulled.y-GRAVITY*delta,JUMP_SPEED)
 		horizontal=Vector2(pulled.x,pulled.z)
@@ -200,7 +207,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		var toward:=hook.anchor.global_position-global_position
 		aim=Vector2(toward.x,toward.z).normalized()
 	elif ability=="jet" and not jet_armed:
-		spring_impulse=Vector3.ZERO
+		spring_pad=null
 		var lift:=clampf((jet_ceiling-global_position.y)*2.8,0.,2.45)
 		velocity.y=move_toward(velocity.y,lift,delta*19)
 		horizontal=horizontal.move_toward(move*3.05,delta*9)
@@ -214,9 +221,9 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		jump_buffer = 0
 		grace = 0
 		if boosted:
-			horizontal = Vector2(spring_impulse.x,spring_impulse.z)
-			velocity.y = spring_impulse.y-.5*GRAVITY*delta
-			spring_impulse = Vector3.ZERO
+			horizontal = Vector2(spring_pad.impulse.x,spring_pad.impulse.z)
+			velocity.y = spring_pad.impulse.y-.5*GRAVITY*delta
+			spring_pad = null
 		else:
 			var push := tap_direction if move.is_zero_approx() else move
 			horizontal = launch_horizontal(horizontal,push)
@@ -224,7 +231,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		air_speed = horizontal.length()
 		grab.available = true
 		jump_count += 1
-		jumped.emit()
+		jumped.emit(boosted)
 	elif on_floor_before:
 		var target := move*(RUN_SPEED if running else WALK_SPEED)
 		if move.is_zero_approx():
@@ -267,8 +274,11 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 			var index := int(body.get_meta("ledge"))
 			if index != grounded_ledge or not on_floor_before:
 				grounded_ledge = index
-				if not on_floor_before and falling_speed<-.7 and body.has_meta("spring_target"):
-					prime_spring(body)
+				if not on_floor_before and falling_speed<-.7 and body is SpringPad:
+					var incoming:=Vector3(horizontal.x,falling_speed,horizontal.y)
+					if body.start_stroke(global_position,incoming,GRAVITY):
+						spring_pad=body
+						jump_buffer=0.
 				landed.emit(index)
 			break
 	elif falling_speed<-.2 and falling_speed> -8.5 and grab.try_catch(self,reach,grounded_ledge,FOOT_RADIUS):
@@ -298,14 +308,6 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 func stop_stunt() -> void:
 	stunt_time=0
 	stunt_pivot.basis=Basis.IDENTITY
-
-func prime_spring(body: Node3D) -> void:
-	var foot := body.to_local(global_position)
-	if Vector2(foot.x,foot.z).length() > float(body.get_meta("spring_radius")): return
-	var offset: Vector3 = body.get_meta("spring_target")-global_position
-	var rise_speed := 9.3
-	var flight := (rise_speed+sqrt(maxf(0,rise_speed*rise_speed-2*GRAVITY*offset.y)))/GRAVITY
-	spring_impulse = Vector3(offset.x/flight,rise_speed,offset.z/flight)
 
 func end_grab_pose() -> void:
 	if animations and (grab.active or not animations.is_playing()):
@@ -347,10 +349,17 @@ func aim_bone(bone: int, child: int, target: Vector3) -> void:
 
 func animate(delta: float, move: Vector2, running: bool) -> void:
 	model.rotation.y = lerp_angle(model.rotation.y,atan2(-aim.x,-aim.y),minf(1,delta*18))
-	if not is_on_floor(): set_pose("Jump")
+	if spring_pad:
+		# Both feet stay planted through the crouch in the standing-up clip.
+		if pose!="Standing":
+			pose="Standing"
+			animations.play(pose,0.)
+			animations.pause()
+		animations.seek((1.-spring_pad.load_fraction())*.32,true)
+	elif not is_on_floor(): set_pose("Jump")
 	elif move.length_squared()>.016: set_pose("Running" if running else "Walking")
 	else: set_pose("Idle")
-	heading.visible = is_on_floor() and move.length_squared()>.016
+	heading.visible = not spring_pad and is_on_floor() and move.length_squared()>.016
 	heading.position = position+Vector3.UP*.055
 	heading.rotation.y = atan2(-aim.x,-aim.y)
 	var hit := ground_at(global_position,10)

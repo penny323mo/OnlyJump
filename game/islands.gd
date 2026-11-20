@@ -158,8 +158,8 @@ func rooftop(b: StaticBody3D) -> void:
 			box(b,p,Vector3(1.16,1.38,.08),"e1c7a2")
 			box(b,p+Vector3.BACK*.06,Vector3(.97,1.18,.08),"55777c")
 			box(b,p+Vector3.BACK*.12,Vector3(.05,1.15,.03),"b9c2ac")
-	# Keep the roof edge facing the first jump clear.
-	solid(b,Vector3(-3.53,.22,0),Vector3(.25,.44,4.97),"c3b59b")
+	# End the parapet before the trampoline frame, clear of the sagging fabric.
+	solid(b,Vector3(-3.53,.22,.5),Vector3(.25,.44,3.97),"c3b59b")
 	for i in 9:
 		box(b,Vector3((i-4)*.72,-2.41,3.0),Vector3(.73,.13,1.20),"b95843" if i%2==0 else "e5cd9f").rotation.x=.20
 	box(b,Vector3(-.11,-.93,2.66),Vector3(5.90,.85,.18),"245d61")

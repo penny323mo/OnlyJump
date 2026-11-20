@@ -5,7 +5,7 @@ const Climber = preload("res://game/climber.gd")
 const SKY_SHADER = preload("res://game/sky.gdshader")
 const CAMERA_REACH := 6.8
 const FULL_BODY_DISTANCE := 2.65
-const SOUNDS = [preload("res://audio/lift.wav"),preload("res://audio/land.wav"),preload("res://audio/summit.wav")]
+const SOUNDS = [preload("res://audio/lift.wav"),preload("res://audio/land.wav"),preload("res://audio/summit.wav"),preload("res://audio/spring.wav")]
 var art := Islands.new()
 var player := Climber.new()
 var camera := Camera3D.new()
@@ -268,9 +268,13 @@ func _input(event: InputEvent) -> void:
 			elif key == KEY_R and phase == "paused":
 				start_run()
 
-func on_jump() -> void:
-	notice = ""
-	play_sound(0,1.05)
+func on_jump(from_spring: bool) -> void:
+	if from_spring:
+		notice="彈向"+art.stop_name(art.destination(ledge,false))
+		play_sound(3,.9 if ledge==Islands.Branches.BED else 1.12)
+	else:
+		notice=""
+		play_sound(0,1.05)
 
 func play_sound(id: int, pitch := 1.0) -> void:
 	if muted: return
@@ -295,7 +299,7 @@ func on_landing(index: int) -> void:
 		Islands.Branches.POLE: notice="沿桿行到高端，再跳洗衣機"
 		Islands.Branches.LIFT: notice="搭到另一端，再跳晾衫架"
 		Islands.Branches.BOARD,Islands.Branches.DRAWER: notice="開始鬆脫，快跳！"
-		Islands.Branches.BED,Islands.Branches.COIL: notice="跳落細圈先會彈起"
+		Islands.Branches.BED,Islands.Branches.COIL: notice="" if player.spring_pad else "跳落細圈先會彈起"
 		Islands.Branches.SHEET: notice="被單接住咗你"
 		Islands.Branches.AWNING: notice="布篷接住咗你，跳返木茶几"
 	if index == Islands.ROUTE.size()-1:
@@ -546,7 +550,7 @@ func update_hud() -> void:
 		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
 		var destination:="電視銅環" if aiming_at_aerial() else (art.stop_name(next) if next>=0 else "")
 		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,follow_camera,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action)
-		var show_pickups:=phase=="playing" and not player.grab.active and player.hook.time_left<=0 and not tracking_aerial()
+		var show_pickups:=phase=="playing" and not player.spring_pad and not player.grab.active and player.hook.time_left<=0 and not tracking_aerial()
 		var hint: Node3D=art.pickups.visible_hint(camera,player) if show_pickups else null
 		if hint:
 			var viewport_size:=get_viewport().get_visible_rect().size

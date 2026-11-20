@@ -1,6 +1,7 @@
 extends RefCounted
 
 const Props = preload("res://game/props.gd")
+const SpringPad = preload("res://game/spring_pad.gd")
 const BED := 100
 const DRAWER := 101
 const POLE := 102
@@ -26,6 +27,7 @@ const FORKS := {0:BED,4:DRAWER,8:FAN,18:POLE,19:LIFT,20:COIL,21:BOARD}
 const LIFT_END := Vector3(-8.20,18.20,-5.65)
 const DROP_AFTER := {DRAWER:1.6,BOARD:1.15}
 var bodies := {}
+var springs: Array[SpringPad] = []
 var timers := {}
 var clock := 0.0
 var fan_angle := 0.0
@@ -33,7 +35,9 @@ var fan_angle := 0.0
 func build(art: Props, main: Array) -> void:
 	for id: int in STOPS:
 		var b: StaticBody3D
-		if id in [FAN,LIFT]:
+		if id in [BED,COIL]:
+			b=SpringPad.new()
+		elif id in [FAN,LIFT]:
 			var lift := AnimatableBody3D.new()
 			lift.sync_to_physics=false
 			b=lift
@@ -46,9 +50,9 @@ func build(art: Props, main: Array) -> void:
 		b.position=STOPS[id][1]
 		match id:
 			BED,COIL:
-				b.set_meta("spring_target",main[STOPS[id][3]])
-				b.set_meta("spring_radius",.27 if id==BED else .215)
-				build_spring(art,b,id==BED)
+				var spring:=b as SpringPad
+				spring.build(art,main[STOPS[id][3]],id==BED)
+				springs.append(spring)
 			AWNING:
 				build_awning(art,b)
 			FAN:
@@ -149,49 +153,6 @@ func build_awning(art: Props, body: StaticBody3D) -> void:
 		art.tube(body,hinge,Vector3(x,-.055,DEPTH*.47),.034,"477777")
 		art.tube(body,hinge,Vector3(x,-.055,-DEPTH*.5),.034,"477777")
 
-func build_spring(art: Props, b: StaticBody3D, bed: bool) -> void:
-	var radius := .93 if bed else .52
-	var size: float = b.get_meta("spring_radius")
-	if bed:
-		# A shallow, dished membrane with a raised outer rim.
-		var cloth := SurfaceTool.new()
-		cloth.begin(Mesh.PRIMITIVE_TRIANGLES)
-		cloth.set_material(art.material("345f64"))
-		for i in 32:
-			var a:=Vector3(cos(i*TAU/32.),0,sin(i*TAU/32.))
-			var c:=Vector3(cos((i+1)*TAU/32.),0,sin((i+1)*TAU/32.))
-			for v: Vector3 in [Vector3.ZERO,a*size,c*size,a*size,a*radius+Vector3.UP*.14,c*radius+Vector3.UP*.14,a*size,c*radius+Vector3.UP*.14,c*size]:
-				cloth.set_normal(Vector3.UP)
-				cloth.add_vertex(v)
-		var mesh:=cloth.commit()
-		var skin:=MeshInstance3D.new()
-		skin.mesh=mesh
-		b.add_child(skin)
-		var hit:=CollisionShape3D.new()
-		hit.shape=mesh.create_trimesh_shape()
-		b.add_child(hit)
-		art.rim(b,Vector3.UP*.14,radius+.05,.073,"e9ac42")
-		for i in 4:
-			var d:=Vector3(cos(i*PI/2),0,sin(i*PI/2))*.75
-			art.tube(b,d+Vector3.UP*.11,d+Vector3.DOWN*.55,.055,"678782")
-	else:
-		# The crown is pitched; the bullseye is painted in its local plane.
-		b.rotation.x=deg_to_rad(-8)
-		var cap:=art.cone(b,Vector3.DOWN*.055,.11,radius,radius,"b4c8bf",32)
-		var cylinder:=CylinderShape3D.new()
-		cylinder.radius=radius
-		cylinder.height=.11
-		var hit:=CollisionShape3D.new()
-		hit.shape=cylinder
-		b.add_child(hit)
-		hit.position=cap.position
-		for i in 6:
-			var wire:=art.rim(b,Vector3.DOWN*(.18+i*.128),.35,.065,"c45b39")
-			wire.rotation.z=.095
-		art.box(b,Vector3.DOWN*.96,Vector3(.95,.16,.95),"5a6d6c")
-	art.rim(b,Vector3.UP*.012,size,.043,"ffc553")
-	art.cone(b,Vector3.UP*.012,.018,.063,.063,"fcdf87",16)
-
 func target(id: int) -> Vector3:
 	var body: StaticBody3D=bodies[id]
 	if id==FAN:
@@ -208,6 +169,7 @@ func target(id: int) -> Vector3:
 	return body.position
 
 func reset() -> void:
+	for spring in springs: spring.reset()
 	clock=0
 	fan_angle=0
 	bodies[FAN].rotation.y=0
@@ -224,6 +186,7 @@ func land(id: int) -> void:
 	if DROP_AFTER.has(id) and not timers.has(id): timers[id]=0.
 
 func advance(delta: float) -> void:
+	for spring in springs: spring.advance(delta)
 	fan_angle=fmod(fan_angle+delta*.50,TAU)
 	bodies[FAN].rotation.y=fan_angle
 	clock=fmod(clock+delta,8.)

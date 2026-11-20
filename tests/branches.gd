@@ -10,13 +10,58 @@ func start_on(id: int) -> void:
 func ride_bounce(destination: int) -> bool:
 	game.web_command(["stick",0,0])
 	game.web_command(["sprint",false])
-	await frames(2)
-	if not check(game.player.velocity.y>8.5,"centre triggers a spring"): return false
+	var player:=game.player
+	var contact_height:=player.position.y
+	var bottom:=contact_height
+	var jumps:=player.jump_count
+	for tick in 20:
+		await frames(1)
+		if player.velocity.y>8.5: break
+		bottom=minf(bottom,player.position.y)
+		var surface:=player.ground_at(player.position,.4)
+		if not check(player.is_on_floor() and not surface.is_empty() and absf(surface.position.y-player.position.y)<.10,"feet follow the compressing surface"):return false
+		if tick==4:
+			game.toggle_pause()
+			var foot:=player.position
+			await frames(20)
+			if not check(foot.is_equal_approx(player.position),"pause during spring compression"):return false
+			game.toggle_pause()
+			game.web_command(["jump"])
+	if not check(contact_height-bottom>.10 and player.velocity.y>8.5 and player.jump_count==jumps+1,"spring loads and releases once"):return false
 	for tick in 100:
 		await frames(1)
 		if game.player.is_on_floor():
 			return check(game.ledge==destination,"spring destination "+str(destination))
 	return check(false,"spring failed to land")
+
+func check_spring_impacts() -> bool:
+	var pad:=game.art.branches.bodies[B.BED] as B.SpringPad
+	var player:=game.player
+	var depths: Array[float]=[]
+	var speeds: Array[float]=[]
+	for height: float in [.35,3.,5.]:
+		game.start_run()
+		player.reset_at(pad.global_position+Vector3.UP*height)
+		var depth:=0.
+		for tick in 120:
+			await frames(1)
+			depth=maxf(depth,-pad.plate.position.y)
+			if player.jump_count>0:break
+		if not check(not player.is_on_floor() and player.jump_count==1 and player.velocity.y>8.5,"drop triggers one spring launch"):return false
+		depths.append(depth)
+		speeds.append(player.velocity.y)
+	if not check(depths[1]>depths[0]+.05 and speeds[1]>speeds[0]+.2,"a harder landing compresses further and launches faster"):return false
+	if not check(is_equal_approx(depths[1],depths[2]) and is_equal_approx(speeds[1],speeds[2]),"hard drops reach the same limit"):return false
+	print("spring drops from 0.35/3/5 m: depths ",depths," m, lift ",speeds," m/s")
+	game.start_run()
+	player.reset_at(pad.global_position+Vector3.UP)
+	for tick in 90:
+		await frames(1)
+		if pad.load_fraction()>.5:break
+	if not check(pad.loading and pad.load_fraction()>.5,"restart fixture is under load"):return false
+	game.start_run()
+	await frames(50)
+	return check(not pad.loading and is_zero_approx(pad.plate.position.y) and player.is_on_floor() and game.ledge==0 and player.jump_count==0,"restart clears a loaded spring")
 
 func approach_pickup(id: String) -> bool:
 	for tick in 80:
@@ -120,6 +165,7 @@ func run() -> void:
 	game.best=100
 	game.muted=true
 	game.follow_camera=false
+	if not await check_spring_impacts():return
 	for id: String in game.player.costumes.NAMES:
 		game.player.costumes.select(id)
 		if not check(game.player.costumes.key==id,"select "+id):return
@@ -143,7 +189,7 @@ func run() -> void:
 	# Off-centre landings support the player; adjust on the bed and jump again.
 	if not await leap(B.BED,Vector3(.55,0,.03),false):return
 	await frames(12)
-	if not check(game.player.is_on_floor() and game.player.spring_impulse.is_zero_approx(),"off-centre bed supports player"):return
+	if not check(game.player.is_on_floor() and game.player.spring_pad==null,"off-centre bed supports player"):return
 	if not check(game.player.ability=="double" and game.art.pickups.count==1,"land beside duck to collect once"):return
 	if not await check_double_jump():return
 	await start_on(0)
