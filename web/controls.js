@@ -104,16 +104,25 @@ function attachControls(send, isPlaying) {
         }
         for (const id of owners.keys()) if (id.startsWith('t') && !keep.has(id)) end(id);
         let used=false;
-        for (const t of e.changedTouches) {
-          const id='t'+t.identifier;
-          let handled;
-          if (type==='touchstart') handled=begin(id,t.target,t.clientX,t.clientY);
-          else if (type==='touchmove') handled=move(id,t.clientX,t.clientY);
-          else {
-            if (type==='touchend' && owners.get(id)?.role==='sprint') move(id,t.clientX,t.clientY);
-            handled=end(id);
+        const moving=type==='touchmove';
+        if (moving || type==='touchend') {
+          // One sample can move both thumbs or lift them together. Take the
+          // jump against this sample's aim while its held controls still exist.
+          const sprintId=active.get('sprint');
+          let swipe;
+          for (const t of e.changedTouches) {
+            const id='t'+t.identifier;
+            if (id===sprintId) swipe=t;
+            else if (moving) used=move(id,t.clientX,t.clientY) || used;
           }
-          used=handled || used;
+          if (swipe) used=move(sprintId,swipe.clientX,swipe.clientY) || used;
+        }
+        if (!moving) {
+          for (const t of e.changedTouches) {
+            const id='t'+t.identifier;
+            const handled=type==='touchstart' ? begin(id,t.target,t.clientX,t.clientY) : end(id);
+            used=handled || used;
+          }
         }
         if (used && e.cancelable) e.preventDefault();
       },{capture:true,passive:false});

@@ -73,6 +73,46 @@ test('a fast slide can finish over the jump button without a final move event',(
   assert.deepEqual(calls,[['sprint',true],['jump'],['sprint',false]]);
 });
 
+test('a two-thumb swipe samples the new stick direction before the jump in either contact order',()=>{
+  for(const actionFirst of [true,false]){
+    const {fire,finger,calls}=fixture();
+    const pad=finger(1,'padZone',90,280), run=finger(2,'sprint',760,200);
+    const forward=finger(1,'padZone',90,235), jump=finger(2,'sprint',760,300);
+    const batch=actionFirst?[jump,forward]:[forward,jump];
+    fire('touchstart',[pad,run],[pad,run]);
+    fire('touchmove',batch,batch);
+    assert.deepEqual(calls.slice(-2),[['stick',0,-1],['jump']]);
+  }
+});
+
+test('lifting both thumbs keeps the held direction for a last-segment jump, then releases both controls',()=>{
+  for(const actionFirst of [true,false]){
+    const {fire,finger,calls,pad}=fixture();
+    const joy=finger(1,'padZone',90,280),run=finger(2,'sprint',760,200);
+    const forward=finger(1,'padZone',90,235),jump=finger(2,'sprint',760,300);
+    fire('touchstart',[joy,run],[joy,run]);
+    fire('touchmove',[forward],[forward,run]);
+    fire('touchend',actionFirst?[jump,forward]:[forward,jump],[]);
+    const at=calls.findIndex(([action])=>action==='jump');
+    assert.deepEqual(calls[at-1],['stick',0,-1]);
+    assert.equal(calls.filter(([action])=>action==='jump').length,1);
+    assert(calls.slice(at+1).some(([action,x,y])=>action==='stick' && x===0 && y===0));
+    assert(calls.slice(at+1).some(([action,held])=>action==='sprint' && held===false));
+    assert.equal(pad.dataset.active,undefined);
+  }
+});
+
+test('releasing a direct jump and a crossing sprint finger together cannot queue a second jump',()=>{
+  for(const actionFirst of [true,false]){
+    const {fire,finger,calls}=fixture();
+    const run=finger(2,'sprint',760,200),jump=finger(3,'jump',760,300);
+    const across=finger(2,'sprint',760,300);
+    fire('touchstart',[run,jump],[run,jump]);
+    fire('touchend',actionFirst?[across,jump]:[jump,across],[]);
+    assert.deepEqual(calls,[['sprint',true],['jump'],['sprint',false]]);
+  }
+});
+
 test('a wide jump button accepts its outer edge and ignores the empty corner',()=>{
   const {fire,finger,calls}=fixture({left:700,top:230,width:144,height:100});
   const run=finger(1,'sprint',708,180), corner=finger(1,'sprint',708,232);
