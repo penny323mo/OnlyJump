@@ -96,7 +96,6 @@ func run() -> void:
 	root.add_child(game)
 	game.muted=true
 	game.best=100
-	game.follow_camera=false
 	game.player.costumes.select("dino")
 	if not await jump_from_sheet(1,1,false):return
 	if not await jump_from_sheet(1,1,false,true):return

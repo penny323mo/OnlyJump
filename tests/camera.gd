@@ -29,7 +29,6 @@ func run() -> void:
 	game=Game.new()
 	root.add_child(game)
 	game.best=100
-	game.follow_camera=false
 	game.muted=true
 	var samples:=0
 	var failures:=0

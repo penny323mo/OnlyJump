@@ -28,10 +28,11 @@ function attachControls(send, isPlaying) {
     delete pad.dataset.active;
     knob.style.transform = '';
   }
-  function begin(id, target, x, y) {
+  function begin(id, target, x, y, touch) {
     if (!isPlaying()) return false;
     const hit = target.closest?.(roles)?.id;
-    const role = hit === 'padZone' ? 'pad' : hit;
+    const leftLookHit = touch && hit === 'look' && x < viewWidth / 2;
+    const role = hit === 'padZone' || leftLookHit ? 'pad' : hit;
     if (!role || active.has(role) || owners.has(id)) return false;
     const contact = {role,x,y};
     owners.set(id, contact);
@@ -120,7 +121,7 @@ function attachControls(send, isPlaying) {
         if (!moving) {
           for (const t of e.changedTouches) {
             const id='t'+t.identifier;
-            const handled=type==='touchstart' ? begin(id,t.target,t.clientX,t.clientY) : end(id);
+            const handled=type==='touchstart' ? begin(id,t.target,t.clientX,t.clientY,true) : end(id);
             used=handled || used;
           }
         }
@@ -131,7 +132,7 @@ function attachControls(send, isPlaying) {
   window.addEventListener('pointerdown',e=>{
     if ((touchEvents && e.pointerType==='touch') || (e.button!==0 && e.button!==2)) return;
     syncBeforeInput();
-    if (!begin('p'+e.pointerId,e.target,e.clientX,e.clientY)) return;
+    if (!begin('p'+e.pointerId,e.target,e.clientX,e.clientY,e.pointerType==='touch')) return;
     e.preventDefault();
     document.getElementById('canvas').focus({preventScroll:true});
     const target=e.target.closest(roles);

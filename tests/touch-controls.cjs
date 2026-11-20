@@ -57,6 +57,32 @@ test('one right thumb can hold sprint, slide to jump once, and release independe
   assert(!calls.slice(1).some(c=>c[0]==='stick'));
 });
 
+test('left thumb crossing the centre keeps steering while a separate right thumb looks',()=>{
+  const {fire,finger,calls}=fixture();
+  const left=finger(1,'padZone',394,177), right=finger(2,'look',645,156);
+  fire('touchstart',[left],[left]);
+  const across=finger(1,'look',458,177);
+  fire('touchmove',[across],[across]);
+  assert.deepEqual(calls,[['stick',0,0],['stick',1,0]]);
+  fire('touchstart',[right],[across,right]);
+  const turn=finger(2,'look',684,156);
+  fire('touchmove',[turn],[across,turn]);
+  assert.deepEqual(calls.at(-1),['look',.1,0]);
+  fire('touchend',[turn],[across]);
+  fire('touchend',[across],[]);
+  assert.deepEqual(calls.at(-1),['stick',0,0]);
+});
+
+test('a touch in the lower-left circle can only steer even if hit testing returns the look layer',()=>{
+  const {fire,finger,calls}=fixture();
+  const center=finger(3,'look',88,294), inside=finger(3,'look',107,294);
+  fire('touchstart',[center],[center]);
+  fire('touchmove',[inside],[inside]);
+  fire('touchend',[inside],[]);
+  assert.deepEqual(calls.map(([action])=>action),['stick','stick','stick']);
+  assert(calls[1][1]>0 && calls[1][1]<1);
+});
+
 test('direct jump, sprint-only hold and cancelled swipe are distinct',()=>{
   const {fire,finger,calls}=fixture();
   const jump=finger(1,'jump',760,300),run=finger(3,'sprint',760,200);

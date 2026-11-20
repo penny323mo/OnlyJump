@@ -46,7 +46,6 @@ func run() -> void:
 	root.add_child(game)
 	game.best=100
 	game.muted=true
-	game.follow_camera=false
 	var p:=game.player
 	cache_soles()
 	var shoulder:=Vector3.BACK.rotated(Vector3.UP,deg_to_rad(70))*.56

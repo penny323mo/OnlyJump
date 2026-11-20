@@ -47,7 +47,7 @@ async function orbit(page) {
     const overlaps = (a,b) => b.width && b.height &&
       Math.min(a.right,b.right)-Math.max(a.left,b.left) > .5 &&
       Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top) > .5;
-    const controls = document.querySelectorAll('header .brand,header .actions,.alt-card,#follow,#notice,#pad,#sprint,#jump');
+    const controls = document.querySelectorAll('header .brand,header .actions,.alt-card,#notice,#pad,#sprint,#jump');
     const x=innerWidth*.26, y=innerHeight*.66;
     const target=document.elementFromPoint(x,y);
     if (!target.closest('#padZone')) throw Error('Could not place the floating pad');

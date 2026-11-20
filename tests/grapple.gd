@@ -15,7 +15,6 @@ func run() -> void:
 	root.add_child(game)
 	game.muted=true
 	game.best=100
-	game.follow_camera=false
 	if not await collect_on_awning():return
 	var p:=game.player
 	var view_size:=game.get_viewport().get_visible_rect().size

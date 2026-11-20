@@ -157,7 +157,6 @@ func run() -> void:
 	root.add_child(game)
 	game.best=100
 	game.muted=true
-	game.follow_camera=false
 	game.show_landing_guide=true
 	game.show_route_ring=false
 	game.start_run()
@@ -254,25 +253,29 @@ func run() -> void:
 	var time := game.elapsed
 	await frames(8)
 	if not check(is_equal_approx(time,game.elapsed),"pause clock"):return
-	# Steering stays world-stable while the automatic camera turns behind the player.
-	game.follow_camera=true
+	# A small deflection inside the left thumb circle should move the climber
+	# without turning or panning the camera away from the chosen landing.
 	game.start_run()
 	await frames(6)
-	game.web_command(["stick",1,0])
-	await frames(27)
-	if not check(absf(game.camera_yaw+PI/2)<.12 and game.player.velocity.x>3 and absf(game.player.position.z)<.02,"follow behind sustained rightward movement"):return
-	game.web_command(["jump"])
-	await frames(2)
-	var heading := game.camera_yaw
-	game.web_command(["stick",0,-1])
-	await frames(10)
-	if not check(not game.player.is_on_floor() and is_equal_approx(game.camera_yaw,heading),"stable airborne framing"):return
-	game.follow_camera=false
-	game.start_run()
-	await frames(6)
-	game.web_command(["stick",1,0])
+	var view := game.camera.global_transform
+	var origin := game.player.position
+	game.web_command(["stick",.35,0])
 	await frames(12)
-	if not check(is_zero_approx(game.camera_yaw),"disable automatic orbit"):return
+	if not check(game.player.position.distance_to(origin)>.12 and game.camera.global_transform.is_equal_approx(view),"in-circle strafe keeps the actual camera still"):return
+	await frames(36)
+	if not check(game.camera.position.distance_to(view.origin)>.1 and game.camera.global_basis.is_equal_approx(view.basis),"sustained strafe translates the view without rotating it"):return
+	game.web_command(["look",.18,0])
+	var manual_heading := game.camera_yaw
+	game.web_command(["stick",-1,0])
+	await frames(12)
+	if not check(absf(manual_heading)>.5 and is_equal_approx(game.camera_yaw,manual_heading),"right swipe orbits independently during left-stick movement"):return
+	game.web_command(["jump"])
+	game.web_command(["stick",0,1])
+	await frames(10)
+	if not check(not game.player.is_on_floor() and is_equal_approx(game.camera_yaw,manual_heading),"air steering keeps the manual heading"):return
+	game.web_command(["stick",0,0])
+	await frames(8)
+	if not check(game.stick.is_zero_approx() and is_equal_approx(game.camera_yaw,manual_heading),"releasing the stick keeps the manual view"):return
 	# Sample playable geometry on both sides of the mailing tube and across the reel.
 	var left := surface_normal(Land.ROUTE[17]+Vector3.FORWARD*.7)
 	var right := surface_normal(Land.ROUTE[17]+Vector3.BACK*.7)

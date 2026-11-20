@@ -14,7 +14,6 @@ func run() -> void:
 	root.add_child(game)
 	game.best=100
 	game.muted=true
-	game.follow_camera=false
 	if not await board(32):return
 	var bob:=game.art.branches.pendulum
 	var player:=game.player

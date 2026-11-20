@@ -26,7 +26,6 @@ func run() -> void:
 	root.add_child(game)
 	game.best=100
 	game.muted=true
-	game.follow_camera=false
 	var level:=game.art.branches.level
 	var p:=game.player
 	if not await board_level():return

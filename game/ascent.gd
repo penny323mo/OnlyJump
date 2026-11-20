@@ -5,6 +5,7 @@ const Climber = preload("res://game/climber.gd")
 const SKY_SHADER = preload("res://game/sky.gdshader")
 const CAMERA_REACH := 6.8
 const FULL_BODY_DISTANCE := 2.65
+const CAMERA_FREE_STEP := .58
 const SOUNDS = [preload("res://audio/lift.wav"),preload("res://audio/land.wav"),preload("res://audio/summit.wav"),preload("res://audio/spring.wav")]
 var art := Islands.new()
 var player := Climber.new()
@@ -28,18 +29,16 @@ var stick := Vector2.ZERO
 var camera_yaw := 0.0
 var camera_pitch := deg_to_rad(24.0)
 var camera_distance := CAMERA_REACH
+var camera_anchor := Vector2.ZERO
+var recenter_camera := false
 var camera_pitch_offset := 0.0
 var frame_aerial := false
 var camera_sweep := PhysicsShapeQueryParameters3D.new()
 var camera_ray := PhysicsRayQueryParameters3D.new()
-var follow_camera := true
 var show_route_ring := false
 var show_landing_guide := true
 # Capture the view when a movement gesture begins. Automatic camera motion
 # must not feed back into that same held direction and turn it into a circle.
-var input_yaw := 0.0
-var moving_gesture := false
-var manual_look_time := 0.0
 var native_drag := false
 var sprint := false
 var hud_clock := 0.0
@@ -48,6 +47,14 @@ var last_jump_count := 0
 var notice := ""
 
 func _ready() -> void:
+	if OS.has_feature("web"):
+		web = JavaScriptBridge.get_interface("OnlyJumpUI")
+	var lightweight := web != null and bool(web.lightweight)
+	var touch_graphics := web != null and bool(web.touchGraphics)
+	if lightweight:
+		get_viewport().msaa_3d = Viewport.MSAA_DISABLED
+	elif touch_graphics:
+		get_viewport().msaa_3d = Viewport.MSAA_2X
 	var env := Environment.new()
 	var sky := Sky.new()
 	var sky_mat := ShaderMaterial.new()
@@ -73,7 +80,7 @@ func _ready() -> void:
 	light.rotation_degrees = Vector3(-47,-32,0)
 	light.light_color = Color("ffebce")
 	light.light_energy = 0.49
-	light.shadow_enabled = true
+	light.shadow_enabled = not lightweight
 	light.directional_shadow_max_distance = 46
 	add_child(light)
 	add_child(art)
@@ -103,6 +110,7 @@ func _ready() -> void:
 	add_child(audio)
 	var paint_layer:=CanvasLayer.new()
 	paint_layer.layer=1
+	paint_layer.visible=not lightweight
 	add_child(paint_layer)
 	paint_layer.add_child(oil_paint)
 	oil_paint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -114,7 +122,6 @@ func _ready() -> void:
 	var data := ConfigFile.new()
 	if data.load(record_path) == OK:
 		player.costumes.select(str(data.get_value("controls","character","courier")))
-		follow_camera = data.get_value("controls","follow_camera",true)
 		show_route_ring = data.get_value("controls","route_ring",false)
 		show_landing_guide = data.get_value("controls","landing_guide",true)
 		if data.has_section_key("run","best_height"):
@@ -129,11 +136,9 @@ func _ready() -> void:
 		muted = data.get_value("run","muted",false)
 		oil_paint.visible=data.get_value("display","art_style","normal")=="oil"
 	player.reset_at(Islands.ROUTE[0])
-	if OS.has_feature("web"):
-		web = JavaScriptBridge.get_interface("OnlyJumpUI")
 	if web:
 		web_callback = JavaScriptBridge.create_callback(web_command)
-		web.bindGame(web_callback)
+		RenderingServer.frame_post_draw.connect(func(): web.bindGame(web_callback), CONNECT_ONE_SHOT)
 	else:
 		var layer := CanvasLayer.new()
 		layer.layer=2
@@ -150,7 +155,6 @@ func save_record() -> void:
 	var data := ConfigFile.new()
 	data.set_value("run","best_height",best)
 	data.set_value("controls","character",player.costumes.key)
-	data.set_value("controls","follow_camera",follow_camera)
 	data.set_value("controls","route_ring",show_route_ring)
 	data.set_value("controls","landing_guide",show_landing_guide)
 	data.set_value("run","muted",muted)
@@ -177,8 +181,6 @@ func web_command(args: Array) -> void:
 		"stick":
 			if phase == "playing" and args.size() == 3:
 				stick = Vector2(float(args[1]),float(args[2])).limit_length()
-				if stick.is_zero_approx() and keyboard_move().is_zero_approx():
-					moving_gesture = false
 			return
 		"look":
 			if phase == "playing" and args.size() == 3:
@@ -194,8 +196,6 @@ func web_command(args: Array) -> void:
 			if phase == "playing": face_target()
 		"sprint":
 			if phase == "playing" and args.size()==2: sprint = bool(args[1])
-		"follow":
-			if phase == "playing": toggle_follow()
 		"route_ring","landing_guide":
 			if phase=="paused" and args.size()==2:
 				set_hint(str(args[0]),bool(args[1]))
@@ -212,8 +212,6 @@ func clear_controls() -> void:
 	stick = Vector2.ZERO
 	native_drag = false
 	sprint = false
-	moving_gesture = false
-	manual_look_time = 0
 	player.jump_buffer = 0
 	if web: web.clearInputs()
 
@@ -277,8 +275,6 @@ func _input(event: InputEvent) -> void:
 				web_command(["character",player.costumes.NAMES.keys()[key-KEY_1]])
 			elif key in [KEY_ESCAPE,KEY_P]:
 				toggle_pause()
-			elif key == KEY_C and phase == "playing":
-				toggle_follow()
 			elif key == KEY_TAB and phase == "playing" and not web:
 				web_command(["branch"])
 			elif key == KEY_F and phase == "playing":
@@ -344,13 +340,7 @@ func keyboard_move() -> Vector2:
 
 func world_move() -> Vector2:
 	var move := (keyboard_move()+stick).limit_length()
-	if move.is_zero_approx():
-		moving_gesture = false
-		return Vector2.ZERO
-	if not moving_gesture or not follow_camera:
-		input_yaw = camera_yaw
-		moving_gesture = true
-	return move.rotated(-input_yaw)
+	return move.rotated(-camera_yaw)
 
 func queue_jump() -> void:
 	player.request_jump(world_move())
@@ -358,12 +348,6 @@ func queue_jump() -> void:
 func set_hint(which: String, enabled: bool) -> void:
 	if which=="route_ring": show_route_ring = enabled
 	if which=="landing_guide": show_landing_guide = enabled
-	save_record()
-	update_hud()
-
-func toggle_follow() -> void:
-	follow_camera = not follow_camera
-	moving_gesture = false
 	save_record()
 	update_hud()
 
@@ -387,12 +371,6 @@ func _physics_process(delta: float) -> void:
 			player.equip(found)
 			notice="執到"+str(art.pickups.ITEMS[found][0])
 			play_sound(0,1.55)
-	manual_look_time = maxf(0,manual_look_time-delta)
-	if follow_camera and player.is_on_floor() and manual_look_time<=0 and move.length_squared()>.0225:
-		var ground_speed := Vector2(player.velocity.x,player.velocity.z)
-		if ground_speed.length_squared()>.09:
-			var behind := atan2(-ground_speed.x,-ground_speed.y)
-			camera_yaw = rotate_toward(camera_yaw,behind,delta*3.8)
 	if player.position.y < -9:
 		clear_controls()
 		var count := player.jump_count
@@ -424,9 +402,8 @@ func intro_camera() -> void:
 
 func orbit(dx: float, dy: float) -> void:
 	frame_aerial=false
+	recenter_camera = true
 	camera_yaw = wrapf(camera_yaw-dx*3.55,-PI,PI)
-	input_yaw = wrapf(input_yaw-dx*3.55,-PI,PI)
-	manual_look_time = 1.15
 	camera_pitch = clampf(camera_pitch+dy*2.25,deg_to_rad(9),deg_to_rad(72))
 
 func face_target() -> void:
@@ -441,9 +418,8 @@ func face_target() -> void:
 		var bob:=art.branches.pendulum
 		offset-=bob.bob_at(bob.ANGLE)-bob.position
 	var direction := Vector2(offset.x,offset.z).normalized()
+	recenter_camera = true
 	camera_yaw = atan2(-direction.x,-direction.y)
-	moving_gesture = false
-	manual_look_time = .5
 	camera_pitch = deg_to_rad(26)
 	if player.is_on_floor(): player.aim = direction
 
@@ -509,6 +485,19 @@ func game_camera(delta: float, snap := false) -> void:
 		var eased := lerpf(camera_distance,distance,1.-exp(-7.*delta))
 		camera_distance = maxf(minf(distance,MIN_DISTANCE),eased)
 	camera.position = pivot+back*camera_distance
+	# Keep a small foot adjustment inside the frame without moving the view.
+	# Use the centred collision-safe boom whenever the offset sightline closes.
+	var feet := Vector2(player.position.x,player.position.z)
+	var lag := Vector2.ZERO
+	if not snap and not recenter_camera and camera_distance >= CAMERA_REACH-.001 and not tracking_aerial():
+		lag = (camera_anchor-feet).limit_length(CAMERA_FREE_STEP)
+		var shift := Vector3(lag.x,0,lag.y)
+		if lag.length_squared()>.000001 and boom_clearance(back+shift/CAMERA_REACH)>=CAMERA_REACH:
+			camera.position += shift
+		else:
+			lag = Vector2.ZERO
+	camera_anchor = feet+lag
+	recenter_camera = false
 	frame_climber(back,delta,snap)
 
 func frame_climber(back: Vector3, delta: float, snap: bool) -> void:
@@ -591,7 +580,7 @@ func update_hud() -> void:
 		var message := notice
 		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
 		var destination:="電視銅環" if aiming_at_aerial() else (art.stop_name(next) if next>=0 else "")
-		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,follow_camera,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action,"oil" if oil_paint.visible else "normal")
+		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action,"oil" if oil_paint.visible else "normal")
 		var show_pickups:=phase=="playing" and not player.spring_pad and not player.grab.active and player.hook.time_left<=0 and not tracking_aerial()
 		var hint: Node3D=art.pickups.visible_hint(camera,player) if show_pickups else null
 		if hint:
@@ -614,6 +603,6 @@ func update_hud() -> void:
 			"intro": native_label.text = "ONLYJUMP   /   Lost Property\nEnter to climb    /    1–5 change character    ·    %s" % player.costumes.NAMES[player.costumes.key]
 			"won": native_label.text = "Summit reached   ·   %d jumps    /    Enter to play again" % player.jump_count
 			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart\n1   Next object ring: %s    ·    2   Landing guide: %s\n3   Art style: %s" % [str(show_route_ring),str(show_landing_guide),"Oil paint" if oil_paint.visible else "Normal"]
-			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   C follow camera   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,art.stage(ledge),Islands.ROUTE.size()-1]
+			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,art.stage(ledge),Islands.ROUTE.size()-1]
 		if hook_hint!="" and phase=="playing": native_label.text+="\n飛爪 · "+hook_hint
 		if grip_action!="" and phase=="playing": native_label.text+="\n"+("Space · 撐上" if player.grab.can_pull_up() else grip_action)

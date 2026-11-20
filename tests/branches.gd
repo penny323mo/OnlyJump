@@ -180,7 +180,6 @@ func run() -> void:
 	root.add_child(game)
 	game.best=100
 	game.muted=true
-	game.follow_camera=false
 	if not await check_spring_impacts():return
 	for id: String in game.player.costumes.NAMES:
 		game.player.costumes.select(id)

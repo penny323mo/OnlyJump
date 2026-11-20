@@ -22,6 +22,9 @@ html = page.read_text()
 loader = out / 'index.js'
 js = loader.read_text()
 for before, after in [
+    # A single-use engine can consume the original stream. Cloning tees the
+    # entire WASM download into a second buffer that our game never reads.
+    ('new Response(response.clone().body,', 'new Response(me.config.unloadAfterInit ? response.body : response.clone().body,'),
     ('\n\t\t\t\tonloadprogress(reader, controller).then(', '\n\t\t\t\treturn onloadprogress(reader, controller).then('),
     ('getModuleConfig = function (loadPath, response)', 'getModuleConfig = function (loadPath, response, rejectInit)'),
     ('me.config.getModuleConfig(loadPath, cloned)', 'me.config.getModuleConfig(loadPath, cloned, reject)'),

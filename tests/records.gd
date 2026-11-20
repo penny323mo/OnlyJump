@@ -12,7 +12,7 @@ func run() -> void:
 	var legacy:=ConfigFile.new()
 	legacy.set_value("run","best",Land.PREVIOUS_HEIGHTS[4])
 	legacy.set_value("controls","character","dino")
-	legacy.set_value("controls","follow_camera",false)
+	legacy.set_value("controls","follow_camera",true)
 	legacy.set_value("run","muted",true)
 	legacy.save(fixture)
 	reopen()
@@ -40,7 +40,7 @@ func run() -> void:
 	if not check(game.player.position.y>top+.9 and not game.player.is_on_floor() and is_equal_approx(game.best,top),"airborne peak does not raise standing record"):return
 	reopen()
 	if not check(game.oil_paint.visible,"oil paint survives relaunch"):return
-	if not check(is_equal_approx(game.best,top) and game.player.costumes.key=="dino" and not game.follow_camera and game.muted,"basket record and settings survive relaunch"):return
+	if not check(is_equal_approx(game.best,top) and game.player.costumes.key=="dino" and game.muted,"basket record and settings survive relaunch"):return
 	await start_on(4)
 	if not await leap(B.DRAWER,Vector3.ZERO,false):return
 	await frames(145)
