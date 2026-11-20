@@ -213,6 +213,10 @@ func run() -> void:
 	var perched := game.player.position
 	await frames(65)
 	if not check(game.player.is_on_floor() and game.player.position.distance_to(perched)<.05,"one-foot ledge hold"):return
+	var shadow:=game.player.foot_shadow
+	if not check(shadow.receiver and shadow.receiver.get_meta("ledge")==16,"the girder still receives the shadow under a partial foothold"):return
+	var girder_top:=shadow.receiver.get_child(0) as MeshInstance3D
+	if not check(girder_top.material_overlay==shadow.material,"the foot shadow reaches the visible girder lip"):return
 	# Walk off deliberately and tap just beyond the edge.
 	game.stick=Vector2.DOWN
 	for i in 45:
@@ -222,6 +226,15 @@ func run() -> void:
 	game.web_command(["jump"])
 	await frames(2)
 	if not check(game.player.velocity.y>5.5,"late edge jump"):return
+	game.start_run()
+	if not check(girder_top.material_overlay==null,"restart clears the shadow from the old support"):return
+	var ladder_point: Vector3=Land.ROUTE[23]+(Vector3.BACK*.49).rotated(Vector3.UP,deg_to_rad(-22))
+	game.player.reset_at(ladder_point)
+	await frames(8)
+	var lower_rung:=game.player.ground_at(game.player.position,2.)
+	if not check(game.ledge==23 and game.player.is_on_floor() and lower_rung.get("collider")==shadow.receiver and game.player.position.y-lower_rung.position.y>.9,"one foot on the ladder top above a lower rung"):return
+	var patch: Vector4=shadow.material.get_shader_parameter("contact")
+	if not check(absf(patch.y-game.player.position.y)<.03,"shadow stays with the supported foot above a rung of the same ladder"):return
 	game.start_run()
 	await frames(6)
 	if not await leap(1):return

@@ -47,7 +47,7 @@ var stunt_axis := Vector3.ZERO
 var flames := Node3D.new()
 var animations: AnimationPlayer
 var pose := ""
-var foot_shadow: MeshInstance3D
+var foot_shadow := preload("res://game/foot_shadow.gd").new()
 var heading := Node3D.new()
 signal landed(ledge: int)
 signal jumped(from_spring: bool)
@@ -92,10 +92,9 @@ func build(art) -> void:
 	get_parent().add_child(heading)
 	for side in [-1,1]:
 		art.tube(heading,Vector3(0,0,-0.85),Vector3(side*.16,0,-0.60),.034,"f5ab43")
-	foot_shadow = art.cone(get_parent(),Vector3.ZERO,.012,.26,.26,"66625b",24)
-	foot_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 func reset_at(p: Vector3) -> void:
+	foot_shadow.hide()
 	end_grab_pose()
 	grab.reset()
 	position = p + Vector3.UP*0.035
@@ -262,6 +261,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 	if pulling:
 		if hook.time_left<=0 or get_slide_collision_count()>0 or hook.chest(self).distance_to(hook.anchor.global_position)<.38:
 			equip("")
+	var floor_contact: KinematicCollision3D
 	if is_on_floor():
 		grab.available=false
 		stop_stunt()
@@ -269,6 +269,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 			var contact := get_slide_collision(i)
 			var body := contact.get_collider() as Node3D
 			if contact.get_normal().y < .66 or not body or not body.has_meta("ledge"): continue
+			floor_contact=contact
 			if move.is_zero_approx() and body.has_meta("mobile_surface"): settle_on_platform(body)
 			else: standing_platform=null
 			var index := int(body.get_meta("ledge"))
@@ -297,7 +298,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		stunt_time=maxf(0,stunt_time-delta)
 		var angle:=TAU*smoothstep(0,1,1.-stunt_time/STUNT_SECONDS)
 		stunt_pivot.basis=Basis(stunt_axis,angle) if stunt_time>0 else Basis.IDENTITY
-	animate(delta,move,running)
+	animate(delta,move,running,floor_contact)
 	if hook.time_left>0:
 		var arm:=arms[1]
 		var target:=rig.to_local(hook.anchor.global_position)
@@ -347,7 +348,7 @@ func aim_bone(bone: int, child: int, target: Vector3) -> void:
 	xform.basis=Basis(Quaternion(from,to))*xform.basis
 	rig.set_bone_global_pose(bone,xform)
 
-func animate(delta: float, move: Vector2, running: bool) -> void:
+func animate(delta: float, move: Vector2, running: bool, floor_contact: KinematicCollision3D) -> void:
 	model.rotation.y = lerp_angle(model.rotation.y,atan2(-aim.x,-aim.y),minf(1,delta*18))
 	var hit := ground_at(global_position,10)
 	if spring_pad:
@@ -374,11 +375,13 @@ func animate(delta: float, move: Vector2, running: bool) -> void:
 	heading.visible = not spring_pad and is_on_floor() and move.length_squared()>.016
 	heading.position = position+Vector3.UP*.055
 	heading.rotation.y = atan2(-aim.x,-aim.y)
-	foot_shadow.visible = not hit.is_empty()
-	if foot_shadow.visible:
-		foot_shadow.global_position = hit.position+Vector3.UP*.014
-		var size := clampf(1-(position.y-hit.position.y)*.11,.46,1)
-		foot_shadow.scale = Vector3(size,1,size)
+	# A centre ray beyond the lip can miss, or hit a lower rung of the same object.
+	if floor_contact:
+		var surface:=floor_contact.get_position()
+		var body:=floor_contact.get_collider()
+		if hit.get("collider")!=body or absf(hit.position.y-surface.y)>FOOT_RADIUS*tan(floor_max_angle)+safe_margin:
+			hit={"position":surface,"collider":body}
+	foot_shadow.project(global_position,hit)
 
 func set_pose(next: String) -> void:
 	if next != pose:
