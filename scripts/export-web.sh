@@ -17,7 +17,24 @@ from pathlib import Path
 out = Path('build/web')
 page = out / 'index.html'
 html = page.read_text()
-for name in ('index.pck', 'controls.js', 'characters.webp'):
+# In the pinned 4.7.2 template a broken body can leave the reader or WASM
+# compiler pending. Forward those rejections through the existing APIs.
+loader = out / 'index.js'
+js = loader.read_text()
+for before, after in [
+    ('\n\t\t\t\tonloadprogress(reader, controller).then(', '\n\t\t\t\treturn onloadprogress(reader, controller).then('),
+    ('getModuleConfig = function (loadPath, response)', 'getModuleConfig = function (loadPath, response, rejectInit)'),
+    ('me.config.getModuleConfig(loadPath, cloned)', 'me.config.getModuleConfig(loadPath, cloned, reject)'),
+    ('WebAssembly.instantiateStreaming(Promise.resolve(r), imports).then(done)',
+     'WebAssembly.instantiateStreaming(Promise.resolve(r), imports).then(done, rejectInit)'),
+    ('r.arrayBuffer().then(function (buffer) {\n\t\t\t\t\t\tWebAssembly.instantiate(buffer, imports).then(done);\n\t\t\t\t\t});',
+     'r.arrayBuffer().then(buffer => WebAssembly.instantiate(buffer, imports)).then(done, rejectInit);'),
+]:
+    if js.count(before) != 1:
+        raise SystemExit('Recheck Godot download error handling for this template')
+    js = js.replace(before, after)
+loader.write_text(js)
+for name in ('index.pck', 'index.js', 'controls.js', 'characters.webp'):
     source = out / name
     digest = sha256(source.read_bytes()).hexdigest()[:12]
     versioned = source.with_name(f'{source.stem}-{digest}{source.suffix}')

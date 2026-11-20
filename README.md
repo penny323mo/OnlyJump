@@ -85,6 +85,8 @@ godot --headless --fixed-fps 60 --script tests/grapple.gd
 
 執行 `node tests/scenery-motion.cjs` 可以重播外屏同內屏嘅慢速轉鏡。測試會先確認六個街景取樣區喺定鏡時冇變化，再逐幀量度轉鏡時嘅像素跳變。
 
+執行 `node tests/startup.cjs` 可以分別模擬四種遊戲檔案下載失敗、斷線同慢網絡，驗證撳「重新載入」或繼續等之後入到場並完成第一跳。
+
 `node tests/pickup-hints.cjs` 會先喺外屏原地跳，量度黃鴨仔同標籤之間嘅相對移動，檢查落點十字有冇被遮住。之後會喺十組 iPhone Duo 視窗尺寸用加大按掣同浮動搖桿轉鏡，再執起黃鴨仔驗證提示消失同二段跳次數。
 
 角色、城市及部分道具的作者、授權及改動記錄載於[模型鳴謝](web/credits.txt)。
