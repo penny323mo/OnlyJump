@@ -85,6 +85,8 @@ func check_rescue(seed_value: int, should_catch: bool) -> bool:
 			if not check(should_catch and not game.landing_guide.visible,"guide hidden while hanging"):return false
 			if player.grab.elapsed>.17 and not tested_pause:
 				tested_pause=true
+				var hips:=player.rig.get_bone_global_pose(player.rig.find_bone("Hips")).origin
+				if not check(player.rig.to_global(hips).y-player.position.y>.35,"torso stays above the feet when switching to a grip"):return false
 				for i in player.arms.size():
 					var hand := player.rig.to_global(player.rig.get_bone_global_pose(player.arms[i][2]).origin)
 					if not check(hand.distance_to(player.grab.hands[i])<.08,"both palms on lip"):return false
@@ -118,6 +120,38 @@ func check_blocked_grip() -> bool:
 	ceiling.queue_free()
 	return check(not grabbed and player.grab.available and player.grab.rng.state==state,"no roll under a blocked lip")
 
+func check_standing_jump() -> bool:
+	var player:=game.player
+	var left:=player.rig.find_bone("Foot.L")
+	var right:=player.rig.find_bone("Foot.R")
+	game.web_command(["jump"])
+	await frames(2)
+	if not check(player.jump_count==1 and player.velocity.y>5.5,"immediate standing jump"):return false
+	if not check(Vector2(player.velocity.x,player.velocity.z).length()<.01,"standing jump drift"):return false
+	var peak:=player.position.y
+	var max_gap:=0.
+	var apex_gap:=0.
+	var air_ticks:=2
+	while not player.is_on_floor() and air_ticks<75:
+		var sole:=player.rig.to_global(player.rig.get_bone_global_pose(left).origin)
+		var other:=player.rig.to_global(player.rig.get_bone_global_pose(right).origin)
+		var higher:=maxf(sole.y,other.y)-player.position.y
+		var lower:=minf(sole.y,other.y)-player.position.y
+		max_gap=maxf(max_gap,higher)
+		if absf(player.velocity.y)<.3:apex_gap=lower
+		if player.velocity.y < -5 and not check(lower>-.015 and higher<.04,"both feet extend before contact"):return false
+		if air_ticks==15:
+			game.toggle_pause()
+			await frames(10)
+			if not check(sole.distance_to(player.rig.to_global(player.rig.get_bone_global_pose(left).origin))<.001,"pause holds the airborne pose"):return false
+			game.toggle_pause()
+		await frames(1)
+		air_ticks+=1
+		peak=maxf(peak,player.position.y)
+	print("standing jump: apex ",snappedf(peak,.001)," m, tucked foot ",snappedf(apex_gap,.001)," m, max foot gap ",snappedf(max_gap,.001)," m")
+	if not check(peak>1.17 and peak<1.40 and air_ticks in range(45,54),"jump apex and duration"):return false
+	return check(apex_gap>.025 and max_gap<.15,"knees tuck at the physical apex within the body's flight path")
+
 func run() -> void:
 	game = Game.new()
 	root.add_child(game)
@@ -134,18 +168,7 @@ func run() -> void:
 	game.update_hud()
 	if not check(game.landing_ring.visible,"optional next-object ring"):return
 	game.show_route_ring=false
-	# Touch-down initiates a standing jump on the next physics step.
-	game.web_command(["jump"])
-	await frames(2)
-	if not check(game.player.jump_count==1 and game.player.velocity.y>5.5,"immediate standing jump"):return
-	if not check(Vector2(game.player.velocity.x,game.player.velocity.z).length()<.01,"standing jump drift"):return
-	var peak := game.player.position.y
-	var air_ticks := 2
-	while not game.player.is_on_floor() and air_ticks<75:
-		await frames(1)
-		air_ticks+=1
-		peak=maxf(peak,game.player.position.y)
-	if not check(peak>1.17 and peak<1.40 and air_ticks in range(45,54),"jump apex and duration"):return
+	if not await check_standing_jump():return
 	game.web_command(["look",-PI/(2*3.55),0])
 	game.web_command(["stick",0,-1])
 	await frames(10)

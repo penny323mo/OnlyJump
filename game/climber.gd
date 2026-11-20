@@ -349,6 +349,7 @@ func aim_bone(bone: int, child: int, target: Vector3) -> void:
 
 func animate(delta: float, move: Vector2, running: bool) -> void:
 	model.rotation.y = lerp_angle(model.rotation.y,atan2(-aim.x,-aim.y),minf(1,delta*18))
+	var hit := ground_at(global_position,10)
 	if spring_pad:
 		# Both feet stay planted through the crouch in the standing-up clip.
 		if pose!="Standing":
@@ -356,13 +357,23 @@ func animate(delta: float, move: Vector2, running: bool) -> void:
 			animations.play(pose,0.)
 			animations.pause()
 		animations.seek((1.-spring_pad.load_fraction())*.32,true)
-	elif not is_on_floor(): set_pose("Jump")
+	elif not is_on_floor():
+		if pose!="Airborne":
+			pose="Airborne"
+			animations.play(pose,0.)
+			animations.pause()
+		# Extend at takeoff, tuck at the apex and reach for the actual floor.
+		var phase:=clampf((JUMP_SPEED-velocity.y)/(2.*JUMP_SPEED),0.,1.)
+		var sample_time:=lerpf(.205,.50,phase)
+		if velocity.y<0. and not hit.is_empty():
+			var clearance:=global_position.y-float(hit.position.y)
+			sample_time=lerpf(.50,sample_time,smoothstep(.10,.55,clearance))
+		animations.seek(sample_time,true)
 	elif move.length_squared()>.016: set_pose("Running" if running else "Walking")
 	else: set_pose("Idle")
 	heading.visible = not spring_pad and is_on_floor() and move.length_squared()>.016
 	heading.position = position+Vector3.UP*.055
 	heading.rotation.y = atan2(-aim.x,-aim.y)
-	var hit := ground_at(global_position,10)
 	foot_shadow.visible = not hit.is_empty()
 	if foot_shadow.visible:
 		foot_shadow.global_position = hit.position+Vector3.UP*.014
