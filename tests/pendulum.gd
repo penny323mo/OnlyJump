@@ -1,21 +1,5 @@
 extends "res://tests/branches.gd"
 
-func forward_jump(strength: float, runup_ticks: int) -> void:
-	game.web_command(["sprint",true])
-	game.web_command(["stick",0,-strength])
-	await frames(runup_ticks)
-	game.web_command(["jump"])
-	await frames(5)
-	game.web_command(["stick",0,0])
-	game.web_command(["sprint",false])
-
-func reach_floor(id: int) -> bool:
-	for tick in 125:
-		await frames(1)
-		if game.player.is_on_floor():
-			return check(game.ledge==id,"land on "+game.art.stop_name(id))
-	return check(false,"missed "+game.art.stop_name(id))
-
 func board(entry_tick: int) -> bool:
 	await start_on(13)
 	game.web_command(["branch"])

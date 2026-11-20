@@ -3,6 +3,7 @@ extends RefCounted
 const Props = preload("res://game/props.gd")
 const SpringPad = preload("res://game/spring_pad.gd")
 const PendulumClock = preload("res://game/pendulum_clock.gd")
+const SpiritLevel = preload("res://game/spirit_level.gd")
 const BED := 100
 const DRAWER := 101
 const POLE := 102
@@ -14,6 +15,7 @@ const FAN := 107
 const AWNING := 108
 const PENDULUM := 109
 const CLOCK_CASE := 110
+const LEVEL := 111
 # Each branch lists its position, equivalent main-route stage and next stop.
 const STOPS := {
 	FAN: ["天台大風扇",Vector3(-.75,7.32,-21.55),9,10],
@@ -22,18 +24,20 @@ const STOPS := {
 	AWNING: ["士多布篷",Vector3(-3.34,1.03,-9.64),1,2],
 	PENDULUM: ["掛鐘銅擺",Vector3(4.45,11.72,-17.50),14,16],
 	CLOCK_CASE: ["舊掛鐘頂",Vector3(4.45,16.17,-18.37),17,18],
+	LEVEL: ["翹翹水平尺",Vector3(.70,9.31,-19.66),11,13],
 	POLE: ["斜晾衫桿",Vector3(-2.16,16.87,-13.24),19,21],
 	LIFT: ["走索吊籃",Vector3(-.35,17.05,-7.42),20,22],
 	BOARD: ["裂紋木板",Vector3(-6.94,19.32,-6.78),22,24],
 	SHEET: ["接人被單",Vector3(-6.94,17.32,-7.04),20,21],
 	COIL: ["斜頭彈簧",Vector3(-4.35,18.02,-5.58),21,23],
 }
-const FORKS := {0:BED,4:DRAWER,8:FAN,13:PENDULUM,18:POLE,19:LIFT,20:COIL,21:BOARD}
+const FORKS := {0:BED,4:DRAWER,8:FAN,10:LEVEL,13:PENDULUM,18:POLE,19:LIFT,20:COIL,21:BOARD}
 const LIFT_END := Vector3(-8.20,18.20,-5.65)
 const DROP_AFTER := {DRAWER:1.6,BOARD:1.15}
 var bodies := {}
 var springs: Array[SpringPad] = []
 var pendulum: PendulumClock
+var level: SpiritLevel
 var timers := {}
 var clock := 0.0
 var fan_angle := 0.0
@@ -46,6 +50,9 @@ func build(art: Props, main: Array) -> void:
 		elif id==PENDULUM:
 			pendulum=PendulumClock.new()
 			b=pendulum
+		elif id==LEVEL:
+			level=SpiritLevel.new()
+			b=level
 		elif id in [FAN,LIFT]:
 			b=AnimatableBody3D.new()
 		else:
@@ -58,6 +65,8 @@ func build(art: Props, main: Array) -> void:
 		art.add_child(b)
 		b.position=STOPS[id][1]
 		match id:
+			LEVEL:
+				level.build(art)
 			BED,COIL:
 				var spring:=b as SpringPad
 				spring.build(art,main[STOPS[id][3]],id==BED)
@@ -165,6 +174,7 @@ func build_awning(art: Props, body: StaticBody3D) -> void:
 
 func target(id: int) -> Vector3:
 	var body: StaticBody3D=bodies[id]
+	if id==LEVEL: return level.to_global(SpiritLevel.ENTRY)
 	if id==FAN:
 		var from_disc:=Vector3(2.84,0,3.68).normalized()
 		var best_tip:=Vector3.ZERO
@@ -180,6 +190,7 @@ func target(id: int) -> Vector3:
 
 func reset() -> void:
 	pendulum.reset()
+	level.reset()
 	for spring in springs: spring.reset()
 	clock=0
 	fan_angle=0
@@ -196,8 +207,9 @@ func reset() -> void:
 func land(id: int) -> void:
 	if DROP_AFTER.has(id) and not timers.has(id): timers[id]=0.
 
-func advance(delta: float) -> void:
+func advance(delta: float, occupied: int, foot: Vector3) -> void:
 	pendulum.advance(delta)
+	level.advance(delta,occupied==LEVEL,foot)
 	for spring in springs: spring.advance(delta)
 	fan_angle=fmod(fan_angle+delta*.50,TAU)
 	bodies[FAN].rotation.y=fan_angle

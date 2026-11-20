@@ -31,6 +31,7 @@ var camera_distance := CAMERA_REACH
 var camera_pitch_offset := 0.0
 var frame_aerial := false
 var camera_sweep := PhysicsShapeQueryParameters3D.new()
+var camera_ray := PhysicsRayQueryParameters3D.new()
 var follow_camera := true
 var show_route_ring := false
 var show_landing_guide := true
@@ -92,6 +93,7 @@ func _ready() -> void:
 	column.size = Vector3(.30,player.BODY_HEIGHT+.06,.30)
 	camera_sweep.shape = column
 	camera_sweep.exclude = [player.get_rid()]
+	camera_ray.exclude = camera_sweep.exclude
 	player.landed.connect(on_landing)
 	player.jumped.connect(on_jump)
 	add_child(camera)
@@ -319,6 +321,7 @@ func on_landing(index: int) -> void:
 	match index:
 		Islands.Branches.FAN: notice="企穩扇葉，轉到對面先起跳"
 		Islands.Branches.PENDULUM: notice="擺向鋼樑、接近高位就起跳"
+		Islands.Branches.LEVEL: notice="踩低近端，跑到紅刻度起跳"
 		Islands.Branches.POLE: notice="沿桿行到高端，再跳洗衣機"
 		Islands.Branches.LIFT: notice="搭到另一端，再跳晾衫架"
 		Islands.Branches.BOARD,Islands.Branches.DRAWER: notice="開始鬆脫，快跳！"
@@ -367,7 +370,7 @@ func toggle_follow() -> void:
 func _physics_process(delta: float) -> void:
 	if phase != "playing": return
 	elapsed += delta
-	art.branches.advance(delta)
+	art.branches.advance(delta,player.grounded_ledge if player.is_on_floor() else -1,player.position)
 	var turn := int(Input.is_physical_key_pressed(KEY_E)) - int(Input.is_physical_key_pressed(KEY_Q))
 	if turn != 0: orbit(turn*delta*2.1/3.55,0)
 	var move := world_move()
@@ -446,9 +449,20 @@ func face_target() -> void:
 
 func boom_clearance(back: Vector3) -> float:
 	camera_sweep.motion = back*CAMERA_REACH
-	var travel := get_world_3d().direct_space_state.cast_motion(camera_sweep)
-	if travel[0] >= 1.: return CAMERA_REACH
-	return maxf(.42,travel[0]*CAMERA_REACH-.12)
+	var space:=get_world_3d().direct_space_state
+	var travel:=space.cast_motion(camera_sweep)
+	if travel[0]<1.:return maxf(.42,travel[0]*CAMERA_REACH-.12)
+	# A sweep can miss the tip of a tilted beam. Check the actual sight lines
+	# before placing the eye beyond an apparently clear sweep.
+	var distance:=CAMERA_REACH
+	camera_ray.to=player.position+Vector3.UP*1.08+camera_sweep.motion
+	for h: float in [.06,.65,player.BODY_HEIGHT+.10]:
+		camera_ray.from=player.position+Vector3.UP*h
+		var hit:=space.intersect_ray(camera_ray)
+		if not hit.is_empty():
+			var fraction:=camera_ray.from.distance_to(hit.position)/camera_ray.from.distance_to(camera_ray.to)
+			distance=minf(distance,maxf(.42,fraction*CAMERA_REACH-.16))
+	return distance
 
 func game_camera(delta: float, snap := false) -> void:
 	const MIN_DISTANCE := 1.95

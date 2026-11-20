@@ -47,7 +47,7 @@ func run() -> void:
 					if failures<=5: print("blocked at ",game.art.stop_name(id)," pitch ",pitch," heading ",heading*15)
 	if not check(failures==0,"%d of %d camera views crop or hide the climber" % [failures,samples]):return
 	print("PASS camera orbit keeps head, body and feet visible in ",samples," views")
-	for id: int in [1,7,10,13,B.AWNING,B.FAN,B.SHEET,B.COIL]:
+	for id: int in [1,7,10,13,B.AWNING,B.FAN,B.SHEET,B.COIL,B.LEVEL]:
 		if not await check_orbit(id):return
 	game.orbit(.25,1.)
 	await frames(2)
@@ -55,6 +55,6 @@ func run() -> void:
 	game.start_run()
 	await frames(5)
 	if not check(is_zero_approx(game.camera_pitch_offset) and is_equal_approx(game.camera.fov,59.),"open rooftop restores normal camera"):return
-	print("PASS continuous orbit keeps manual heading and a clear view on eight objects")
+	print("PASS continuous orbit keeps manual heading and a clear view on nine objects")
 	game.free()
 	quit()
