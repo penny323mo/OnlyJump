@@ -9,6 +9,7 @@ const SOUNDS = [preload("res://audio/lift.wav"),preload("res://audio/land.wav"),
 var art := Islands.new()
 var player := Climber.new()
 var camera := Camera3D.new()
+var oil_paint := ColorRect.new()
 var landing_guide := preload("res://game/landing_guide.gd").new()
 var landing_ring := MeshInstance3D.new()
 var audio := AudioStreamPlayer.new()
@@ -98,6 +99,16 @@ func _ready() -> void:
 	camera.fov = 54
 	camera.far = 320
 	add_child(audio)
+	var paint_layer:=CanvasLayer.new()
+	paint_layer.layer=1
+	add_child(paint_layer)
+	paint_layer.add_child(oil_paint)
+	oil_paint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	oil_paint.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	var paint_material:=ShaderMaterial.new()
+	paint_material.shader=preload("res://game/oil_paint.gdshader")
+	oil_paint.material=paint_material
+	oil_paint.hide()
 	var data := ConfigFile.new()
 	if data.load(record_path) == OK:
 		player.costumes.select(str(data.get_value("controls","character","courier")))
@@ -114,6 +125,7 @@ func _ready() -> void:
 			for i in Islands.PREVIOUS_HEIGHTS.size():
 				if old_height+.001 >= Islands.PREVIOUS_HEIGHTS[i]: best = Islands.ROUTE[i].y
 		muted = data.get_value("run","muted",false)
+		oil_paint.visible=data.get_value("display","art_style","normal")=="oil"
 	player.reset_at(Islands.ROUTE[0])
 	if OS.has_feature("web"):
 		web = JavaScriptBridge.get_interface("OnlyJumpUI")
@@ -122,6 +134,7 @@ func _ready() -> void:
 		web.bindGame(web_callback)
 	else:
 		var layer := CanvasLayer.new()
+		layer.layer=2
 		add_child(layer)
 		native_label = Label.new()
 		layer.add_child(native_label)
@@ -139,6 +152,7 @@ func save_record() -> void:
 	data.set_value("controls","route_ring",show_route_ring)
 	data.set_value("controls","landing_guide",show_landing_guide)
 	data.set_value("run","muted",muted)
+	data.set_value("display","art_style","oil" if oil_paint.visible else "normal")
 	data.save(record_path)
 
 func web_command(args: Array) -> void:
@@ -181,6 +195,10 @@ func web_command(args: Array) -> void:
 		"route_ring","landing_guide":
 			if phase=="paused" and args.size()==2:
 				set_hint(str(args[0]),bool(args[1]))
+		"art_style":
+			if phase=="paused" and args.size()==2 and args[1] in ["normal","oil"]:
+				oil_paint.visible=args[1]=="oil"
+				save_record()
 		"jump":
 			if phase == "playing": queue_jump()
 	update_hud()
@@ -265,6 +283,8 @@ func _input(event: InputEvent) -> void:
 				set_hint("route_ring",not show_route_ring)
 			elif key == KEY_2 and phase == "paused" and not web:
 				set_hint("landing_guide",not show_landing_guide)
+			elif key == KEY_3 and phase == "paused" and not web:
+				web_command(["art_style","normal" if oil_paint.visible else "oil"])
 			elif key == KEY_R and phase == "paused":
 				start_run()
 
@@ -549,7 +569,7 @@ func update_hud() -> void:
 		var message := notice
 		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
 		var destination:="電視銅環" if aiming_at_aerial() else (art.stop_name(next) if next>=0 else "")
-		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,follow_camera,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action)
+		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,follow_camera,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action,"oil" if oil_paint.visible else "normal")
 		var show_pickups:=phase=="playing" and not player.spring_pad and not player.grab.active and player.hook.time_left<=0 and not tracking_aerial()
 		var hint: Node3D=art.pickups.visible_hint(camera,player) if show_pickups else null
 		if hint:
@@ -569,7 +589,7 @@ func update_hud() -> void:
 		match phase:
 			"intro": native_label.text = "ONLYJUMP   /   Lost Property\nEnter to climb    /    1–5 change character    ·    %s" % player.costumes.NAMES[player.costumes.key]
 			"won": native_label.text = "Summit reached   ·   %d jumps    /    Enter to play again" % player.jump_count
-			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart\n1   Next object ring: %s    ·    2   Landing guide: %s" % [str(show_route_ring),str(show_landing_guide)]
+			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart\n1   Next object ring: %s    ·    2   Landing guide: %s\n3   Art style: %s" % [str(show_route_ring),str(show_landing_guide),"Oil paint" if oil_paint.visible else "Normal"]
 			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   C follow camera   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,art.stage(ledge),Islands.ROUTE.size()-1]
 		if hook_hint!="" and phase=="playing": native_label.text+="\n飛爪 · "+hook_hint
 		if grip_action!="" and phase=="playing": native_label.text+="\n"+("Space · 撐上" if player.grab.can_pull_up() else grip_action)
