@@ -44,6 +44,8 @@ jobs:
           set -euo pipefail
           godot --headless --fixed-fps 60 --quit-after 6500 --script tests/route.gd | tee "$RUNNER_TEMP/ascent.log"
           grep -Fxq 'PASS mobile parkour: 24 landings, instant jump, sprint, orbit, edge hold, recovery' "$RUNNER_TEMP/ascent.log"
+          godot --headless --fixed-fps 60 --quit-after 1700 --script tests/stance.gd | tee "$RUNNER_TEMP/stance.log"
+          grep -Fxq 'PASS planted soles, connected ankles, one-foot edges, takeoff and moving strides' "$RUNNER_TEMP/stance.log"
           godot --headless --fixed-fps 60 --quit-after 7500 --script tests/branches.gd | tee "$RUNNER_TEMP/branches.log"
           grep -Fxq 'PASS branches, rotating fan, timed pickups, double-jump stunts, lower recovery and five characters' "$RUNNER_TEMP/branches.log"
           godot --headless --fixed-fps 60 --quit-after 2300 --script tests/pendulum.gd | tee "$RUNNER_TEMP/pendulum.log"

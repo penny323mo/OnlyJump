@@ -48,6 +48,7 @@ var flames := Node3D.new()
 var animations: AnimationPlayer
 var pose := ""
 var foot_shadow := preload("res://game/foot_shadow.gd").new()
+var stance := preload("res://game/ground_stance.gd").new()
 var heading := Node3D.new()
 signal landed(ledge: int)
 signal jumped(from_spring: bool)
@@ -75,6 +76,7 @@ func build(art) -> void:
 	courier.rotation.y = PI
 	rig = courier.find_children("*","Skeleton3D",true,false)[0]
 	costumes.setup(art,rig,model)
+	stance.build(rig,costumes.parts)
 	model.add_child(exhaust)
 	exhaust.add_child(flames)
 	for side: float in [-1,1]:
@@ -94,6 +96,7 @@ func build(art) -> void:
 		art.tube(heading,Vector3(0,0,-0.85),Vector3(side*.16,0,-0.60),.034,"f5ab43")
 
 func reset_at(p: Vector3) -> void:
+	stance.release()
 	foot_shadow.hide()
 	end_grab_pose()
 	grab.reset()
@@ -292,6 +295,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		animations.pause()
 		heading.hide()
 		foot_shadow.hide()
+		stance.release()
 		pose_on_ledge()
 		return
 	if stunt_time>0:
@@ -381,6 +385,7 @@ func animate(delta: float, move: Vector2, running: bool, floor_contact: Kinemati
 		var body:=floor_contact.get_collider()
 		if hit.get("collider")!=body or absf(hit.position.y-surface.y)>FOOT_RADIUS*tan(floor_max_angle)+safe_margin:
 			hit={"position":surface,"collider":body}
+	stance.sample_floor(self,floor_contact,hit,delta)
 	foot_shadow.project(global_position,hit)
 
 func set_pose(next: String) -> void:

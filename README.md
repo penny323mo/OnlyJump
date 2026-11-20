@@ -42,6 +42,8 @@ iPhone Duo 可以用外屏、展開嘅內屏，或者 Safari 雙視窗玩。摺�
 
 下一站嘅物件名喺左上角。標示下一站嘅橙圈預設收埋，可喺「暫停 → 遊戲選項」開啟，預計落點十字亦可以獨立開關。助跑時，青白十字會標示而家起跳嘅預計落點。離地後會按你嘅速度同方向更新，前面有牆擋住、落點會郁或鬆脫，或者暫時冇可企嘅落點，十字就會收起。原地撳跳會垂直起跳，推住方向起跳會向前。起跳沿用助跑慣性，空中放手會繼續向前。追蹤鏡頭預設開啟，落地移動時會跟到身後，離地時保持起跳方向。靠近窄邊會減速，放開搖桿就收腳。腳掌部分伸出鋼樑時仍然可以企穩。
 
+企喺三角紙盒同電纜轆上，兩隻鞋會跟住各自腳下嘅斜度，膝頭可以一高一低。喺窄邊只夠一隻腳踩實時，角色會將重心移向嗰邊。[睇站姿對照](https://penny323mo.github.io/OnlyJump/slope-stance.webp)
+
 原作點樣用圓喉、路軌同斜面改變落腳方式，可以睇[《Only Up!》玩法考察](docs/only-up-reference.md)。
 
 跳短少少、向住物件邊沿跌落時，如果雙手掂到上沿而上方有位企，每跳有一次 70% 機會捉住。成功時右手跳掣會變成「撐上」。撳一下可以早啲爬，電腦用空白鍵。放手等一陣亦會自動爬。撐上唔會消耗二段跳。[睇 iPhone Duo 撳掣示範](https://penny323mo.github.io/OnlyJump/duo-pull-up.mp4) · [睇茶几扶邊近鏡](https://penny323mo.github.io/OnlyJump/ledge-grab.mp4)
@@ -70,6 +72,7 @@ python3 -m http.server 8137 --bind 127.0.0.1 --directory build/web
 ```sh
 godot --headless --import
 godot --headless --fixed-fps 60 --script tests/route.gd
+godot --headless --fixed-fps 60 --script tests/stance.gd
 godot --headless --fixed-fps 60 --script tests/branches.gd
 godot --headless --fixed-fps 60 --script tests/pendulum.gd
 godot --headless --fixed-fps 60 --script tests/grips.gd
