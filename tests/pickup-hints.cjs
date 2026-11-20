@@ -2,6 +2,40 @@ const assert = require('node:assert/strict');
 const { webkit } = require(process.env.PLAYWRIGHT_LIB || 'playwright');
 const poses = require('./duo-viewports.cjs');
 
+async function jumpWithHint(page) {
+  await page.locator('#pickupHint').waitFor({state:'visible'});
+  await page.evaluate(()=>{
+    window.jumpFrames=[];
+    window.onPickupFrame=()=>{
+      const tag=document.querySelector('#pickupHint');
+      const box=tag.getBoundingClientRect();
+      const [cx,cy]=window.itemHint;
+      const [x1,y1,x2,y2]=window.itemHint.slice(11);
+      const hasMark=x2>x1 && y2>y1;
+      window.jumpFrames.push({
+        visible:!tag.hidden && tag.textContent.includes('二段跳'),
+        offsetX:box.left-cx*innerWidth,offsetY:box.top-cy*innerHeight,
+        hasMark, coversMark:hasMark && box.right>x1*innerWidth && box.left<x2*innerWidth &&
+          box.bottom>y1*innerHeight && box.top<y2*innerHeight,
+      });
+    };
+    window.onPickupFrame();
+  });
+  await page.locator('#jump').tap();
+  await page.waitForFunction(()=>Number(document.querySelector('#height').textContent)>1.1);
+  await page.waitForFunction(()=>Number(document.querySelector('#height').textContent)===0);
+  const samples=await page.evaluate(()=>{delete window.onPickupFrame;return window.jumpFrames});
+  assert(samples.some(s=>s.hasMark),'the real jump displayed its landing cross');
+  assert(samples.every(s=>s.visible && !s.coversMark),'duck stays labelled without covering the landing cross');
+  let maxShift=0;
+  for(let i=1;i<samples.length;i++){
+    const prev=samples[i-1], next=samples[i];
+    maxShift=Math.max(maxShift,Math.hypot(next.offsetX-prev.offsetX,next.offsetY-prev.offsetY));
+  }
+  assert(maxShift<24,'callout shifted '+maxShift.toFixed(1)+' px relative to its pickup');
+  console.log('Standing jump, largest shift relative to duck:',maxShift.toFixed(1),'px');
+}
+
 async function orbit(page) {
   return page.evaluate(async () => {
     const el = id => document.getElementById(id);
@@ -43,8 +77,8 @@ async function orbit(page) {
         throw Error('Pickup outside safe area at camera step '+angle);
       const hit=Array.from(controls).find(node=>overlaps(box,visible(node)));
       if (hit) throw Error('Pickup overlaps '+(hit.id||hit.className)+' at camera step '+angle);
-      if(projected.length!==8 || !projected.every(Number.isFinite)) throw Error('Missing pickup or climber bounds');
-      for(const [i,subject] of ['pickup','climber'].entries()){
+      if(projected.length!==12 || !projected.every(Number.isFinite)) throw Error('Missing pickup, climber or landing bounds');
+      for(const [i,subject] of ['pickup','climber','landing cross'].entries()){
         const [x1,y1,x2,y2]=projected.slice(i*4,i*4+4);
         const rect={left:x1*innerWidth,top:y1*innerHeight,right:x2*innerWidth,bottom:y2*innerHeight};
         if (overlaps(box,{...rect,width:rect.right-rect.left,height:rect.bottom-rect.top}))
@@ -71,11 +105,17 @@ async function orbit(page) {
         const bind=ui.bindGame, update=ui.update, hint=ui.pickupHint;
         ui.bindGame=fn=>{window.drive=fn;return bind.call(ui,fn)};
         ui.update=(...args)=>{window.gameTime=args[6];return update.apply(ui,args)};
-        ui.pickupHint=(...args)=>{window.itemHint=args;return hint.apply(ui,args)};
+        ui.pickupHint=(...args)=>{
+          window.itemHint=args;
+          const result=hint.apply(ui,args);
+          if(window.onPickupFrame)window.onPickupFrame();
+          return result;
+        };
       }});
     });
     await page.goto(process.argv[2] || 'http://127.0.0.1:8137/');
     await page.locator('#start:enabled').tap({timeout:90000});
+    await jumpWithHint(page);
     await page.addStyleTag({content:':root{--safe-left:34px;--safe-right:22px;--safe-top:14px;--safe-bottom:18px}'});
     await page.locator('#pause').tap();
     await page.locator('label').filter({has:page.locator('input[value=large]')}).tap();

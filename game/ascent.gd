@@ -579,11 +579,13 @@ func update_hud() -> void:
 			var first:=frame.position/viewport_size
 			var last:=frame.end/viewport_size
 			var climber:=climber_screen_bounds(viewport_size)
+			var mark:=landing_guide.screen_bounds(camera,viewport_size)
 			var key: String=art.pickups.items.find_key(hint)
 			var effect: String="飛爪\n扣銅環 · 一次" if key=="hook" else "%s\n%d 秒" % [art.pickups.LABELS[key],player.ABILITY_SECONDS[key]]
 			if key=="double": effect+=" · 最多 %d 次" % player.MAX_DOUBLE_CHARGES
 			web.pickupHint(centre.x,centre.y,effect,first.x,first.y,last.x,last.y,
-				climber.position.x,climber.position.y,climber.end.x,climber.end.y)
+				climber.position.x,climber.position.y,climber.end.x,climber.end.y,
+				mark.position.x,mark.position.y,mark.end.x,mark.end.y)
 		else: web.pickupHint(0,0,"")
 	elif native_label:
 		match phase:

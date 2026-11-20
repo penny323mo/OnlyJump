@@ -2,19 +2,30 @@ extends MeshInstance3D
 
 const Climber = preload("res://game/climber.gd")
 const MARK = preload("res://game/landing_guide.gdshader")
+const MARK_SIZE := .58
 const TICKS_PER_CAST := 4
 const MAX_CASTS := 24
 var contact := KinematicCollision3D.new()
 
 func _ready() -> void:
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(.58,.58)
+	plane.size = Vector2.ONE*MARK_SIZE
 	mesh = plane
 	var ink := ShaderMaterial.new()
 	ink.shader = MARK
 	material_override = ink
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	hide()
+
+func screen_bounds(camera: Camera3D, viewport_size: Vector2) -> Rect2:
+	if not visible or camera.is_position_behind(global_position): return Rect2()
+	var bounds:=Rect2(camera.unproject_position(global_position)/viewport_size,Vector2.ZERO)
+	for x: float in [-.5,.5]:
+		for z: float in [-.5,.5]:
+			var corner:=to_global(Vector3(x,0,z)*MARK_SIZE)
+			if camera.is_position_behind(corner): return Rect2()
+			bounds=bounds.expand(camera.unproject_position(corner)/viewport_size)
+	return bounds
 
 # Keep the input constant while tracing. Sweep the same body that actually
 # jumps, so the top of a narrow beam can support part of the player's sole.
