@@ -185,6 +185,8 @@ func web_command(args: Array) -> void:
 		"branch":
 			if phase=="playing" and Islands.Branches.FORKS.has(ledge):
 				alternate=not alternate
+				if Islands.Branches.FORKS[ledge]==Islands.Branches.PENDULUM:
+					notice="等銅擺經過低位，再跳上去" if alternate else ""
 				face_target()
 		"align":
 			if phase == "playing": face_target()
@@ -316,6 +318,7 @@ func on_landing(index: int) -> void:
 	art.branches.land(index)
 	match index:
 		Islands.Branches.FAN: notice="企穩扇葉，轉到對面先起跳"
+		Islands.Branches.PENDULUM: notice="擺向鋼樑、接近高位就起跳"
 		Islands.Branches.POLE: notice="沿桿行到高端，再跳洗衣機"
 		Islands.Branches.LIFT: notice="搭到另一端，再跳晾衫架"
 		Islands.Branches.BOARD,Islands.Branches.DRAWER: notice="開始鬆脫，快跳！"
@@ -428,7 +431,12 @@ func face_target() -> void:
 	if next<0: return
 	frame_aerial=aiming_at_aerial()
 	var target:=art.aerial.global_position if frame_aerial else art.stop_position(next)
+	if next==Islands.Branches.PENDULUM: target=art.branches.pendulum.low_point
 	var offset:=target-player.position
+	if ledge==Islands.Branches.PENDULUM and player.is_on_floor():
+		# Align for the outgoing crest even if the rider taps at the bottom.
+		var bob:=art.branches.pendulum
+		offset-=bob.bob_at(bob.ANGLE)-bob.position
 	var direction := Vector2(offset.x,offset.z).normalized()
 	camera_yaw = atan2(-direction.x,-direction.y)
 	moving_gesture = false

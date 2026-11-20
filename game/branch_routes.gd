@@ -2,6 +2,7 @@ extends RefCounted
 
 const Props = preload("res://game/props.gd")
 const SpringPad = preload("res://game/spring_pad.gd")
+const PendulumClock = preload("res://game/pendulum_clock.gd")
 const BED := 100
 const DRAWER := 101
 const POLE := 102
@@ -11,23 +12,28 @@ const SHEET := 105
 const COIL := 106
 const FAN := 107
 const AWNING := 108
+const PENDULUM := 109
+const CLOCK_CASE := 110
 # Each branch lists its position, equivalent main-route stage and next stop.
 const STOPS := {
 	FAN: ["天台大風扇",Vector3(-.75,7.32,-21.55),9,10],
 	BED: ["迷你彈床",Vector3(-3.70,.67,-2.55),1,3],
 	DRAWER: ["鬆脫抽屜",Vector3(-3.18,3.78,-8.94),5,6],
 	AWNING: ["士多布篷",Vector3(-3.34,1.03,-9.64),1,2],
+	PENDULUM: ["掛鐘銅擺",Vector3(4.45,11.72,-17.50),14,16],
+	CLOCK_CASE: ["舊掛鐘頂",Vector3(4.45,16.17,-18.37),17,18],
 	POLE: ["斜晾衫桿",Vector3(-2.16,16.87,-13.24),19,21],
 	LIFT: ["走索吊籃",Vector3(-.35,17.05,-7.42),20,22],
 	BOARD: ["裂紋木板",Vector3(-6.94,19.32,-6.78),22,24],
 	SHEET: ["接人被單",Vector3(-6.94,17.32,-7.04),20,21],
 	COIL: ["斜頭彈簧",Vector3(-4.35,18.02,-5.58),21,23],
 }
-const FORKS := {0:BED,4:DRAWER,8:FAN,18:POLE,19:LIFT,20:COIL,21:BOARD}
+const FORKS := {0:BED,4:DRAWER,8:FAN,13:PENDULUM,18:POLE,19:LIFT,20:COIL,21:BOARD}
 const LIFT_END := Vector3(-8.20,18.20,-5.65)
 const DROP_AFTER := {DRAWER:1.6,BOARD:1.15}
 var bodies := {}
 var springs: Array[SpringPad] = []
+var pendulum: PendulumClock
 var timers := {}
 var clock := 0.0
 var fan_angle := 0.0
@@ -37,13 +43,16 @@ func build(art: Props, main: Array) -> void:
 		var b: StaticBody3D
 		if id in [BED,COIL]:
 			b=SpringPad.new()
+		elif id==PENDULUM:
+			pendulum=PendulumClock.new()
+			b=pendulum
 		elif id in [FAN,LIFT]:
-			var lift := AnimatableBody3D.new()
-			lift.sync_to_physics=false
-			b=lift
-			b.set_meta("mobile_surface",true)
+			b=AnimatableBody3D.new()
 		else:
 			b=StaticBody3D.new()
+		if b is AnimatableBody3D:
+			b.sync_to_physics=false
+			b.set_meta("mobile_surface",true)
 		bodies[id]=b
 		b.set_meta("ledge",id)
 		art.add_child(b)
@@ -115,6 +124,7 @@ func build(art: Props, main: Array) -> void:
 				art.deck(b,Vector3(2.64,.085,2.72),"668eb7")
 				for side: float in [-1,1]:
 					art.box(b,Vector3(side*1.19,.003,0),Vector3(.085,.012,2.71),"e5d8bd")
+	pendulum.build(art,bodies[CLOCK_CASE])
 
 func build_awning(art: Props, body: StaticBody3D) -> void:
 	const WIDTH := 2.44
@@ -169,6 +179,7 @@ func target(id: int) -> Vector3:
 	return body.position
 
 func reset() -> void:
+	pendulum.reset()
 	for spring in springs: spring.reset()
 	clock=0
 	fan_angle=0
@@ -186,6 +197,7 @@ func land(id: int) -> void:
 	if DROP_AFTER.has(id) and not timers.has(id): timers[id]=0.
 
 func advance(delta: float) -> void:
+	pendulum.advance(delta)
 	for spring in springs: spring.advance(delta)
 	fan_angle=fmod(fan_angle+delta*.50,TAU)
 	bodies[FAN].rotation.y=fan_angle
