@@ -133,21 +133,33 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
 #power{font-weight:800;color:#155652;background:#d7ecd3;border-radius:3px;margin-top:4px;padding:3px 6px;width:max-content}
 #start{
   --loaded:0%;position:relative;isolation:isolate;overflow:hidden;vertical-align:middle;
-  width:clamp(158px,20vw,200px);min-width:0;min-height:44px;gap:8px;padding:10px 17px 10px 20px;
-  border:1px solid #fff6d9bf;border-radius:999px;color:#fff9e8;opacity:1;
-  background:linear-gradient(160deg,#44685ee8,#203e3bea 60%,#36544ce8);
-  -webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);
-  box-shadow:inset 0 1px 1px #ffffff87,inset 0 -3px 7px #0e282b65,0 4px 9px #253c3436;
+  width:clamp(170px,21vw,212px);min-width:0;min-height:48px;gap:8px;padding:6px 7px 6px 20px;
+  border:1px solid #f4fff4c4;border-radius:999px;color:#fffcef;opacity:1;
+  background:linear-gradient(164deg,#4e7065ec,#253c38f2 54%,#344c45ed);
+  -webkit-backdrop-filter:blur(12px) saturate(1.4);backdrop-filter:blur(12px) saturate(1.4);
+  box-shadow:inset 0 -2px 3px #a6dcd44f,0 2px 3px #243b3442,0 5px 12px #243b341f;
 }
 #start::before,#start::after{content:"";position:absolute;pointer-events:none;z-index:-1}
-#start::before{inset:0 auto 0 0;width:var(--loaded);border-radius:inherit;background:linear-gradient(120deg,#489389,#20605c 72%,#467b6d);box-shadow:inset -2px 0 4px #ccfff24a;transition:width .18s ease-out}
-#start::after{inset:1px 3px 39%;border-radius:80% 80% 60% 55% / 100%;background:linear-gradient(178deg,#ffffef61,#e5fff30a 68%);border-top:1px solid #fffbe9a6}
-#start[data-state=ready]::before{width:100%}
+#start::before{
+  inset:0 auto 0 0;width:var(--loaded);border-radius:0 11px 15px 0;
+  background:linear-gradient(170deg,#70c6b5 -18%,#317f72 42%,#19655b 72%,#50a897);
+  box-shadow:inset -2px 0 1px #c6ffebd9,inset -6px 0 9px #a0f4da45;
+  transition:width .18s ease-out;
+}
+#start::after{
+  inset:1px;border-radius:inherit;border:1px solid #eaffea57;
+  background:radial-gradient(85% 58% at 31% -10%,#fffde8a3,transparent 90%),
+             radial-gradient(60% 22% at 78% 104%,#b3fce69c,transparent 85%);
+}
+#start[data-state=ready]::before{width:100%;border-radius:inherit;box-shadow:none}
+#start[data-state=error]::before{width:0}
+#start:focus-visible{outline:2px solid #1a554a;outline-offset:2px}
 #start:not(:disabled):hover{filter:brightness(1.09)}
 #start:not(:disabled):active{transform:translateY(1px)}
-#start .arrow,#loadPercent{display:grid;place-items:center;min-width:32px;height:27px;border-radius:30px;background:#123c378a;box-shadow:inset 0 1px 2px #0c302d60,0 1px 0 #ecfff142}
-#start .arrow{font-size:20px}
-#loadPercent{min-width:46px;font:700 13px/1 var(--mono);font-variant-numeric:tabular-nums}
+#start-label{letter-spacing:.04em;text-shadow:0 1px 2px #183d38a8}
+#loadPercent{min-width:50px;text-align:center;font:700 16px/1 var(--mono);font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #183d38}
+#start .arrow{display:grid;place-items:center;width:33px;height:33px;border-radius:50%;background:linear-gradient(155deg,#edfff2,#abdfc9);box-shadow:inset 0 1px 1px white,0 1px 3px #123e3666}
+#start .arrow::after{content:"";width:11px;height:12px;margin-left:2px;background:#14594d;clip-path:polygon(8% 0,100% 50%,8% 100%)}
 #artStyles{margin:0 0 4px;padding:0;border:0}
 #artStyles legend{font-weight:700;font-size:13px}
 #artStyles label{min-height:40px;padding:0 15px 0 0}
@@ -161,7 +173,7 @@ $GODOT_HEAD_INCLUDE
 <div id="layoutSize" aria-hidden="true"></div>
 <div id="look" hidden aria-label="拖曳轉動視角"></div>
 <header><div class="brand" aria-label="OnlyJump"><i class="mark"></i>OnlyJump</div><div class="actions"><button class="pill" id="mute" aria-pressed="false" disabled><span class="soundmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="soundLabel">音效開</span></button><button class="pill" id="align" hidden>◎ 對準目標</button><button class="pill" id="pause" hidden><i class="pause-icon"></i>暫停</button></div></header>
-<main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1><p class="summary"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左半屏落指再拖動，右半屏掃動轉鏡。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>分岔位撳「揀路」睇另一條路，青白十字係預計落點。</p><button class="primary" id="start" disabled aria-busy="true" data-state="loading"><span id="start-label">載入中</span><span id="loadPercent">0%</span><span class="arrow" aria-hidden="true" hidden>↗</span></button><button class="secondary" id="pickCast" disabled>角色 · <span id="chosenCast">天台速遞員</span></button><p id="error" role="alert" hidden></p></div></main>
+<main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1><p class="summary"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左半屏落指再拖動，右半屏掃動轉鏡。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>分岔位撳「揀路」睇另一條路，青白十字係預計落點。</p><button class="primary" id="start" disabled aria-busy="true" data-state="loading"><span id="start-label">載入中</span><span id="loadPercent">0%</span><span class="arrow" aria-hidden="true" hidden></span></button><button class="secondary" id="pickCast" disabled>角色 · <span id="chosenCast">天台速遞員</span></button><p id="error" role="alert" hidden></p></div></main>
 <div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong>太陽傘頂 · 20.7 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
 <section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route" id="sectionName">失物天台</div><div class="number"><span id="height">0.0</span><small>m</small></div><div class="route-progress"><i id="progress"></i></div><div class="destination"><span class="stats" id="nextProp"></span><button id="branch" hidden aria-label="揀另一條路">⇄ 揀路</button></div><div class="stats">進度 <b id="ledge">0 / 24</b> · <span id="time">00:00</span></div><div class="stats" id="power" hidden></div></div><button class="pill" id="follow" aria-pressed="true">追蹤鏡頭 開</button><span id="notice" role="status" hidden></span></section>
 <div id="pickupLayer"><i id="pickupLine" aria-hidden="true" hidden></i><span id="pickupHint" hidden></span></div>
