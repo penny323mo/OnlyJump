@@ -50,11 +50,8 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		web = JavaScriptBridge.get_interface("OnlyJumpUI")
 	var lightweight := web != null and bool(web.lightweight)
-	var touch_graphics := web != null and bool(web.touchGraphics)
 	if lightweight:
 		get_viewport().msaa_3d = Viewport.MSAA_DISABLED
-	elif touch_graphics:
-		get_viewport().msaa_3d = Viewport.MSAA_2X
 	var env := Environment.new()
 	var sky := Sky.new()
 	var sky_mat := ShaderMaterial.new()
