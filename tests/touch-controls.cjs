@@ -4,11 +4,13 @@ const {readFileSync} = require('node:fs');
 const {runInNewContext} = require('node:vm');
 const {join} = require('node:path');
 
-function fixture(jumpBounds={left:720,top:260,width:80,height:80}) {
-  const window = {ontouchstart:null,innerWidth:844,innerHeight:390};
+function fixture(jumpBounds={left:720,top:260,width:80,height:80},touchEvents=true) {
+  const window = {innerWidth:844,innerHeight:390};
+  if (touchEvents) window.ontouchstart=null;
   const handlers = new Map();
   window.addEventListener = (type,fn)=>handlers.set(type,fn);
   const nodes = {};
+  nodes.canvas={focus(){}};
   for(const id of ['padZone','pad','sprint','jump','look']){
     nodes[id]={id,style:{},dataset:{},closest:()=>nodes[id],firstElementChild:{style:{}},
       getBoundingClientRect:()=>id==='jump'?jumpBounds:{width:136,height:136}};
@@ -22,7 +24,9 @@ function fixture(jumpBounds={left:720,top:260,width:80,height:80}) {
   });
   const finger=(identifier,role,clientX,clientY)=>({identifier,target:nodes[role],clientX,clientY});
   const fire=(type,changedTouches,touches)=>handlers.get(type)({changedTouches,touches,cancelable:true,preventDefault(){}});
-  return {fire,finger,reset,calls,pad:nodes.pad,layoutSize,window};
+  const pointer=(type,id,role,x)=>handlers.get(type)({pointerId:id,pointerType:'touch',target:nodes[role],
+    clientX:x,clientY:120,button:0,buttons:type==='pointerup'?0:1,preventDefault(){}});
+  return {fire,finger,pointer,reset,calls,pad:nodes.pad,layoutSize,window};
 }
 
 test('floating pad starts neutral under the thumb, reverses, and returns home on release',()=>{
@@ -90,6 +94,97 @@ test('direct jump, sprint-only hold and cancelled swipe are distinct',()=>{
   fire('touchstart',[run],[run]);fire('touchend',[run],[]);
   fire('touchstart',[run],[run]);fire('touchcancel',[finger(3,'sprint',760,310)],[]);
   assert.deepEqual(calls,[['jump'],['sprint',true],['sprint',false],['sprint',true],['sprint',false]]);
+});
+
+test('pinch works on either side or across the screen, with one scale per touch sample',()=>{
+  for(const [x1,x2] of [[150,250],[550,650],[370,470]]){
+    const {fire,finger,calls,pad}=fixture();
+    const contact=(id,x)=>finger(id,x<422?'padZone':'look',x,140);
+    const a=contact(1,x1), b=contact(2,x2);
+    fire('touchstart',[a,b],[a,b]);
+    const wide=[contact(1,x1-25),contact(2,x2+25)];
+    fire('touchmove',wide,wide);
+    const shifted=[contact(1,x1-15),contact(2,x2+35)];
+    fire('touchmove',shifted,shifted);
+    fire('touchmove',[a,b],[a,b]);
+    fire('touchend',[a],[b]);
+    fire('touchmove',[wide[1]],[wide[1]]);
+    fire('touchend',[wide[1]],[]);
+    assert.deepEqual(calls.filter(([name])=>name==='zoom'),[['zoom',1.5],['zoom',2/3]]);
+    assert(!calls.some(([name,x,y])=>name==='look'||(name==='stick'&&(x||y))));
+    assert.equal(pad.dataset.active,undefined);
+  }
+});
+
+test('two extra fingers on the left zoom without stealing a moving stick or sprint swipe',()=>{
+  const {fire,finger,calls,pad}=fixture();
+  const left=finger(1,'padZone',75,280), steered=finger(1,'padZone',110,280);
+  const sprint=finger(4,'sprint',760,200);
+  fire('touchstart',[left,sprint],[left,sprint]);
+  fire('touchmove',[steered],[steered,sprint]);
+  const a=finger(2,'padZone',160,140), b=finger(3,'padZone',260,140);
+  fire('touchstart',[a,b],[steered,sprint,a,b]);
+  const wide=finger(3,'padZone',310,140);
+  fire('touchmove',[wide],[steered,sprint,a,wide]);
+  fire('touchcancel',[wide],[steered,sprint,a]);
+  fire('touchend',[a],[steered,sprint]);
+  assert.deepEqual(calls.at(-1),['zoom',1.5]);
+  assert.equal(pad.dataset.active,'true');
+  const jump=finger(4,'sprint',760,300);
+  fire('touchmove',[jump],[steered,jump]);
+  assert.deepEqual(calls.at(-1),['jump']);
+  fire('touchend',[steered,jump],[]);
+  assert.deepEqual(calls.slice(-2),[['stick',0,0],['sprint',false]]);
+});
+
+test('reset clears a pinch and fresh fingers can orbit and pinch again',()=>{
+  const {fire,finger,reset,calls}=fixture();
+  const a=finger(1,'look',520,150), b=finger(2,'look',620,150);
+  fire('touchstart',[a,b],[a,b]);
+  reset();
+  fire('touchmove',[b],[b]);
+  assert.deepEqual(calls,[]);
+  fire('touchstart',[a],[a]);
+  const right=finger(1,'look',559,150);
+  fire('touchmove',[right],[right]);
+  assert.deepEqual(calls.at(-1),['look',.1,0]);
+  fire('touchstart',[b],[right,b]);
+  const wider=finger(2,'look',681,150);
+  fire('touchmove',[wider],[right,wider]);
+  assert.deepEqual(calls.at(-1),['zoom',2]);
+});
+
+test('a new joystick finger can steer while the other thumb is already orbiting',()=>{
+  const {fire,finger,calls}=fixture();
+  const look=finger(1,'look',545,155), turned=finger(1,'look',575,155);
+  fire('touchstart',[look],[look]);
+  fire('touchmove',[turned],[turned]);
+  const joy=finger(2,'padZone',80,275), steered=finger(2,'padZone',120,275);
+  fire('touchstart',[joy],[turned,joy]);
+  fire('touchmove',[steered],[turned,steered]);
+  assert.deepEqual(calls.map(([name])=>name),['look','stick','stick']);
+  assert.deepEqual(calls.at(-1),['stick',1,0]);
+});
+
+test('pointer-only touchscreens sample both fingers together and retire cancelled pinches',()=>{
+  const {pointer,calls,window}=fixture(undefined,false);
+  const frames=[];
+  window.requestAnimationFrame=fn=>frames.push(fn);
+  pointer('pointerdown',1,'padZone',250);
+  pointer('pointerdown',2,'look',500);
+  pointer('pointermove',1,'padZone',275);
+  pointer('pointermove',2,'look',525);
+  assert.equal(frames.length,1);
+  frames.shift()();
+  assert.deepEqual(calls,[['stick',0,0]]);
+  pointer('pointermove',2,'look',650);
+  frames.shift()();
+  assert.deepEqual(calls.at(-1),['zoom',1.5]);
+  pointer('pointermove',2,'look',680);
+  pointer('pointercancel',2,'look',680);
+  frames.shift()();
+  pointer('pointerup',1,'padZone',275);
+  assert.equal(calls.length,2);
 });
 
 test('a fast slide can finish over the jump button without a final move event',()=>{

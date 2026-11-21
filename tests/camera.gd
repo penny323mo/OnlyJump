@@ -25,6 +25,38 @@ func check_orbit(id: int) -> bool:
 		if not check(facing.dot(requested)>.999 and visible_climber(),"clear view while turning on "+game.art.stop_name(id)):return false
 	return true
 
+func check_zoom() -> bool:
+	await start_on(0)
+	var heading:=game.camera.global_basis
+	var initial:=game.camera_distance
+	game.web_command(["zoom",1.5])
+	await frames(3)
+	if not check(is_equal_approx(game.camera_distance,initial/1.5) and visible_climber(),"spreading fingers brings the camera closer"):return false
+	game.web_command(["zoom",100])
+	await frames(2)
+	if not check(is_equal_approx(game.camera_distance,Game.CLOSEST_ZOOM) and visible_climber(),"close zoom keeps the whole character in frame"):return false
+	var wall:=StaticBody3D.new()
+	var blocker:=CollisionShape3D.new()
+	var shape:=BoxShape3D.new()
+	shape.size=Vector3(4,5,.5)
+	blocker.shape=shape
+	wall.add_child(blocker)
+	game.add_child(wall)
+	var pivot:=game.player.position+Vector3.UP*1.08
+	wall.position=pivot+(game.camera.position-pivot).normalized()*7.5
+	await frames(2)
+	game.web_command(["zoom",.01])
+	await frames(75)
+	if not check(game.camera_distance>Game.CLOSEST_ZOOM and game.camera_distance<7.5 and visible_climber(),"zoom-out respects the wall behind the player"):return false
+	wall.free()
+	await frames(90)
+	if not check(absf(game.camera_distance-Game.FARTHEST_ZOOM)<.01 and game.camera.global_basis.is_equal_approx(heading),"clearing the wall restores the chosen distance and heading"):return false
+	game.toggle_pause()
+	game.web_command(["zoom",2])
+	game.toggle_pause()
+	if not check(is_equal_approx(game.camera_reach,Game.FARTHEST_ZOOM),"paused touches preserve zoom"):return false
+	return true
+
 func run() -> void:
 	game=Game.new()
 	root.add_child(game)
@@ -55,5 +87,7 @@ func run() -> void:
 	await frames(5)
 	if not check(is_zero_approx(game.camera_pitch_offset) and is_equal_approx(game.camera.fov,59.),"open rooftop restores normal camera"):return
 	print("PASS continuous orbit keeps manual heading and a clear view on nine objects")
+	if not await check_zoom():return
+	print("PASS pinch zoom changes camera distance, respects obstacles and preserves heading")
 	game.free()
 	quit()

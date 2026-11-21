@@ -3,7 +3,9 @@ extends Node3D
 const Islands = preload("res://game/islands.gd")
 const Climber = preload("res://game/climber.gd")
 const SKY_SHADER = preload("res://game/sky.gdshader")
-const CAMERA_REACH := 6.8
+const DEFAULT_CAMERA_REACH := 6.8
+const CLOSEST_ZOOM := 3.6
+const FARTHEST_ZOOM := 11.0
 const FULL_BODY_DISTANCE := 2.65
 const CAMERA_FREE_STEP := .58
 const SOUNDS = [preload("res://audio/lift.wav"),preload("res://audio/land.wav"),preload("res://audio/summit.wav"),preload("res://audio/spring.wav")]
@@ -28,7 +30,8 @@ var native_label: Label
 var stick := Vector2.ZERO
 var camera_yaw := 0.0
 var camera_pitch := deg_to_rad(24.0)
-var camera_distance := CAMERA_REACH
+var camera_reach := DEFAULT_CAMERA_REACH
+var camera_distance := DEFAULT_CAMERA_REACH
 var camera_anchor := Vector2.ZERO
 var recenter_camera := false
 var camera_pitch_offset := 0.0
@@ -182,6 +185,12 @@ func web_command(args: Array) -> void:
 		"look":
 			if phase == "playing" and args.size() == 3:
 				orbit(float(args[1]),float(args[2]))
+			return
+		"zoom":
+			if phase == "playing" and args.size() == 2:
+				var scale_factor := float(args[1])
+				if is_finite(scale_factor) and scale_factor > 0:
+					camera_reach = clampf(camera_reach/scale_factor,CLOSEST_ZOOM,FARTHEST_ZOOM)
 			return
 		"branch":
 			if phase=="playing" and Islands.Branches.FORKS.has(ledge):
@@ -421,20 +430,20 @@ func face_target() -> void:
 	if player.is_on_floor(): player.aim = direction
 
 func boom_clearance(back: Vector3) -> float:
-	camera_sweep.motion = back*CAMERA_REACH
+	camera_sweep.motion = back*camera_reach
 	var space:=get_world_3d().direct_space_state
 	var travel:=space.cast_motion(camera_sweep)
-	if travel[0]<1.:return maxf(.42,travel[0]*CAMERA_REACH-.12)
+	if travel[0]<1.:return maxf(.42,travel[0]*camera_reach-.12)
 	# A sweep can miss the tip of a tilted beam. Check the actual sight lines
 	# before placing the eye beyond an apparently clear sweep.
-	var distance:=CAMERA_REACH
+	var distance:=camera_reach
 	camera_ray.to=player.position+Vector3.UP*1.08+camera_sweep.motion
 	for h: float in [.06,.65,player.BODY_HEIGHT+.10]:
 		camera_ray.from=player.position+Vector3.UP*h
 		var hit:=space.intersect_ray(camera_ray)
 		if not hit.is_empty():
 			var fraction:=camera_ray.from.distance_to(hit.position)/camera_ray.from.distance_to(camera_ray.to)
-			distance=minf(distance,maxf(.42,fraction*CAMERA_REACH-.16))
+			distance=minf(distance,maxf(.42,fraction*camera_reach-.16))
 	return distance
 
 func game_camera(delta: float, snap := false) -> void:
@@ -486,10 +495,10 @@ func game_camera(delta: float, snap := false) -> void:
 	# Use the centred collision-safe boom whenever the offset sightline closes.
 	var feet := Vector2(player.position.x,player.position.z)
 	var lag := Vector2.ZERO
-	if not snap and not recenter_camera and camera_distance >= CAMERA_REACH-.001 and not tracking_aerial():
+	if not snap and not recenter_camera and camera_distance >= camera_reach-.001 and not tracking_aerial():
 		lag = (camera_anchor-feet).limit_length(CAMERA_FREE_STEP)
 		var shift := Vector3(lag.x,0,lag.y)
-		if lag.length_squared()>.000001 and boom_clearance(back+shift/CAMERA_REACH)>=CAMERA_REACH:
+		if lag.length_squared()>.000001 and boom_clearance(back+shift/camera_reach)>=camera_reach:
 			camera.position += shift
 		else:
 			lag = Vector2.ZERO

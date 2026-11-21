@@ -1,10 +1,11 @@
-// The initiating contact owns one control until that contact ends. iOS can
-// cancel one finger while another still controls movement or the camera.
+// Two free scene touches can pinch. Buttons and a stick already in motion
+// keep their contacts even if Safari cancels or reuses another finger.
 function attachControls(send, isPlaying) {
   const pad = document.getElementById('pad');
   const knob = pad.firstElementChild;
   const owners = new Map();
   const active = new Map();
+  let pinch = null;
   const roles = '#padZone,#pad,#jump,#sprint,#look';
   // Safari can deliver input on the new display before its resize event.
   // Large viewport units stay fixed during browser toolbar transitions.
@@ -28,14 +29,43 @@ function attachControls(send, isPlaying) {
     delete pad.dataset.active;
     knob.style.transform = '';
   }
+  function pinchSpan(a,b) {
+    return Math.max(8,Math.hypot(a.x-b.x,a.y-b.y));
+  }
+  function updatePinch() {
+    if (!pinch) return;
+    const span=pinchSpan(pinch.a,pinch.b);
+    if (Math.abs(span-pinch.span)<1) return;
+    const scale=span/pinch.span;
+    pinch.span=span;
+    send('zoom',scale);
+  }
   function begin(id, target, x, y, touch) {
-    if (!isPlaying()) return false;
+    if (!isPlaying() || owners.has(id)) return false;
     const hit = target.closest?.(roles)?.id;
     const leftLookHit = touch && hit === 'look' && x < viewWidth / 2;
     const role = hit === 'padZone' || leftLookHit ? 'pad' : hit;
-    if (!role || active.has(role) || owners.has(id)) return false;
-    const contact = {role,x,y};
+    if (!role) return false;
+    const contact = {role,x,y,touch};
+    if (touch && (role==='pad' || role==='look')) {
+      if (!pinch) {
+        for (const other of owners.values()) {
+          if (!other.touch || !(other.role==='look' || other.role==='free' || (other.role==='pad' && !other.steered))) continue;
+          if (other.orbited && other.role==='look' && role==='pad' && !active.has('pad')) continue;
+          if (other.role==='pad') restorePad();
+          active.delete(other.role);
+          contact.role=other.role='pinch';
+          owners.set(id,contact);
+          pinch={a:other,b:contact,span:pinchSpan(other,contact)};
+          return true;
+        }
+      }
+      // Even with the stick held, two more fingers can zoom on the left.
+      if (active.has(role) || (pinch && role==='look')) contact.role='free';
+    }
+    if (active.has(contact.role)) return false;
     owners.set(id, contact);
+    if (contact.role==='free') return true;
     active.set(role,id);
     if (role === 'jump') send('jump');
     if (role === 'sprint') send('sprint',true);
@@ -55,7 +85,7 @@ function attachControls(send, isPlaying) {
       let dy = (y-contact.originY)/contact.travel;
       const radius = Math.hypot(dx,dy);
       if (radius < 0.11) dx = dy = 0;
-      else { dx /= Math.max(1,radius); dy /= Math.max(1,radius); }
+      else { contact.steered=true; dx /= Math.max(1,radius); dy /= Math.max(1,radius); }
       knob.style.transform = 'translate('+dx*contact.travel+'px,'+dy*contact.travel+'px)';
       send('stick',dx,dy);
     } else if (contact.role === 'sprint' && !contact.jumped) {
@@ -76,6 +106,7 @@ function attachControls(send, isPlaying) {
       }
     } else if (contact.role === 'look') {
       const span = Math.max(240,Math.min(innerWidth,innerHeight));
+      if (x!==contact.x || y!==contact.y) contact.orbited=true;
       send('look',(x-contact.x)/span,(y-contact.y)/span);
     }
     contact.x=x; contact.y=y;
@@ -86,6 +117,13 @@ function attachControls(send, isPlaying) {
     if (!contact) return false;
     owners.delete(id);
     active.delete(contact.role);
+    if (contact.role==='pinch') {
+      // A lifted/cancelled pinch must not turn the camera or move the player
+      // with its surviving finger. It can still take part in the next pinch.
+      const remaining=contact===pinch.a ? pinch.b : pinch.a;
+      remaining.role='free';
+      pinch=null;
+    }
     if (contact.role==='pad') { restorePad(); send('stick',0,0); }
     if (contact.role==='sprint') send('sprint',false);
     return true;
@@ -114,8 +152,9 @@ function attachControls(send, isPlaying) {
           for (const t of e.changedTouches) {
             const id='t'+t.identifier;
             if (id===sprintId) swipe=t;
-            else if (moving) used=move(id,t.clientX,t.clientY) || used;
+            else if (moving || owners.get(id)?.role==='pinch') used=move(id,t.clientX,t.clientY) || used;
           }
+          updatePinch();
           if (swipe) used=move(sprintId,swipe.clientX,swipe.clientY) || used;
         }
         if (!moving) {
@@ -143,14 +182,29 @@ function attachControls(send, isPlaying) {
     if (!owners.has(id)) return;
     syncBeforeInput();
     if (e.buttons===0) end(id);
-    else move(id,e.clientX,e.clientY);
+    else {
+      move(id,e.clientX,e.clientY);
+      const pair=pinch;
+      // Pointer Events report each finger separately. Sample the pair once
+      // per frame so moving both in parallel does not briefly zoom the lens.
+      if (pair && !pair.queued) {
+        pair.queued=true;
+        window.requestAnimationFrame(()=>{
+          pair.queued=false;
+          if (pinch===pair) updatePinch();
+        });
+      }
+    }
   });
   for (const type of ['pointerup','pointercancel','lostpointercapture']) {
     window.addEventListener(type,e=>{
       const id='p'+e.pointerId;
       if (!owners.has(id)) return;
       syncBeforeInput();
-      if(type==='pointerup' && owners.get(id)?.role==='sprint') move(id,e.clientX,e.clientY);
+      if(type==='pointerup' && ['sprint','pinch'].includes(owners.get(id)?.role)) {
+        move(id,e.clientX,e.clientY);
+        updatePinch();
+      }
       end(id);
     },true);
   }
