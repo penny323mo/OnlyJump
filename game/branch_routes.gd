@@ -4,6 +4,7 @@ const Props = preload("res://game/props.gd")
 const SpringPad = preload("res://game/spring_pad.gd")
 const PendulumClock = preload("res://game/pendulum_clock.gd")
 const SpiritLevel = preload("res://game/spirit_level.gd")
+const LaundryLift = preload("res://game/laundry_lift.gd")
 const BED := 100
 const DRAWER := 101
 const POLE := 102
@@ -38,6 +39,7 @@ var bodies := {}
 var springs: Array[SpringPad] = []
 var pendulum: PendulumClock
 var level: SpiritLevel
+var lift: LaundryLift
 var timers := {}
 var clock := 0.0
 var fan_angle := 0.0
@@ -53,7 +55,10 @@ func build(art: Props, main: Array) -> void:
 		elif id==LEVEL:
 			level=SpiritLevel.new()
 			b=level
-		elif id in [FAN,LIFT]:
+		elif id==LIFT:
+			lift=LaundryLift.new()
+			b=lift
+		elif id==FAN:
 			b=AnimatableBody3D.new()
 		else:
 			b=StaticBody3D.new()
@@ -121,14 +126,7 @@ func build(art: Props, main: Array) -> void:
 				else:
 					b.rotation.x=deg_to_rad(-12)
 			LIFT:
-				art.deck(b,Vector3(1.88,.16,1.62),"c28947")
-				for x: float in [-.90,.90]:
-					for z: float in [-.77,.77]:
-						art.tube(b,Vector3(x,0,z),Vector3(x*.55,1.62,z*.55),.029,"536c71")
-				for z: float in [-.78,.78]:
-					art.box(b,Vector3(0,.14,z),Vector3(1.89,.24,.045),"b7713f")
-				art.tube(b,Vector3(-.51,1.63,0),Vector3(.51,1.63,0),.05,"567775")
-				b.set_meta("dock",b.position)
+				lift.build(art,LIFT_END)
 			SHEET:
 				art.deck(b,Vector3(2.64,.085,2.72),"668eb7")
 				for side: float in [-1,1]:
@@ -202,7 +200,7 @@ func reset() -> void:
 		body.collision_layer=1
 		body.position=STOPS[id][1]
 		body.rotation=Vector3(deg_to_rad(-12) if id==BOARD else 0.,0,0)
-	bodies[LIFT].position=STOPS[LIFT][1]
+	lift.advance(0.)
 
 func land(id: int) -> void:
 	if DROP_AFTER.has(id) and not timers.has(id): timers[id]=0.
@@ -213,10 +211,8 @@ func advance(delta: float, occupied: int, foot: Vector3) -> void:
 	for spring in springs: spring.advance(delta)
 	fan_angle=fmod(fan_angle+delta*.50,TAU)
 	bodies[FAN].rotation.y=fan_angle
-	clock=fmod(clock+delta,8.)
-	var trip:=smoothstep(1.35,3.95,clock)-smoothstep(5.35,7.95,clock)
-	var dock: Vector3=STOPS[LIFT][1]
-	bodies[LIFT].position=dock.lerp(LIFT_END,trip)+Vector3.BACK*(sin(trip*PI)*3.65)
+	clock=fmod(clock+delta,LaundryLift.PERIOD)
+	lift.advance(clock)
 	for id: int in timers.keys():
 		var t: float=timers[id]+delta
 		var body: StaticBody3D=bodies[id]

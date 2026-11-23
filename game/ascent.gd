@@ -203,6 +203,8 @@ func web_command(args: Array) -> void:
 				alternate=not alternate
 				if Islands.Branches.FORKS[ledge]==Islands.Branches.PENDULUM:
 					notice="等銅擺經過低位，再跳上去" if alternate else ""
+				elif Islands.Branches.FORKS[ledge]==Islands.Branches.LIFT:
+					notice="等吊籃返嚟，黃邊踏板放平就可以跳上去" if alternate else ""
 				face_target()
 		"align":
 			if phase == "playing": face_target()
@@ -335,7 +337,7 @@ func on_landing(index: int, strength: float) -> void:
 		Islands.Branches.PENDULUM: notice="擺向鋼樑、接近高位就起跳"
 		Islands.Branches.LEVEL: notice="踩低近端，跑到紅刻度起跳"
 		Islands.Branches.POLE: notice="沿桿行到高端，再跳洗衣機"
-		Islands.Branches.LIFT: notice="搭到另一端，再跳晾衫架"
+		Islands.Branches.LIFT: notice="搭到另一端，踏板放平就跳去晾衫架"
 		Islands.Branches.BOARD,Islands.Branches.DRAWER: notice="開始鬆脫，快跳！"
 		Islands.Branches.BED,Islands.Branches.COIL: notice="" if player.spring_pad else "跳落細圈先會彈起"
 		Islands.Branches.SHEET: notice="被單接住咗你"
@@ -424,11 +426,14 @@ func face_target() -> void:
 	frame_aerial=aiming_at_aerial()
 	var target:=art.aerial.global_position if frame_aerial else art.stop_position(next)
 	if next==Islands.Branches.PENDULUM: target=art.branches.pendulum.low_point
+	if next==Islands.Branches.LIFT: target=art.branches.lift.boarding_point()
 	var offset:=target-player.position
 	if ledge==Islands.Branches.PENDULUM and player.is_on_floor():
 		# Align for the outgoing crest even if the rider taps at the bottom.
 		var bob:=art.branches.pendulum
 		offset-=bob.bob_at(bob.ANGLE)-bob.position
+	elif ledge==Islands.Branches.LIFT and player.is_on_floor():
+		offset-=art.branches.lift.exit_dock-art.branches.lift.position
 	var direction := Vector2(offset.x,offset.z).normalized()
 	recenter_camera = true
 	camera_yaw = atan2(-direction.x,-direction.y)

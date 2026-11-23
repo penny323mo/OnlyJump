@@ -21,6 +21,8 @@
 
 皮喼旁邊個舊抽屜鬆脫嗰陣，可以望落去搵紅黃間條嘅士多布篷。落喺篷面就可以轉向木茶几，再跳上電視。布篷只伸到抽屜下面一部分，行到抽屜外沿仍然有機會跌返街面。
 
+第 19 站熨衫板撳「揀路」會望向吊籃埋站嘅位置。見到左前角塊黃邊踏板攤平，可以短跳上去，再行入籃。開車嗰陣踏板會向下摺，企喺板尖會跣落去。上籃後撳一次「對準目標」就可以預先瞄準晾衫架，到對岸再起跳。[睇吊籃上落示範](https://penny323mo.github.io/OnlyJump/laundry-lift.mp4)
+
 喺第 10 站古董相機撳「揀路」可以望向黃色水平尺。跳上近端，等另一端翹起，再沿尺面助跑，踩到兩條紅刻度附近就跳去第 13 站碼頭繫纜柱。如果企喺遠端等，隻腳會壓低尺頭；由唱盤嗰邊踏空，有機會跌返第 8 站再爬。[睇水平尺捷徑同跌落唱盤示範](https://penny323mo.github.io/OnlyJump/spirit-level.mp4)
 
 去到第 13 站碼頭繫纜柱，撳「揀路」對準鐘擺最低點。等個銅擺返過嚟，跳上圓頂，放手搭住佢擺向吊臂鋼樑。喺銅擺上撳「對準目標」可以預先瞄準出彎方向，到高位再助跑跳出去。錯過銅擺有機會跌到手提音響；喺左端踏空，下面嘅黑膠唱盤亦可以接人。[睇手機版鐘擺捷徑](https://penny323mo.github.io/OnlyJump/pendulum-clock.mp4)
@@ -78,6 +80,7 @@ godot --headless --import
 godot --headless --fixed-fps 60 --script tests/route.gd
 godot --headless --fixed-fps 60 --script tests/stance.gd
 godot --headless --fixed-fps 60 --script tests/branches.gd
+godot --headless --fixed-fps 60 --script tests/lift.gd
 godot --headless --fixed-fps 60 --script tests/pendulum.gd
 godot --headless --fixed-fps 60 --script tests/spirit_level.gd
 godot --headless --fixed-fps 60 --script tests/grips.gd
