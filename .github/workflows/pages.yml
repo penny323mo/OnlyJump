@@ -51,6 +51,8 @@ jobs:
           godot --headless --fixed-fps 60 --quit-after 7500 --script tests/branches.gd 2>&1 | tee "$RUNNER_TEMP/branches.log"
           if grep -q '^ERROR:' "$RUNNER_TEMP/branches.log"; then exit 1; fi
           grep -Fxq 'PASS branches, rotating fan, timed pickups, double-jump stunts, lower recovery and five characters' "$RUNNER_TEMP/branches.log"
+          godot --headless --fixed-fps 60 --quit-after 1800 --script tests/glide-guide.gd | tee "$RUNNER_TEMP/glide-guide.log"
+          grep -Fxq 'PASS glide landing guide, midair expiry, steering, settings and unstable footing' "$RUNNER_TEMP/glide-guide.log"
           godot --headless --fixed-fps 60 --quit-after 2300 --script tests/pendulum.gd | tee "$RUNNER_TEMP/pendulum.log"
           grep -Fxq 'PASS pendulum boarding, full swing, girder exit, lower catch and clock housing' "$RUNNER_TEMP/pendulum.log"
           godot --headless --fixed-fps 60 --quit-after 1600 --script tests/spirit_level.gd | tee "$RUNNER_TEMP/level.log"

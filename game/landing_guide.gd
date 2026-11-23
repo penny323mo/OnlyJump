@@ -31,13 +31,14 @@ func screen_bounds(camera: Camera3D, viewport_size: Vector2) -> Rect2:
 # jumps, so the top of a narrow beam can support part of the player's sole.
 func refresh(player: Climber, move: Vector2, tick: float) -> void:
 	hide()
-	if player.spring_pad or player.ability=="glide" or player.ability=="jet" or player.hook.time_left>0: return
+	if player.spring_pad or player.ability=="jet" or player.hook.time_left>0: return
 	var grounded := player.is_on_floor()
 	if grounded and move.is_zero_approx(): return
 	var at := player.global_transform
 	var horizontal := Vector2(player.velocity.x,player.velocity.z)
 	var vertical := player.velocity.y
 	var speed := player.air_speed
+	var glide_left:=player.ability_time if player.ability=="glide" else 0.
 	if grounded:
 		horizontal = player.launch_horizontal(horizontal,move)
 		speed = horizontal.length()
@@ -48,11 +49,24 @@ func refresh(player: Climber, move: Vector2, tick: float) -> void:
 		vertical = player.JUMP_SPEED + .5*player.GRAVITY*tick + carry.y
 	for segment in MAX_CASTS:
 		var motion := Vector3.ZERO
-		for k in TICKS_PER_CAST:
-			vertical -= player.GRAVITY*tick
-			if not (grounded and segment==0 and k==0):
-				horizontal = player.steer_in_air(horizontal,move,speed,tick)
-			motion += Vector3(horizontal.x,vertical,horizontal.y)*tick
+		# At terminal speed a steady glide is one straight sweep. Stop at
+		# expiry, then trace normal gravity within the same phone cast budget.
+		var steady_ticks:=0
+		if glide_left>tick*TICKS_PER_CAST and vertical==-Climber.GLIDE_FALL_SPEED:
+			if player.steer_in_air(horizontal,move,speed,tick,true).is_equal_approx(horizontal):
+				steady_ticks=floori((glide_left-Climber.TIMER_EPSILON)/tick)
+		if steady_ticks>0:
+			var span:=steady_ticks*tick
+			motion=Vector3(horizontal.x,vertical,horizontal.y)*span
+			glide_left-=span
+		else:
+			for k in TICKS_PER_CAST:
+				glide_left=maxf(0.,glide_left-tick)
+				var gliding:=glide_left>=Climber.TIMER_EPSILON
+				vertical=player.fall_speed(vertical,gliding,tick)
+				if not (grounded and segment==0 and k==0):
+					horizontal=player.steer_in_air(horizontal,move,speed,tick,gliding and vertical<0.)
+				motion += Vector3(horizontal.x,vertical,horizontal.y)*tick
 		if player.test_move(at,motion,contact,player.safe_margin,false,4):
 			if motion.y>=0: return
 			for i in contact.get_collision_count():

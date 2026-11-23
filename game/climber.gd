@@ -6,6 +6,8 @@ const WALK_SPEED := 3.65
 const RUN_SPEED := 6.45
 const JUMP_SPEED := 6.4
 const GRAVITY := 16.0
+const GLIDE_FALL_SPEED := 2.1
+const TIMER_EPSILON := .00001
 const GROUND_ACCEL := 25.0
 const STANDING_PUSH := 2.85
 const AIR_STEER := 2.8
@@ -140,10 +142,15 @@ func launch_horizontal(horizontal: Vector2, direction: Vector2) -> Vector2:
 	if is_on_floor() and horizontal.length_squared()<.04: return direction*STANDING_PUSH
 	return horizontal
 
-func steer_in_air(horizontal: Vector2, move: Vector2, speed: float, delta: float) -> Vector2:
-	if move.is_zero_approx(): return horizontal
-	var target := move.normalized()*maxf(speed,1.05)
-	return horizontal.move_toward(target,AIR_STEER*move.length()*delta)
+func fall_speed(vertical: float, gliding: bool, delta: float) -> float:
+	var next:=vertical-GRAVITY*delta
+	return maxf(next,-GLIDE_FALL_SPEED) if gliding else next
+
+func steer_in_air(horizontal: Vector2, move: Vector2, speed: float, delta: float, gliding_down: bool) -> Vector2:
+	if not move.is_zero_approx():
+		var target := move.normalized()*maxf(speed,1.05)
+		horizontal=horizontal.move_toward(target,AIR_STEER*move.length()*delta)
+	return horizontal.limit_length(WALK_SPEED) if gliding_down else horizontal
 
 func settle_on_platform(body: Node3D) -> void:
 	if body!=standing_platform:
@@ -163,7 +170,7 @@ func settle_on_platform(body: Node3D) -> void:
 func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 	if ability_time>0 and not jet_armed:
 		ability_time=maxf(0.,ability_time-delta)
-		if ability_time<.00001: equip("")
+		if ability_time<TIMER_EPSILON: equip("")
 	if grab.active:
 		grab.advance(self,delta)
 		pose_on_ledge()
@@ -247,12 +254,11 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		velocity.y = 0
 		air_speed = horizontal.length()
 	else:
-		velocity.y -= GRAVITY*delta
-		if ability=="glide": velocity.y=maxf(velocity.y,-2.1)
+		var gliding:=ability=="glide"
+		velocity.y=fall_speed(velocity.y,gliding,delta)
 		# Keep launch momentum when the stick or sprint finger is released.
 		# In-air input steers gently, within the launch-speed envelope.
-		horizontal = steer_in_air(horizontal,move,air_speed,delta)
-		if ability=="glide" and velocity.y<0: horizontal=horizontal.limit_length(WALK_SPEED)
+		horizontal = steer_in_air(horizontal,move,air_speed,delta,gliding and velocity.y<0.)
 	velocity.x = horizontal.x
 	velocity.z = horizontal.y
 	jump_buffer = maxf(0,jump_buffer-delta)
