@@ -177,6 +177,8 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
 @media(orientation:landscape) and (max-height:460px){.intro-content{width:min(100%,max(322px,50vw))}}
 @media(orientation:landscape) and (max-height:282px){#intro h1 span{display:inline}#intro h1 span+span{margin-left:.08em}}
 @media(prefers-reduced-motion:reduce){#start::before{transition:none}#start[data-state=starting]::after{animation:none}}
+#timing{white-space:pre-line;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:4px}
+#split{font-variant-numeric:tabular-nums;font-weight:700}
 #graphicsRecovery::backdrop{background:#243532e8}
 #graphicsRecovery .primary{justify-content:center;min-height:44px}
 </style>
@@ -191,11 +193,11 @@ $GODOT_HEAD_INCLUDE
 <p class="summary" id="introGuide"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左手移動，右手掃動轉鏡。喺畫面空位用兩指張開拉近、合埋拉遠。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>分岔位撳「揀路」睇另一條路，青白十字係預計落點。</p>
 <p class="summary" id="error" role="status" hidden></p>
 <button class="primary" id="start" disabled aria-busy="true" data-state="loading"><span id="start-label">載入中</span><span id="loadPercent">0%</span><span class="arrow" aria-hidden="true" hidden></span></button><button class="secondary" id="pickCast" disabled>角色 · <span id="chosenCast">天台速遞員</span></button></div></main>
-<div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong>太陽傘頂 · 20.7 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
-<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route" id="sectionName">失物天台</div><div class="number"><span id="height">0.0</span><small>m</small></div><div class="route-progress"><i id="progress"></i></div><div class="destination"><span class="stats" id="nextProp"></span><button id="branch" hidden aria-label="揀另一條路">⇄ 揀路</button></div><div class="stats">進度 <b id="ledge">0 / 24</b> · <span id="time">00:00</span></div><div class="stats" id="power" hidden></div></div><span id="notice" role="status" hidden></span></section>
+<div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong id="summitSign">太陽傘頂 · 20.7 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
+<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route" id="sectionName">失物天台</div><div class="number"><span id="height">0.0</span><small>m</small></div><div class="route-progress"><i id="progress"></i></div><div class="destination"><span class="stats" id="nextProp"></span><button id="branch" hidden aria-label="揀另一條路">⇄ 揀路</button></div><div class="stats">進度 <b id="ledge">0 / 24</b> · <span id="time">00:00</span></div><div class="stats" id="split" hidden></div><div class="stats" id="power" hidden></div></div><span id="notice" role="status" hidden></span></section>
 <div id="pickupLayer"><i id="pickupLine" aria-hidden="true" hidden></i><span id="pickupHint" hidden></span></div>
 <div id="touch" hidden><div id="padZone" aria-label="左半屏浮動搖桿"><div id="pad"><i></i></div></div><button id="sprint" aria-pressed="false" aria-label="按住加速，滑落跳掣起跳">加速</button><button id="jump">跳躍</button></div>
-<section id="overlay" hidden><div class="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"><div class="route">失物天台</div><h2 id="panelTitle"></h2><p id="report"></p>
+<section id="overlay" hidden><div class="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"><div class="route">失物天台</div><h2 id="panelTitle"></h2><p id="timing" hidden></p><p id="report"></p>
 <fieldset id="buttonSizes"><legend>右手按掣大小</legend>
 <label><input type="radio" name="buttonSize" value="compact"><span>細</span></label>
 <label><input type="radio" name="buttonSize" value="standard" checked><span>標準</span></label>
@@ -392,9 +394,9 @@ window.OnlyJumpUI = {
     send = callback;
     clearTimeout(bootTimer);
     el('pickCast').disabled = el('mute').disabled = false;
-    setStartState('ready','開始攀登',temporarySaves?'今局使用暫存，離開後唔會更新最高紀錄。':'');
+    setStartState('ready','開始攀登',temporarySaves?'今局使用暫存，離開後唔會儲存今局紀錄。':'');
   },
-  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges,itemTotal,hookHint,gripAction,artStyle) {
+  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges,itemTotal,hookHint,gripAction,artStyle,bestClock="",result="",pace="") {
     const changed = mode !== next;
     const playing = next === 'playing', intro = next === 'intro', won = next === 'won';
     if(changed){
@@ -434,6 +436,9 @@ window.OnlyJumpUI = {
       el('progress').style.width=(ledge/total*100)+'%';
     }
     setText('time',timer(elapsed));
+    setHidden('split',!pace);
+    setText('split',pace);
+    if(intro) setText('summitSign',bestClock?'最快登頂 · '+bestClock:'太陽傘頂 · 20.7 m');
     setPressed('sprint',sprint);
     setText('sprint',sprint?'加速中':'加速');
     setText('jump',playing && gripAction || '跳躍');
@@ -442,7 +447,9 @@ window.OnlyJumpUI = {
     setHidden('notice',!notice);
     if(won || next==='paused'){
       setText('panelTitle',won?'登上太陽傘':'已暫停');
-      setText('report',(won?'抵達天台最高點。':'')+'用時 '+timer(elapsed)+' · '+jumps+' 次起跳 · '+falls+' 次跌落。最高落腳點 '+best.toFixed(1)+' m。執到道具 '+finds+' / '+itemTotal+'。');
+      setText('timing',result);
+      setHidden('timing',!result);
+      setText('report',(won && result?'':'用時 '+timer(elapsed)+' · ')+jumps+' 次起跳 · '+falls+' 次跌落。最高落腳點 '+best.toFixed(1)+' m。執到道具 '+finds+' / '+itemTotal+'。');
       setText('continue',won?'再攀一次 ↗':'繼續攀登 ↗');
       setHidden('reset',won);
     }

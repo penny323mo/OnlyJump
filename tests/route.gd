@@ -3,6 +3,7 @@ const Game = preload("res://game/ascent.gd")
 const Land = preload("res://game/islands.gd")
 var game: Game
 var pre_jump_marks := 0
+var course_test_save := "user://onlyjump-course-test-%s-%s.cfg" % [OS.get_process_id(),Time.get_ticks_usec()]
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -154,6 +155,7 @@ func check_standing_jump() -> bool:
 
 func run() -> void:
 	game = Game.new()
+	game.record_path=course_test_save
 	root.add_child(game)
 	game.best=100
 	game.muted=true
@@ -199,6 +201,9 @@ func run() -> void:
 		if not await leap(index):return
 	if not check(pre_jump_marks>=12,"takeoff guide coverage"):return
 	if not check(game.phase=="won" and game.player.jump_count==24 and game.art.pickups.count==0,"summit"):return
+	var record:=ConfigFile.new()
+	if not check(record.load(course_test_save)==OK and record.get_value("run","fastest_ascent",{})==game.summit_times.best,"full route stored on the summit landing"):return
+	if not check(game.summit_times.best.splits.size()==24 and game.summit_times.best.jumps==24 and game.summit_times.best.falls==0,"every main-route first arrival recorded"):return
 	# Part of the flat sole extends past a 76 cm wide steel beam.
 	game.start_run()
 	game.player.reset_at(Land.ROUTE[16])
@@ -290,4 +295,5 @@ func run() -> void:
 	print("PASS landing guidance and ledge rescues")
 	print("PASS mobile parkour: 24 landings, instant jump, sprint, orbit, edge hold, recovery")
 	game.free()
+	DirAccess.remove_absolute(course_test_save)
 	quit()

@@ -25,6 +25,7 @@ var falls := 0
 var ledge := 0
 var alternate := false
 var best := 0.0
+var summit_times := preload("res://game/summit_times.gd").new(Islands.ROUTE.size()-1)
 var record_path := "user://summit.cfg"
 var muted := false
 var web: JavaScriptObject
@@ -124,6 +125,7 @@ func _ready() -> void:
 	oil_paint.hide()
 	var data := ConfigFile.new()
 	if data.load(record_path) == OK:
+		summit_times.load_best(data.get_value("run","fastest_ascent",{}))
 		player.costumes.select(str(data.get_value("controls","character","courier")))
 		show_route_ring = data.get_value("controls","route_ring",false)
 		show_landing_guide = data.get_value("controls","landing_guide",true)
@@ -157,6 +159,8 @@ func _ready() -> void:
 func save_record() -> void:
 	var data := ConfigFile.new()
 	data.set_value("run","best_height",best)
+	if not summit_times.best.is_empty():
+		data.set_value("run","fastest_ascent",summit_times.best)
 	data.set_value("controls","character",player.costumes.key)
 	data.set_value("controls","route_ring",show_route_ring)
 	data.set_value("controls","landing_guide",show_landing_guide)
@@ -245,6 +249,7 @@ func start_run() -> void:
 	phase = "playing"
 	elapsed = 0
 	falls = 0
+	summit_times.start_run()
 	art.branches.reset()
 	art.pickups.reset()
 	alternate=false
@@ -331,6 +336,7 @@ func on_landing(index: int, strength: float) -> void:
 	elif index != ledge:
 		notice = ""
 	if index!=ledge: alternate=false
+	summit_times.land(index,elapsed,player.jump_count,falls)
 	ledge = index
 	art.branches.land(index)
 	match index:
@@ -378,8 +384,8 @@ func _physics_process(delta: float) -> void:
 	if player.hook.time_left>0: landing_guide.hide()
 	if player.is_on_floor() and player.grounded_ledge>=0 and not player.grab.active:
 		var foot_height:=snappedf(player.position.y,.1)
-		if foot_height>best:
-			best=foot_height
+		if foot_height>best or phase=="won":
+			best=maxf(best,foot_height)
 			save_record()
 	if phase=="playing":
 		var found:=art.pickups.collect(player.position,delta)
@@ -601,11 +607,13 @@ func update_hud() -> void:
 		else: hook_hint="靠近並對準銅環"
 	var brass:=art.material("80ffe0" if hook_hint=="撳跳扣環" or hook_hint=="收索中" else "e4a842")
 	if art.aerial.material_override!=brass: art.aerial.material_override=brass
+	var pace:=summit_times.pace_at(ledge,elapsed) if phase=="playing" else ""
+	var result:=summit_times.finish_summary if phase=="won" else summit_times.best_summary
 	if web:
 		var message := notice if tape_hint.is_empty() else tape_hint
 		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
 		var destination:="電視銅環" if aiming_at_aerial() else (art.stop_name(next) if next>=0 else "")
-		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action,"oil" if oil_paint.visible else "normal")
+		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action,"oil" if oil_paint.visible else "normal",summit_times.best_clock,result,pace)
 		var show_pickups:=phase=="playing" and not player.spring_pad and not player.grab.active and player.hook.time_left<=0 and not tracking_aerial()
 		var hint: Node3D=art.pickups.visible_hint(camera,player) if show_pickups else null
 		if hint:
@@ -632,3 +640,5 @@ func update_hud() -> void:
 		if hook_hint!="" and phase=="playing": native_label.text+="\n飛爪 · "+hook_hint
 		if grip_action!="" and phase=="playing": native_label.text+="\n"+("Space · 撐上" if player.grab.can_pull_up() else grip_action)
 		if not tape_hint.is_empty():native_label.text+="\n"+tape_hint
+		if phase in ["intro","paused","won"] and not result.is_empty(): native_label.text+="\n"+result
+		if not pace.is_empty(): native_label.text+="\n"+pace

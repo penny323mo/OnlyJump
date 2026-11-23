@@ -177,6 +177,7 @@ func check_moving_takeoff(source: int, phase_ticks: int, aim: int, landing: int)
 
 func run() -> void:
 	game=Game.new()
+	game.record_path=course_test_save
 	root.add_child(game)
 	game.best=100
 	game.muted=true
@@ -326,4 +327,5 @@ func run() -> void:
 	if not check(game.art.branches.timers.is_empty() and game.art.branches.bodies[B.BOARD].collision_layer==1,"restart restores props"):return
 	print("PASS branches, rotating fan, timed pickups, double-jump stunts, lower recovery and five characters")
 	game.free()
+	DirAccess.remove_absolute(course_test_save)
 	quit()
