@@ -48,12 +48,21 @@ function attachControls(send, isPlaying) {
     const role = hit === 'padZone' || leftLookHit ? 'pad' : hit;
     if (!role) return false;
     const contact = {role,x,y,originX:x,originY:y,touch};
-    const padBounds=role==='pad' && !active.has('pad') ? pad.getBoundingClientRect() : null;
-    if (padBounds) {
-      const {left,top,width,height}=padBounds;
+    if (role==='pad') {
+      const current=owners.get(active.get('pad'));
+      // A first finger in empty space floats the stick before we know if
+      // it will steer or pinch. Keep its home circle available to the thumb.
+      const bounds=current ? current.homeBounds : pad.getBoundingClientRect();
+      const {left,top,width,height}=bounds;
       // The visible stick belongs to the thumb from touchdown. Elsewhere
       // the floating pad can still become one half of a two-finger pinch.
-      contact.ownsStick=Math.hypot(x-left-width/2,y-top-height/2)<=width/2;
+      const atHome=Math.hypot(x-left-width/2,y-top-height/2)<=width/2;
+      if (touch && current?.touch && !current.ownsStick && atHome) {
+        current.role='free';
+        active.delete('pad');
+      }
+      contact.ownsStick=atHome && !active.has('pad');
+      contact.homeBounds=bounds;
       contact.travel=width*.29;
     }
     if (touch && (role==='pad' || role==='look')) {

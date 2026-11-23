@@ -188,6 +188,49 @@ test('a thumb resting on the visible stick can start steering during a pinch, in
   }
 });
 
+test('the home stick and two left-side pinch fingers keep their roles in all six touchdown orders',()=>{
+  for(const order of ['012','021','102','120','201','210']){
+    const {fire,finger,calls,pad}=fixture();
+    const contacts=[finger(1,'padZone',88,297),finger(2,'padZone',170,135),finger(3,'padZone',310,135)];
+    const held=[];
+    for(const index of order){
+      held.push(contacts[index]);
+      fire('touchstart',[contacts[index]],held);
+    }
+    const drive=finger(1,'padZone',113,297), wide=finger(3,'padZone',345,135);
+    fire('touchmove',[drive,wide],[drive,contacts[1],wide]);
+    assert.deepEqual(calls.filter(([name])=>name==='zoom'),[['zoom',1.25]],order);
+    assert(calls.some(([name,x,y])=>name==='stick' && x>.6 && y===0),order);
+    fire('touchend',[wide,contacts[1]],[drive]);
+    assert.equal(pad.dataset.active,'true',order);
+    const reverse=finger(1,'padZone',63,297);
+    fire('touchmove',[reverse],[reverse]);
+    assert(calls.at(-1)[0]==='stick' && calls.at(-1)[1]<-.6,order);
+    fire('touchend',[reverse],[]);
+    assert.deepEqual(calls.at(-1),['stick',0,0],order);
+    assert.equal(pad.dataset.active,undefined,order);
+  }
+});
+
+test('a floating stick which has already steered keeps its thumb after returning to neutral',()=>{
+  const {fire,finger,calls,pad}=fixture();
+  const float=finger(1,'padZone',212,140), drive=finger(1,'padZone',242,140);
+  const home=finger(2,'padZone',88,297), other=finger(3,'padZone',188,297);
+  fire('touchstart',[float],[float]);
+  fire('touchmove',[drive],[drive]);
+  fire('touchmove',[float],[float]);
+  fire('touchstart',[home],[float,home]);
+  fire('touchstart',[other],[float,home,other]);
+  const wide=finger(3,'padZone',238,297);
+  fire('touchmove',[wide],[float,home,wide]);
+  assert.deepEqual(calls.at(-1),['zoom',1.5]);
+  assert.equal(pad.style.left,'212px');
+  fire('touchmove',[drive],[drive,home,wide]);
+  assert(calls.at(-1)[0]==='stick' && calls.at(-1)[1]>.7);
+  fire('touchend',[drive,home,wide],[]);
+  assert.deepEqual(calls.at(-1),['stick',0,0]);
+});
+
 test('reset clears a pinch and fresh fingers can orbit and pinch again',()=>{
   const {fire,finger,reset,calls}=fixture();
   const a=finger(1,'look',520,150), b=finger(2,'look',620,150);
