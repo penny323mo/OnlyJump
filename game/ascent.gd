@@ -263,6 +263,7 @@ func toggle_pause() -> void:
 		clear_controls()
 	elif phase == "paused":
 		phase = "playing"
+		player.resume_on_carrier=player.is_on_floor() and not player.get_platform_velocity().is_zero_approx()
 	update_hud()
 
 func _notification(what: int) -> void:
@@ -427,6 +428,10 @@ func face_target() -> void:
 	var target:=art.aerial.global_position if frame_aerial else art.stop_position(next)
 	if next==Islands.Branches.PENDULUM: target=art.branches.pendulum.low_point
 	if next==Islands.Branches.LIFT: target=art.branches.lift.boarding_point()
+	if ledge==Islands.Branches.TAPE and player.is_on_floor():
+		var tape:=art.branches.tape
+		if tape.cycle<0. and not tape.on_hook(player.position):
+			target=tape.blade.to_global(Vector3.BACK*.14)
 	var offset:=target-player.position
 	if ledge==Islands.Branches.PENDULUM and player.is_on_floor():
 		# Align for the outgoing crest even if the rider taps at the bottom.
@@ -583,6 +588,9 @@ func update_hud() -> void:
 		var visible_top: float = {6:.12,8:.18,9:.22,14:.06,17:.055,24:.10}.get(next,.05)
 		landing_ring.position = target+Vector3.UP*visible_top
 	var height := maxf(0.0,player.position.y)
+	var tape_hint:=""
+	if phase=="playing" and ledge==Islands.Branches.TAPE and player.is_on_floor():
+		tape_hint=art.branches.tape.rider_hint(player.position)
 	var grip_action:=""
 	if player.grab.active: grip_action="撐上" if player.grab.can_pull_up() else "攀爬中"
 	var hook_hint:=""
@@ -594,7 +602,7 @@ func update_hud() -> void:
 	var brass:=art.material("80ffe0" if hook_hint=="撳跳扣環" or hook_hint=="收索中" else "e4a842")
 	if art.aerial.material_override!=brass: art.aerial.material_override=brass
 	if web:
-		var message := notice
+		var message := notice if tape_hint.is_empty() else tape_hint
 		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
 		var destination:="電視銅環" if aiming_at_aerial() else (art.stop_name(next) if next>=0 else "")
 		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action,"oil" if oil_paint.visible else "normal")
@@ -623,3 +631,4 @@ func update_hud() -> void:
 			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,art.stage(ledge),Islands.ROUTE.size()-1]
 		if hook_hint!="" and phase=="playing": native_label.text+="\n飛爪 · "+hook_hint
 		if grip_action!="" and phase=="playing": native_label.text+="\n"+("Space · 撐上" if player.grab.can_pull_up() else grip_action)
+		if not tape_hint.is_empty():native_label.text+="\n"+tape_hint

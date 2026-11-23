@@ -55,6 +55,8 @@ jobs:
           grep -Fxq 'PASS glide landing guide, midair expiry, steering, settings and unstable footing' "$RUNNER_TEMP/glide-guide.log"
           godot --headless --fixed-fps 60 --quit-after 2700 --script tests/lift.gd | tee "$RUNNER_TEMP/lift.log"
           grep -Fxq 'PASS laundry lift boarding step, dock alignment, timed crossing and lower catch' "$RUNNER_TEMP/lift.log"
+          godot --headless --fixed-fps 60 --quit-after 3200 --script tests/tape_measure.gd | tee "$RUNNER_TEMP/tape.log"
+          grep -Fxq 'PASS tape measure trigger, momentum shortcut, safe rewind, retry and lower catch' "$RUNNER_TEMP/tape.log"
           godot --headless --fixed-fps 60 --quit-after 2300 --script tests/pendulum.gd | tee "$RUNNER_TEMP/pendulum.log"
           grep -Fxq 'PASS pendulum boarding, full swing, girder exit, lower catch and clock housing' "$RUNNER_TEMP/pendulum.log"
           godot --headless --fixed-fps 60 --quit-after 1600 --script tests/spirit_level.gd | tee "$RUNNER_TEMP/level.log"

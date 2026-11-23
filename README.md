@@ -17,7 +17,9 @@
 
 主畫面可以揀天台速遞員、菠蘿油俠、鹹魚仔、雪糕筒工頭或短手暴龍。五款角色共用跳躍、腳掌同扶邊物理，選擇會記住。
 
-正式關卡有九個分岔位。起點嘅迷你彈床彈向膽機電視，高層嘅斜頭彈簧彈向鋁摺梯。落腳踩中細金圈，角色會屈膝壓低彈面，回彈時自動起跳。由高處落腳會壓深啲，彈力有上限。踩外圈可以企穩，再自己揀方向跳。唱盤附近可以搭旋轉扇葉轉去古董相機旁邊。放開搖桿，雙腳同身體會跟住扇葉轉，鏡頭留喺你揀嘅方向。喺葉尖起跳會帶住側向速度。晾衣場可以沿圓桿行、等吊籃埋站，或者搏鬆脫木板橫過去。木板同舊抽屜受力後會搖，跟住跌。木板下面張被單可以接人，再由洗衣機接返主線。揀路只會改提示同鏡頭，你隨時可以自行轉線。
+正式關卡有十個分岔位。起點嘅迷你彈床彈向膽機電視，高層嘅斜頭彈簧彈向鋁摺梯。落腳踩中細金圈，角色會屈膝壓低彈面，回彈時自動起跳。由高處落腳會壓深啲，彈力有上限。踩外圈可以企穩，再自己揀方向跳。唱盤附近可以搭旋轉扇葉轉去古董相機旁邊。放開搖桿，雙腳同身體會跟住扇葉轉，鏡頭留喺你揀嘅方向。喺葉尖起跳會帶住側向速度。晾衣場可以沿圓桿行、等吊籃埋站，或者搏鬆脫木板橫過去。木板同舊抽屜受力後會搖，跟住跌。木板下面張被單可以接人，再由洗衣機接返主線。揀路只會改提示同鏡頭，你隨時可以自行轉線。
+
+第 6 站錄音帶可以轉去發條捲尺。跳上尺殼，踩住銀色尺頭再放開搖桿，就會隨尺帶伸出去。尺口露出紅段時，向電子琴推前兼撳跳，可以借力越過手提音響同唱盤。留喺尺頭會原路收返，行返上尺殼再踩就可以重試。[睇捲尺起跳示範](https://penny323mo.github.io/OnlyJump/tape-measure.mp4)
 
 皮喼旁邊個舊抽屜鬆脫嗰陣，可以望落去搵紅黃間條嘅士多布篷。落喺篷面就可以轉向木茶几，再跳上電視。布篷只伸到抽屜下面一部分，行到抽屜外沿仍然有機會跌返街面。
 
@@ -81,6 +83,7 @@ godot --headless --fixed-fps 60 --script tests/route.gd
 godot --headless --fixed-fps 60 --script tests/stance.gd
 godot --headless --fixed-fps 60 --script tests/branches.gd
 godot --headless --fixed-fps 60 --script tests/lift.gd
+godot --headless --fixed-fps 60 --script tests/tape_measure.gd
 godot --headless --fixed-fps 60 --script tests/pendulum.gd
 godot --headless --fixed-fps 60 --script tests/spirit_level.gd
 godot --headless --fixed-fps 60 --script tests/grips.gd

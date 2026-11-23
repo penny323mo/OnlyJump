@@ -21,6 +21,7 @@ const MAX_DOUBLE_CHARGES := 3
 var aim := Vector2(0.45,-0.89).normalized()
 var grounded_ledge := -1
 var standing_platform: Node3D
+var resume_on_carrier := false
 var local_foot := Vector3.ZERO
 var platform_yaw := 0.0
 var spring_pad: SpringPad
@@ -110,6 +111,7 @@ func reset_at(p: Vector3) -> void:
 	jump_count = 0
 	grounded_ledge = -1
 	standing_platform = null
+	resume_on_carrier = false
 	spring_pad = null
 	stop_stunt()
 	equip("")
@@ -177,6 +179,10 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		if not grab.active: end_grab_pose()
 		return
 	var on_floor_before := is_on_floor()
+	# The first tick after a pause restores the physics server's carrier
+	# velocity. Keep an immediate takeoff buffered until that contact updates.
+	var restore_carry := resume_on_carrier and on_floor_before and jump_buffer>0.
+	resume_on_carrier=false
 	if spring_pad and (not on_floor_before or grounded_ledge!=spring_pad.get_meta("ledge")):
 		spring_pad=null
 	if on_floor_before:
@@ -220,6 +226,8 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		var lift:=clampf((jet_ceiling-global_position.y)*2.8,0.,2.45)
 		velocity.y=move_toward(velocity.y,lift,delta*19)
 		horizontal=horizontal.move_toward(move*3.05,delta*9)
+	elif restore_carry:
+		velocity.y=0.
 	elif boosted or (jump_buffer>0 and (grace>0 or air_jump)):
 		if air_jump and not boosted:
 			extra_jump=false

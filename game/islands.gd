@@ -99,7 +99,7 @@ func landing_sound(id: int) -> AudioStream:
 			return preload("res://audio/land-fabric.wav")
 		2,11,18,20,Branches.DRAWER,Branches.BOARD,Branches.LIFT,Branches.CLOCK_CASE:
 			return preload("res://audio/land-wood.wav")
-		12,13,14,16,21,22,23,Branches.FAN,Branches.POLE,Branches.COIL,Branches.PENDULUM,Branches.LEVEL:
+		12,13,14,16,21,22,23,Branches.FAN,Branches.POLE,Branches.COIL,Branches.PENDULUM,Branches.LEVEL,Branches.TAPE:
 			return preload("res://audio/land-metal.wav")
 	return preload("res://audio/land.wav")
 

@@ -5,6 +5,7 @@ const SpringPad = preload("res://game/spring_pad.gd")
 const PendulumClock = preload("res://game/pendulum_clock.gd")
 const SpiritLevel = preload("res://game/spirit_level.gd")
 const LaundryLift = preload("res://game/laundry_lift.gd")
+const TapeMeasure = preload("res://game/tape_measure.gd")
 const BED := 100
 const DRAWER := 101
 const POLE := 102
@@ -17,8 +18,10 @@ const AWNING := 108
 const PENDULUM := 109
 const CLOCK_CASE := 110
 const LEVEL := 111
+const TAPE := 112
 # Each branch lists its position, equivalent main-route stage and next stop.
 const STOPS := {
+	TAPE: ["發條捲尺",Vector3(.04,5.49,-7.80),7,9],
 	FAN: ["天台大風扇",Vector3(-.75,7.32,-21.55),9,10],
 	BED: ["迷你彈床",Vector3(-3.70,.67,-2.55),1,3],
 	DRAWER: ["鬆脫抽屜",Vector3(-3.18,3.78,-8.94),5,6],
@@ -32,7 +35,7 @@ const STOPS := {
 	SHEET: ["接人被單",Vector3(-6.94,17.32,-7.04),20,21],
 	COIL: ["斜頭彈簧",Vector3(-4.35,18.02,-5.58),21,23],
 }
-const FORKS := {0:BED,4:DRAWER,8:FAN,10:LEVEL,13:PENDULUM,18:POLE,19:LIFT,20:COIL,21:BOARD}
+const FORKS := {0:BED,4:DRAWER,6:TAPE,8:FAN,10:LEVEL,13:PENDULUM,18:POLE,19:LIFT,20:COIL,21:BOARD}
 const LIFT_END := Vector3(-8.20,18.20,-5.65)
 const DROP_AFTER := {DRAWER:1.6,BOARD:1.15}
 var bodies := {}
@@ -40,6 +43,7 @@ var springs: Array[SpringPad] = []
 var pendulum: PendulumClock
 var level: SpiritLevel
 var lift: LaundryLift
+var tape: TapeMeasure
 var timers := {}
 var clock := 0.0
 var fan_angle := 0.0
@@ -49,6 +53,9 @@ func build(art: Props, main: Array) -> void:
 		var b: StaticBody3D
 		if id in [BED,COIL]:
 			b=SpringPad.new()
+		elif id==TAPE:
+			tape=TapeMeasure.new()
+			b=tape
 		elif id==PENDULUM:
 			pendulum=PendulumClock.new()
 			b=pendulum
@@ -70,6 +77,8 @@ func build(art: Props, main: Array) -> void:
 		art.add_child(b)
 		b.position=STOPS[id][1]
 		match id:
+			TAPE:
+				tape.build(art,main[STOPS[id][3]])
 			LEVEL:
 				level.build(art)
 			BED,COIL:
@@ -187,6 +196,7 @@ func target(id: int) -> Vector3:
 	return body.position
 
 func reset() -> void:
+	tape.reset()
 	pendulum.reset()
 	level.reset()
 	for spring in springs: spring.reset()
@@ -206,6 +216,7 @@ func land(id: int) -> void:
 	if DROP_AFTER.has(id) and not timers.has(id): timers[id]=0.
 
 func advance(delta: float, occupied: int, foot: Vector3) -> void:
+	tape.advance(delta,occupied==TAPE,foot)
 	pendulum.advance(delta)
 	level.advance(delta,occupied==LEVEL,foot)
 	for spring in springs: spring.advance(delta)
