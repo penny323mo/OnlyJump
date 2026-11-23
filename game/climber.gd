@@ -50,7 +50,7 @@ var pose := ""
 var foot_shadow := preload("res://game/foot_shadow.gd").new()
 var stance := preload("res://game/ground_stance.gd").new()
 var heading := Node3D.new()
-signal landed(ledge: int)
+signal landed(ledge: int, strength: float)
 signal jumped(from_spring: bool)
 
 func build(art) -> void:
@@ -278,12 +278,15 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 			var index := int(body.get_meta("ledge"))
 			if index != grounded_ledge or not on_floor_before:
 				grounded_ledge = index
+				var incoming:=Vector3(horizontal.x,falling_speed,horizontal.y)
+				var closing_speed:=(contact.get_collider_velocity()-incoming).dot(contact.get_normal())
+				var strength:=smoothstep(1.7,10.5,closing_speed) if not on_floor_before else 0.
 				if not on_floor_before and falling_speed<-.7 and body is SpringPad:
-					var incoming:=Vector3(horizontal.x,falling_speed,horizontal.y)
 					if body.start_stroke(global_position,incoming,GRAVITY):
 						spring_pad=body
 						jump_buffer=0.
-				landed.emit(index)
+				if not spring_pad and strength>0.: stance.land(strength)
+				landed.emit(index,strength)
 			break
 	elif falling_speed<-.2 and falling_speed> -8.5 and grab.try_catch(self,reach,grounded_ledge,FOOT_RADIUS):
 		stop_stunt()

@@ -8,7 +8,9 @@ const CLOSEST_ZOOM := 3.6
 const FARTHEST_ZOOM := 11.0
 const FULL_BODY_DISTANCE := 2.65
 const CAMERA_FREE_STEP := .58
-const SOUNDS = [preload("res://audio/lift.wav"),preload("res://audio/land.wav"),preload("res://audio/summit.wav"),preload("res://audio/spring.wav")]
+const JUMP_SOUND := preload("res://audio/lift.wav")
+const SPRING_SOUND := preload("res://audio/spring.wav")
+const SUMMIT_SOUND := preload("res://audio/summit.wav")
 var art := Islands.new()
 var player := Climber.new()
 var camera := Camera3D.new()
@@ -16,6 +18,7 @@ var oil_paint := ColorRect.new()
 var landing_guide := preload("res://game/landing_guide.gd").new()
 var landing_ring := MeshInstance3D.new()
 var audio := AudioStreamPlayer.new()
+var footfall := AudioStreamPlayer.new()
 var phase := "intro"
 var elapsed := 0.0
 var falls := 0
@@ -46,7 +49,6 @@ var native_drag := false
 var sprint := false
 var hud_clock := 0.0
 var menu_time := 0.0
-var last_jump_count := 0
 var notice := ""
 
 func _ready() -> void:
@@ -108,6 +110,7 @@ func _ready() -> void:
 	camera.fov = 54
 	camera.far = 320
 	add_child(audio)
+	add_child(footfall)
 	var paint_layer:=CanvasLayer.new()
 	paint_layer.layer=1
 	paint_layer.visible=not lightweight
@@ -177,6 +180,9 @@ func web_command(args: Array) -> void:
 		"restart": start_run()
 		"mute":
 			muted = not muted
+			if muted:
+				audio.stop()
+				footfall.stop()
 			save_record()
 		"stick":
 			if phase == "playing" and args.size() == 3:
@@ -241,7 +247,6 @@ func start_run() -> void:
 	art.pickups.reset()
 	alternate=false
 	ledge = 0
-	last_jump_count = 0
 	clear_controls()
 	camera_yaw = 0.0
 	camera_pitch = deg_to_rad(24)
@@ -297,20 +302,25 @@ func _input(event: InputEvent) -> void:
 func on_jump(from_spring: bool) -> void:
 	if from_spring:
 		notice="彈向"+art.stop_name(art.destination(ledge,false))
-		play_sound(3,.9 if ledge==Islands.Branches.BED else 1.12)
+		play_sound(SPRING_SOUND,.9 if ledge==Islands.Branches.BED else 1.12)
 	else:
 		notice=""
-		play_sound(0,1.05)
+		play_sound(JUMP_SOUND,1.05)
 
-func play_sound(id: int, pitch := 1.0) -> void:
+func play_sound(stream: AudioStream, pitch := 1.0) -> void:
 	if muted: return
-	audio.stream = SOUNDS[id]
+	audio.stream = stream
 	audio.pitch_scale = pitch
-	audio.volume_db = -12 if id == 1 else -9
+	audio.volume_db = -9
 	audio.play()
 
-func on_landing(index: int) -> void:
+func on_landing(index: int, strength: float) -> void:
 	if phase != "playing": return
+	if strength>0. and not muted:
+		footfall.stream=art.landing_sound(index)
+		footfall.volume_db=lerpf(-24.,-9.,strength)
+		footfall.pitch_scale=lerpf(1.12,.89,strength)
+		footfall.play()
 	if index!=Islands.Branches.AWNING or player.ability!="hook": frame_aerial=false
 	if art.stage(index) < art.stage(ledge):
 		falls += 1
@@ -333,10 +343,7 @@ func on_landing(index: int) -> void:
 	if index == Islands.ROUTE.size()-1:
 		phase = "won"
 		landing_guide.hide()
-		play_sound(2)
-	elif player.jump_count > last_jump_count:
-		play_sound(1)
-	last_jump_count = player.jump_count
+		play_sound(SUMMIT_SOUND)
 	hud_clock = .06 # Publish the landing after this tick's height and pickup updates.
 
 func keyboard_move() -> Vector2:
@@ -376,7 +383,7 @@ func _physics_process(delta: float) -> void:
 		if found!="":
 			player.equip(found)
 			notice="執到"+str(art.pickups.ITEMS[found][0])
-			play_sound(0,1.55)
+			play_sound(JUMP_SOUND,1.55)
 	if player.position.y < -9:
 		clear_controls()
 		var count := player.jump_count
@@ -385,7 +392,6 @@ func _physics_process(delta: float) -> void:
 		ledge = 0
 		player.reset_at(Islands.ROUTE[0])
 		player.jump_count = count
-		last_jump_count = count
 		notice = "跌返街面，返到起點"
 		camera_yaw = 0.0
 		camera_pitch = deg_to_rad(24)

@@ -19,6 +19,14 @@ var weight_shift:=Vector3.ZERO
 var plant_weight:=0.
 var support: Node3D
 var local_lip:=Vector3.ZERO
+var landing_time:=0.
+var landing_depth:=0.
+var compression:=0.
+const LANDING_DURATION := .24
+
+func land(strength: float) -> void:
+	landing_time=LANDING_DURATION
+	landing_depth=.145*strength
 
 func build(rig: Skeleton3D, parts: Dictionary) -> void:
 	active=false
@@ -40,6 +48,8 @@ func build(rig: Skeleton3D, parts: Dictionary) -> void:
 
 func release() -> void:
 	active=false
+	landing_time=0.
+	compression=0.
 	plant_weight=0.
 	support=null
 	weight_shift=Vector3.ZERO
@@ -61,10 +71,15 @@ func sample_floor(player, contact: KinematicCollision3D, below: Dictionary, delt
 		return
 	if not player.is_on_floor():
 		support=null
+		landing_time=0.
+		compression=0.
 		if active:
 			plant_weight=move_toward(plant_weight,0.,delta/.10)
 			if is_zero_approx(plant_weight): release()
 		return
+	landing_time=maxf(0.,landing_time-delta)
+	var elapsed:=LANDING_DURATION-landing_time
+	compression=landing_depth*smoothstep(0.,.055,elapsed)*(1.-smoothstep(.055,LANDING_DURATION,elapsed))
 	var rig:=get_skeleton()
 	# Floor snapping can keep the body grounded without a new slide contact.
 	# Keep a rim contact in prop space so it also travels with a moving ledge.
@@ -114,7 +129,7 @@ func sample_floor(player, contact: KinematicCollision3D, below: Dictionary, delt
 		var planted: Vector3=hits[1 if hits[0].is_empty() else 0].position
 		balance=Vector3(planted.x-player.position.x,0,planted.z-player.position.z).limit_length(.11)
 	weight_shift=weight_shift.lerp(balance,weight)
-	var needed:=false
+	var needed:=compression>.0001
 	for i in legs.size():
 		var leg:=legs[i]
 		var offset:=Vector3.UP*(lowest+.025)
@@ -123,7 +138,9 @@ func sample_floor(player, contact: KinematicCollision3D, below: Dictionary, delt
 			offset=hits[i].position-Vector3(points[i].x,player.global_position.y,points[i].z)
 			up=hits[i].normal
 		leg.offset=leg.offset.lerp(offset,weight)
-		leg.up=leg.up.slerp(up,weight).normalized()
+		# Walkable normals all face upwards. A normalized blend also handles
+		# nearly parallel normals where a rotation axis is poorly defined.
+		leg.up=leg.up.lerp(up,weight).normalized()
 		needed=needed or leg.offset.length_squared()>.000016 or leg.up.y<.9995
 	active=needed
 	plant_weight=1.
@@ -132,6 +149,7 @@ func _process_modification_with_delta(_delta: float) -> void:
 	var rig:=get_skeleton()
 	var inverse:=rig.global_transform.affine_inverse()
 	var shift:=(weight_shift+Vector3.UP*minf(0.,minf(legs[0].offset.y,legs[1].offset.y)))*plant_weight
+	shift.y-=compression*plant_weight
 	var min_drop:=shift.y-.08
 	for leg in legs:
 		leg.thigh=rig.global_transform*rig.get_bone_global_pose(leg.hip)
@@ -143,7 +161,7 @@ func _process_modification_with_delta(_delta: float) -> void:
 		var sole:=leg.shoe*leg.sole
 		# Blend the targets before solving the joints so takeoff keeps the
 		# ankle attached even as the terrain correction fades out.
-		var normal:=Vector3.UP.slerp(leg.up,plant_weight)
+		var normal:=Vector3.UP.lerp(leg.up,plant_weight).normalized()
 		leg.shoe.basis=Basis(Quaternion(Vector3.UP,normal))*leg.shoe.basis
 		leg.shoe.origin=sole+leg.offset*plant_weight-leg.shoe.basis*leg.sole
 		var reach:=leg.thigh.origin.distance_to(leg.shin.origin)+leg.calf.length()

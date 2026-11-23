@@ -93,6 +93,16 @@ func stage(id: int) -> int:
 func stop_name(id: int) -> String:
 	return Branches.STOPS[id][0] if Branches.STOPS.has(id) else NAMES[id]
 
+func landing_sound(id: int) -> AudioStream:
+	match id:
+		1,4,5,19,24,Branches.BED,Branches.AWNING,Branches.SHEET:
+			return preload("res://audio/land-fabric.wav")
+		2,11,18,20,Branches.DRAWER,Branches.BOARD,Branches.LIFT,Branches.CLOCK_CASE:
+			return preload("res://audio/land-wood.wav")
+		12,13,14,16,21,22,23,Branches.FAN,Branches.POLE,Branches.COIL,Branches.PENDULUM,Branches.LEVEL:
+			return preload("res://audio/land-metal.wav")
+	return preload("res://audio/land.wav")
+
 func destination(id: int, alternate: bool) -> int:
 	if alternate and Branches.FORKS.has(id): return Branches.FORKS[id]
 	if Branches.STOPS.has(id): return Branches.STOPS[id][3]

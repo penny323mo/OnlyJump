@@ -46,7 +46,10 @@ jobs:
           grep -Fxq 'PASS mobile parkour: 24 landings, instant jump, sprint, orbit, edge hold, recovery' "$RUNNER_TEMP/ascent.log"
           godot --headless --fixed-fps 60 --quit-after 1700 --script tests/stance.gd | tee "$RUNNER_TEMP/stance.log"
           grep -Fxq 'PASS planted soles, connected ankles, one-foot edges, takeoff and moving strides' "$RUNNER_TEMP/stance.log"
-          godot --headless --fixed-fps 60 --quit-after 7500 --script tests/branches.gd | tee "$RUNNER_TEMP/branches.log"
+          godot --headless --max-fps 60 --quit-after 1000 --script tests/impact.gd | tee "$RUNNER_TEMP/impact.log"
+          grep -Fxq 'PASS surface sounds, impact strength, planted landing compression and immediate rebound' "$RUNNER_TEMP/impact.log"
+          godot --headless --fixed-fps 60 --quit-after 7500 --script tests/branches.gd 2>&1 | tee "$RUNNER_TEMP/branches.log"
+          if grep -q '^ERROR:' "$RUNNER_TEMP/branches.log"; then exit 1; fi
           grep -Fxq 'PASS branches, rotating fan, timed pickups, double-jump stunts, lower recovery and five characters' "$RUNNER_TEMP/branches.log"
           godot --headless --fixed-fps 60 --quit-after 2300 --script tests/pendulum.gd | tee "$RUNNER_TEMP/pendulum.log"
           grep -Fxq 'PASS pendulum boarding, full swing, girder exit, lower catch and clock housing' "$RUNNER_TEMP/pendulum.log"
