@@ -7,6 +7,7 @@ const SpiritLevel = preload("res://game/spirit_level.gd")
 const LaundryLift = preload("res://game/laundry_lift.gd")
 const TapeMeasure = preload("res://game/tape_measure.gd")
 const ToyTrack = preload("res://game/toy_track.gd")
+const CollapsingProp = preload("res://game/collapsing_prop.gd")
 const BED := 100
 const DRAWER := 101
 const POLE := 102
@@ -56,6 +57,8 @@ func build(art: Props, main: Array) -> void:
 		var b: StaticBody3D
 		if id in [BED,COIL]:
 			b=SpringPad.new()
+		elif id in DROP_AFTER:
+			b=CollapsingProp.new()
 		elif id==TRACK:
 			b=ToyTrack.new()
 		elif id==TAPE:
@@ -124,23 +127,7 @@ func build(art: Props, main: Array) -> void:
 					var band:=art.cone(b,collar.position+axis*offset,.13,.285,.285,"e1b34e",24)
 					band.quaternion=collar.quaternion
 			DRAWER,BOARD:
-				b.set_meta("drop_surface",true)
-				var width := 2.22 if id==DRAWER else 1.25
-				var length := 1.54 if id==DRAWER else 2.54
-				art.deck(b,Vector3(width,.17,length),"be8351" if id==DRAWER else "996445")
-				for side: float in [-1,1]:
-					if id==DRAWER:
-						var panel_length:=length if side<0 else .36
-						var panel_z:=0. if side<0 else .55
-						art.solid(b,Vector3(side*1.05,.095,panel_z),Vector3(.12,.30,panel_length),"9e5f3d")
-					art.box(b,Vector3(side*(width*.5-.14),.013,.28),Vector3(.13,.025,.80),"e4ad38").rotation.y=-.20
-				for i in 3:
-					art.box(b,Vector3(.04+i*.095,.012,-.41+i*.12),Vector3(.036,.016,.22),"513e31").rotation.y=.6 if i%2 else -.35
-				if id==DRAWER:
-					art.solid(b,Vector3(0,.045,length*.5),Vector3(width,.31,.14),"975f43")
-					art.box(b,Vector3(0,.03,length*.5+.10),Vector3(.52,.09,.12),"c28f45")
-				else:
-					b.rotation.x=deg_to_rad(-12)
+				(b as CollapsingProp).build(art,id==DRAWER)
 			LIFT:
 				lift.build(art,LIFT_END)
 			SHEET:
@@ -212,11 +199,7 @@ func reset() -> void:
 	bodies[FAN].rotation.y=0
 	timers.clear()
 	for id: int in DROP_AFTER:
-		var body: StaticBody3D=bodies[id]
-		body.show()
-		body.collision_layer=1
-		body.position=STOPS[id][1]
-		body.rotation=Vector3(deg_to_rad(-12) if id==BOARD else 0.,0,0)
+		(bodies[id] as CollapsingProp).reset()
 	lift.advance(0.)
 
 func land(id: int) -> void:
@@ -233,25 +216,11 @@ func advance(delta: float, occupied: int, foot: Vector3) -> void:
 	lift.advance(clock)
 	for id: int in timers.keys():
 		var t: float=timers[id]+delta
-		var body: StaticBody3D=bodies[id]
+		var body: CollapsingProp=bodies[id]
 		var limit: float=DROP_AFTER[id]
-		var home: Vector3=STOPS[id][1]
-		if t<limit:
-			body.position=home+Vector3.RIGHT*(sin(t*42)*.026)
-		elif t<limit+1.1:
-			body.collision_layer=0
-			var falling:=t-limit
-			body.position=home+Vector3.DOWN*8*falling*falling
-			if id==DRAWER:
-				body.position+=Vector3(-.65,0,1.60)*smoothstep(.04,.63,falling)
-			body.rotation.z=falling*.65
-		elif t<limit+4.:
-			body.hide()
+		if t<limit+4.:
+			body.advance(t,limit)
+			timers[id]=t
 		else:
-			body.position=home
-			body.rotation.z=0
-			body.collision_layer=1
-			body.show()
+			body.reset()
 			timers.erase(id)
-			continue
-		timers[id]=t

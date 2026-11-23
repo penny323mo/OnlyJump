@@ -23,6 +23,33 @@ func reach_floor(id: int) -> bool:
 			return check(game.ledge==id,"land on "+game.art.stop_name(id))
 	return check(false,"missed "+game.art.stop_name(id))
 
+func wait_for_drop(id: int) -> bool:
+	var prop:=game.art.branches.bodies[id] as B.CollapsingProp
+	var early:=int(B.DROP_AFTER[id]*60*.88)
+	var tip:=Vector3.BACK*(.75 if id==B.DRAWER else 1.25)
+	var before:=prop.to_global(tip)
+	var hinge:=prop.to_global(B.CollapsingProp.HINGE)
+	await frames(20) # Let the landing stride settle before measuring the planted foot.
+	var foot:=prop.to_local(game.player.position)
+	await frames(early-20)
+	if not check(game.player.is_on_floor() and game.ledge==id and prop.collision_layer==1,"loaded prop still supports the feet"):return false
+	if not check(prop.to_local(game.player.position).distance_to(foot)<.08,"the resting rider follows the loaded floor"):return false
+	var travelled:=prop.to_global(tip)-before
+	if id==B.DRAWER:
+		if not check(travelled.z>.25,"drawer extends along runners before release"):return false
+	else:
+		if not check(travelled.y<-.30 and prop.to_global(B.CollapsingProp.HINGE).distance_to(hinge)<.001,"board sags about its fixed bolts before release"):return false
+	var pose:=prop.global_transform
+	game.toggle_pause()
+	await frames(25)
+	if not check(pose.is_equal_approx(prop.global_transform),"pause holds the strained hardware in place"):return false
+	game.toggle_pause()
+	var deadline: float=B.DROP_AFTER[id]
+	while game.art.branches.timers[id]<deadline-1./60.: await frames(1)
+	if not check(prop.collision_layer==1,"support lasts until the deadline"):return false
+	await frames(2)
+	return check(prop.collision_layer==0 and prop.to_global(tip).distance_to(pose*tip)<.10,"release continues from the loaded pose")
+
 func ride_bounce(destination: int) -> bool:
 	game.web_command(["stick",0,0])
 	game.web_command(["sprint",false])
@@ -230,7 +257,8 @@ func run() -> void:
 	await start_on(4)
 	game.web_command(["branch"])
 	if not await leap(B.DRAWER,Vector3.ZERO,false):return
-	await frames(145)
+	if not await wait_for_drop(B.DRAWER):return
+	await frames(49)
 	if not check(game.art.branches.bodies[B.DRAWER].collision_layer==0,"drawer gives way"):return
 	if not check(game.player.is_on_floor() and game.ledge==B.AWNING and game.falls==1,"striped awning catches drawer fall"):return
 	for height: float in [.12,.65,1.12]:
@@ -300,12 +328,8 @@ func run() -> void:
 	if not await ride_bounce(23):return
 	await start_on(21)
 	if not await leap(B.BOARD,Vector3.ZERO,false):return
-	var timer: float=game.art.branches.timers[B.BOARD]
-	game.toggle_pause()
-	await frames(25)
-	if not check(is_equal_approx(timer,game.art.branches.timers[B.BOARD]),"pause freezes cracking board"):return
-	game.toggle_pause()
-	await frames(135)
+	if not await wait_for_drop(B.BOARD):return
+	await frames(66)
 	if not check(game.ledge==B.SHEET and game.player.is_on_floor() and game.falls==1,"sheet catches real board fall"):return
 	if not await leap(21,Vector3.ZERO,false):return
 	await start_on(21)
