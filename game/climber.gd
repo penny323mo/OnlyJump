@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 const SpringPad = preload("res://game/spring_pad.gd")
+const ToyTrack = preload("res://game/toy_track.gd")
 const LedgeGrab = preload("res://game/ledge_grab.gd")
 const COURIER = preload("res://assets/character/courier.glb")
 const WALK_SPEED := 3.65
@@ -27,6 +28,8 @@ var detach_on_move := false
 var local_foot := Vector3.ZERO
 var platform_yaw := 0.0
 var spring_pad: SpringPad
+var track: ToyTrack
+var track_velocity := Vector3.ZERO
 var ability := ""
 var ability_time := 0.0
 var jet_armed := false
@@ -116,6 +119,8 @@ func reset_at(p: Vector3) -> void:
 	resume_on_carrier = false
 	detach_on_move = true
 	spring_pad = null
+	track = null
+	track_velocity = Vector3.ZERO
 	stop_stunt()
 	equip("")
 
@@ -144,8 +149,15 @@ func ground_at(point: Vector3, depth: float) -> Dictionary:
 	return get_world_3d().direct_space_state.intersect_ray(query)
 
 func launch_horizontal(horizontal: Vector2, direction: Vector2) -> Vector2:
+	if track and is_on_floor(): horizontal=Vector2(track_velocity.x,track_velocity.z)
 	if is_on_floor() and horizontal.length_squared()<.04: return direction*STANDING_PUSH
 	return horizontal
+
+func takeoff_rise() -> float:
+	return clampf(track_velocity.y,0.,1.65) if track and is_on_floor() else 0.
+
+func coasting() -> bool:
+	return track and is_on_floor() and track_velocity.length_squared()>.64
 
 func fall_speed(vertical: float, gliding: bool, delta: float) -> float:
 	var next:=vertical-GRAVITY*delta
@@ -195,6 +207,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 	var horizontal := Vector2(velocity.x,velocity.z)
 	if move.length_squared() > .016: aim = move.normalized()
 	var boosted := spring_pad!=null and not spring_pad.loading
+	var sliding := false
 	var air_jump := ability=="double" and extra_jump and not on_floor_before and grace<=0
 	if ability=="hook" and jump_buffer>0 and not on_floor_before and grace<=0:
 		jump_buffer=0
@@ -247,7 +260,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		else:
 			var push := tap_direction if move.is_zero_approx() else move
 			horizontal = launch_horizontal(horizontal,push)
-			velocity.y = JUMP_SPEED-.5*GRAVITY*delta
+			velocity.y = JUMP_SPEED+takeoff_rise()-.5*GRAVITY*delta
 		air_speed = horizontal.length()
 		grab.attempt=LedgeGrab.Attempt.JUMP
 		jump_count += 1
@@ -255,16 +268,23 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 	elif on_floor_before:
 		# Ground contact below clears this unless the step actually leaves the rim.
 		grab.attempt=LedgeGrab.Attempt.SLIP
-		var target := move*(RUN_SPEED if running else WALK_SPEED)
-		if move.is_zero_approx():
+		var speed_limit:=RUN_SPEED if running else WALK_SPEED
+		velocity.y=0.
+		if track:
+			sliding=true
+			track_velocity=track.slide_step(global_position,track_velocity,get_floor_normal(),move,running,GRAVITY,speed_limit,delta)
+			horizontal=Vector2(track_velocity.x,track_velocity.z)
+			velocity.y=track_velocity.y
+			if move.is_zero_approx() and horizontal.length_squared()>.64: aim=horizontal.normalized()
+		elif move.is_zero_approx():
 			horizontal = Vector2.ZERO
 		else:
+			var target := move*speed_limit
 			var direction := Vector3(move.x,0,move.y).normalized()
 			var support := ground_at(position+direction*(FOOT_RADIUS+.16),.34)
 			if support.is_empty() or support.normal.y<.65:
 				target *= .88 if running else .46
 			horizontal = horizontal.move_toward(target,GROUND_ACCEL*delta)
-		velocity.y = 0
 		air_speed = horizontal.length()
 	else:
 		var gliding:=ability=="glide"
@@ -289,7 +309,11 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		platform_floor_layers=floor_layers
 		detach_on_move=false
 	else:move_and_slide()
-	if not is_on_floor(): standing_platform=null
+	# Uphill tangents have positive Y, which disables automatic floor snap.
+	if sliding and not is_on_floor(): apply_floor_snap()
+	if not is_on_floor():
+		standing_platform=null
+		track=null
 	if pulling:
 		if hook.time_left<=0 or get_slide_collision_count()>0 or hook.chest(self).distance_to(hook.anchor.global_position)<.38:
 			equip("")
@@ -302,6 +326,10 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 			var body := contact.get_collider() as Node3D
 			if contact.get_normal().y < .66 or not body or not body.has_meta("ledge"): continue
 			floor_contact=contact
+			if body!=track:
+				track=body as ToyTrack
+				if track:
+					track_velocity=Vector3(horizontal.x,falling_speed,horizontal.y).slide(contact.get_normal()).limit_length(ToyTrack.MAX_SPEED)
 			if move.is_zero_approx() and body.has_meta("mobile_surface"): settle_on_platform(body)
 			else: standing_platform=null
 			var index := int(body.get_meta("ledge"))
@@ -394,6 +422,12 @@ func animate(delta: float, move: Vector2, running: bool, floor_contact: Kinemati
 			animations.play(pose,0.)
 			animations.pause()
 		animations.seek((1.-spring_pad.load_fraction())*.32,true)
+	elif coasting() and move.is_zero_approx():
+		if pose!="Sliding":
+			pose="Sliding"
+			animations.play("Standing",0.)
+			animations.seek(.13,true)
+			animations.pause()
 	elif not is_on_floor():
 		if pose!="Airborne":
 			pose="Airborne"

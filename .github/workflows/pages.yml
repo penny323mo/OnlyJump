@@ -58,6 +58,8 @@ jobs:
           grep -Fxq 'PASS landing guide tracks both lift trips, open step, cycle wrap and a departing miss' "$RUNNER_TEMP/lift.log"
           godot --headless --fixed-fps 60 --quit-after 3200 --script tests/tape_measure.gd | tee "$RUNNER_TEMP/tape.log"
           grep -Fxq 'PASS tape measure trigger, momentum shortcut, safe rewind, retry and lower catch' "$RUNNER_TEMP/tape.log"
+          godot --headless --fixed-fps 60 --quit-after 1600 --script tests/toy_track.gd | tee "$RUNNER_TEMP/track.log"
+          grep -Fxq 'PASS toy track banks, coasting, braking, manual ramp jump, forecast and selective recovery' "$RUNNER_TEMP/track.log"
           godot --headless --fixed-fps 60 --quit-after 2300 --script tests/pendulum.gd | tee "$RUNNER_TEMP/pendulum.log"
           grep -Fxq 'PASS pendulum boarding, full swing, girder exit, lower catch and clock housing' "$RUNNER_TEMP/pendulum.log"
           godot --headless --fixed-fps 60 --quit-after 1600 --script tests/spirit_level.gd | tee "$RUNNER_TEMP/level.log"

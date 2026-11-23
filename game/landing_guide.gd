@@ -51,7 +51,7 @@ func refresh(player: Climber, move: Vector2, tick: float) -> void:
 	moving_support=null
 	if player.spring_pad or player.ability=="jet" or player.hook.time_left>0: return
 	var grounded := player.is_on_floor()
-	if grounded and move.is_zero_approx(): return
+	if grounded and move.is_zero_approx() and not player.coasting(): return
 	var at := player.global_transform
 	var horizontal := Vector2(player.velocity.x,player.velocity.z)
 	var vertical := player.velocity.y
@@ -64,7 +64,7 @@ func refresh(player: Climber, move: Vector2, tick: float) -> void:
 		# Air steering still uses the runner's speed relative to the support.
 		var carry := player.get_platform_velocity()
 		horizontal += Vector2(carry.x,carry.z)
-		vertical = player.JUMP_SPEED + .5*player.GRAVITY*tick + carry.y
+		vertical = player.JUMP_SPEED + player.takeoff_rise() + .5*player.GRAVITY*tick + carry.y
 	var ahead:=0.
 	var floor_y:=cos(player.floor_max_angle)
 	for segment in MAX_CASTS:

@@ -6,6 +6,7 @@ const PendulumClock = preload("res://game/pendulum_clock.gd")
 const SpiritLevel = preload("res://game/spirit_level.gd")
 const LaundryLift = preload("res://game/laundry_lift.gd")
 const TapeMeasure = preload("res://game/tape_measure.gd")
+const ToyTrack = preload("res://game/toy_track.gd")
 const BED := 100
 const DRAWER := 101
 const POLE := 102
@@ -19,8 +20,10 @@ const PENDULUM := 109
 const CLOCK_CASE := 110
 const LEVEL := 111
 const TAPE := 112
+const TRACK := 113
 # Each branch lists its position, equivalent main-route stage and next stop.
 const STOPS := {
+	TRACK: ["玩具飛車滑道",Vector3(6.05,8.95,-25.30),10,11],
 	TAPE: ["發條捲尺",Vector3(.04,5.49,-7.80),7,9],
 	FAN: ["天台大風扇",Vector3(-.75,7.32,-21.55),9,10],
 	BED: ["迷你彈床",Vector3(-3.70,.67,-2.55),1,3],
@@ -53,6 +56,8 @@ func build(art: Props, main: Array) -> void:
 		var b: StaticBody3D
 		if id in [BED,COIL]:
 			b=SpringPad.new()
+		elif id==TRACK:
+			b=ToyTrack.new()
 		elif id==TAPE:
 			tape=TapeMeasure.new()
 			b=tape
@@ -77,6 +82,8 @@ func build(art: Props, main: Array) -> void:
 		art.add_child(b)
 		b.position=STOPS[id][1]
 		match id:
+			TRACK:
+				(b as ToyTrack).build(art)
 			TAPE:
 				tape.build(art,main[STOPS[id][3]])
 			LEVEL:

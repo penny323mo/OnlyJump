@@ -358,6 +358,7 @@ func on_landing(index: int, strength: float) -> void:
 	ledge = index
 	art.branches.land(index)
 	match index:
+		Islands.Branches.TRACK: notice="順住橙槽滑，棋盤格起跳返滑板"
 		Islands.Branches.FAN: notice="企穩扇葉，轉到對面先起跳"
 		Islands.Branches.PENDULUM: notice="擺向鋼樑、接近高位就起跳"
 		Islands.Branches.LEVEL: notice="踩低近端，跑到紅刻度起跳"
@@ -428,7 +429,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		game_camera(delta)
 	hud_clock += delta
-	if player.grab.active or (player.is_on_floor() and move.is_zero_approx()): landing_guide.hide()
+	if player.grab.active or (player.is_on_floor() and move.is_zero_approx() and not player.coasting()): landing_guide.hide()
 	if hud_clock >= 0.06:
 		if phase=="playing" and show_landing_guide and not player.grab.active: landing_guide.refresh(player,move,delta)
 		hud_clock = 0
