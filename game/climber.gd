@@ -23,6 +23,7 @@ var aim := Vector2(0.45,-0.89).normalized()
 var grounded_ledge := -1
 var standing_platform: Node3D
 var resume_on_carrier := false
+var detach_on_move := false
 var local_foot := Vector3.ZERO
 var platform_yaw := 0.0
 var spring_pad: SpringPad
@@ -113,6 +114,7 @@ func reset_at(p: Vector3) -> void:
 	grounded_ledge = -1
 	standing_platform = null
 	resume_on_carrier = false
+	detach_on_move = true
 	spring_pad = null
 	stop_stunt()
 	equip("")
@@ -175,7 +177,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		ability_time=maxf(0.,ability_time-delta)
 		if ability_time<TIMER_EPSILON: equip("")
 	if grab.active:
-		grab.advance(self,delta)
+		grab.advance(self,delta,move,FOOT_RADIUS)
 		pose_on_ledge()
 		if not grab.active: end_grab_pose()
 		return
@@ -278,7 +280,15 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 	var reach := Vector2(-model.basis.z.x,-model.basis.z.z) if horizontal.is_zero_approx() else horizontal
 	# A slipping player can turn their hands back while still travelling outwards.
 	if grab.attempt==LedgeGrab.Attempt.SLIP: reach=move
-	move_and_slide()
+	# A teleport leaves the previous floor cached until the next slide. Its
+	# velocity must not carry the runner sideways at the new spawn point.
+	if detach_on_move:
+		var floor_layers:=platform_floor_layers
+		platform_floor_layers=0
+		move_and_slide()
+		platform_floor_layers=floor_layers
+		detach_on_move=false
+	else:move_and_slide()
 	if not is_on_floor(): standing_platform=null
 	if pulling:
 		if hook.time_left<=0 or get_slide_collision_count()>0 or hook.chest(self).distance_to(hook.anchor.global_position)<.38:

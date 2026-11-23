@@ -60,7 +60,7 @@ iPhone Duo 可以用外屏、展開嘅內屏，或者 Safari 雙視窗玩。摺�
 
 原作點樣用圓喉、路軌同斜面改變落腳方式，可以睇[《Only Up!》玩法考察](docs/only-up-reference.md)。
 
-跳短少少、向住物件邊沿跌落時，如果雙手掂到上沿而上方有位企，每跳有一次 70% 機會捉住。成功時右手跳掣會變成「撐上」。撳一下可以早啲爬，電腦用空白鍵。放手等一陣亦會自動爬。撐上唔會消耗二段跳。[睇 iPhone Duo 撳掣示範](https://penny323mo.github.io/OnlyJump/duo-pull-up.mp4) · [睇茶几扶邊近鏡](https://penny323mo.github.io/OnlyJump/ledge-grab.mp4)
+跳短少少、向住物件邊沿跌落時，如果雙手掂到上沿而上方有位企，每跳有一次 70% 機會捉住。捉穩後沿住邊推搖桿，角色會一隻手接一隻手橫移，去到盡頭就停。撳右手「撐上」掣或空白鍵，會喺新位置爬上去。想跌去下層，就向離開物件嘅方向拉住搖桿約 0.2 秒。搖桿放返中間，等一陣就會自動爬。撐上唔會消耗二段跳。[睇短手暴龍沿鋼樑橫移](https://penny323mo.github.io/OnlyJump/girder-traverse.mp4) · [睇 iPhone Duo 撳掣示範](https://penny323mo.github.io/OnlyJump/duo-pull-up.mp4) · [睇茶几扶邊近鏡](https://penny323mo.github.io/OnlyJump/ledge-grab.mp4)
 
 喺梳化背、晾衫架或者裂紋木板底轉鏡，鏡頭會沿住你揀嘅方向升高或降低，等你睇到隻腳同落腳位。離開遮擋就會逐步返到原本視角。手動環視亦會避開前景物件。
 

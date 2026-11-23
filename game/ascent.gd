@@ -631,7 +631,7 @@ func update_hud() -> void:
 	var result:=summit_times.finish_summary if phase=="won" else summit_times.best_summary
 	if web:
 		var message := notice if tape_hint.is_empty() else tape_hint
-		if player.grab.active: message = "爬緊上去" if player.grab.climb_progress()>0 else "捉住邊沿"
+		if player.grab.active: message = "沿邊推可橫移，向外拉住放手" if player.grab.can_pull_up() else "爬緊上去"
 		var destination:="電視銅環" if aiming_at_aerial() else (art.stop_name(next) if next>=0 else "")
 		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action,"oil" if oil_paint.visible else "normal",summit_times.best_clock,result,pace)
 		var show_pickups:=phase=="playing" and not player.spring_pad and not player.grab.active and player.hook.time_left<=0 and not tracking_aerial()
@@ -658,7 +658,7 @@ func update_hud() -> void:
 			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart\n1   Next object ring: %s    ·    2   Landing guide: %s\n3   Art style: %s" % [str(show_route_ring),str(show_landing_guide),"Oil paint" if oil_paint.visible else "Normal"]
 			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,art.stage(ledge),Islands.ROUTE.size()-1]
 		if hook_hint!="" and phase=="playing": native_label.text+="\n飛爪 · "+hook_hint
-		if grip_action!="" and phase=="playing": native_label.text+="\n"+("Space · 撐上" if player.grab.can_pull_up() else grip_action)
+		if grip_action!="" and phase=="playing": native_label.text+="\n"+("Space · 撐上　沿邊推可橫移，向外拉住放手" if player.grab.can_pull_up() else grip_action)
 		if not tape_hint.is_empty():native_label.text+="\n"+tape_hint
 		if phase in ["intro","paused","won"] and not result.is_empty(): native_label.text+="\n"+result
 		if not pace.is_empty(): native_label.text+="\n"+pace
