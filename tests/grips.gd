@@ -5,7 +5,7 @@ func moving_grip(stage: int, target: int, delay: int, runup: int) -> bool:
 	game.start_run()
 	var player:=game.player
 	var body: StaticBody3D=game.art.branches.bodies[target]
-	player.reset_at(Land.ROUTE[stage])
+	player.reset_at(game.art.stop_position(stage))
 	player.grab.rng.seed=1
 	await frames(6+delay)
 	var gap:=game.art.stop_position(target)-player.position
