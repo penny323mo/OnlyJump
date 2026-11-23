@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 const SpringPad = preload("res://game/spring_pad.gd")
+const LedgeGrab = preload("res://game/ledge_grab.gd")
 const COURIER = preload("res://assets/character/courier.glb")
 const WALK_SPEED := 3.65
 const RUN_SPEED := 6.45
@@ -32,7 +33,7 @@ var jet_ceiling := 0.
 var double_charges := 0
 var extra_jump := true
 var exhaust := Node3D.new()
-var grab := preload("res://game/ledge_grab.gd").new()
+var grab := LedgeGrab.new()
 var hook := preload("res://game/grappling_hook.gd").new()
 var costumes := preload("res://game/costumes.gd").new()
 var rig: Skeleton3D
@@ -197,7 +198,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		jump_buffer=0
 		if hook.time_left<=0 and hook.can_attach(self,camera):
 			hook.attach()
-			grab.available=false
+			grab.attempt=LedgeGrab.Attempt.NONE
 	if hook.time_left>0 and not hook.clear_line(self): equip("")
 	var pulling := hook.time_left>0
 	if jump_buffer>0 and jet_armed:
@@ -207,7 +208,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		jet_ceiling=global_position.y+2.5
 		velocity.y=clampf(velocity.y,1.25,2.45)
 		air_speed=maxf(horizontal.length(),WALK_SPEED)
-		grab.available=false
+		grab.attempt=LedgeGrab.Attempt.NONE
 		grace=0
 		jump_count+=1
 		jumped.emit(false)
@@ -246,10 +247,12 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 			horizontal = launch_horizontal(horizontal,push)
 			velocity.y = JUMP_SPEED-.5*GRAVITY*delta
 		air_speed = horizontal.length()
-		grab.available = true
+		grab.attempt=LedgeGrab.Attempt.JUMP
 		jump_count += 1
 		jumped.emit(boosted)
 	elif on_floor_before:
+		# Ground contact below clears this unless the step actually leaves the rim.
+		grab.attempt=LedgeGrab.Attempt.SLIP
 		var target := move*(RUN_SPEED if running else WALK_SPEED)
 		if move.is_zero_approx():
 			horizontal = Vector2.ZERO
@@ -273,6 +276,8 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 	var falling_speed := velocity.y
 	# A vertical jumper can reach the rim in front of their chest.
 	var reach := Vector2(-model.basis.z.x,-model.basis.z.z) if horizontal.is_zero_approx() else horizontal
+	# A slipping player can turn their hands back while still travelling outwards.
+	if grab.attempt==LedgeGrab.Attempt.SLIP: reach=move
 	move_and_slide()
 	if not is_on_floor(): standing_platform=null
 	if pulling:
@@ -280,7 +285,7 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 			equip("")
 	var floor_contact: KinematicCollision3D
 	if is_on_floor():
-		grab.available=false
+		grab.attempt=LedgeGrab.Attempt.NONE
 		stop_stunt()
 		for i in get_slide_collision_count():
 			var contact := get_slide_collision(i)

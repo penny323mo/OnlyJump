@@ -91,12 +91,60 @@ func jump_from_sheet(direction: float, seed_value: int, collapse: bool, quick :=
 	var destination:=B.BOARD if should_catch and not collapse else B.SHEET
 	return check(game.ledge==destination,"standing jump lands on the correct object")
 
+func step_off_edge(seed_value: int, return_stick: float, delay: int, sprint: bool, expect_roll: bool, stage := 16) -> bool:
+	game.start_run()
+	var player:=game.player
+	player.reset_at(Land.ROUTE[stage])
+	player.grab.rng.seed=seed_value
+	await frames(8)
+	game.web_command(["look",.23,0])
+	var outward:=Vector2.DOWN.rotated(game.camera_yaw)
+	var walk:=outward*(1.0 if sprint else .64)
+	player.equip("double")
+	game.web_command(["sprint",sprint])
+	game.web_command(["stick",walk.x,walk.y])
+	for tick in 100:
+		await frames(1)
+		if not player.is_on_floor():break
+	if not check(not player.is_on_floor() and game.ledge==stage,"walked off "+Land.NAMES[stage]+" without jumping"):return false
+	await frames(delay)
+	game.web_command(["stick",outward.x*return_stick,outward.y*return_stick])
+	var expected_rng:=RandomNumberGenerator.new()
+	expected_rng.seed=seed_value
+	var success:=expect_roll and expected_rng.randf()<player.grab.CHANCE
+	var caught:=false
+	for tick in 90:
+		await frames(1)
+		if player.grab.active:
+			if not caught:
+				caught=true
+				if not check(player.grab.support_body.get_meta("ledge")==stage and player.grab.forward.z<-.95,"turned back and held the original rim"):return false
+				game.web_command(["stick",0,0])
+			if player.grab.elapsed>.16 and player.grab.can_pull_up():
+				for i in player.arms.size():
+					var palm:=player.rig.to_global(player.rig.get_bone_global_pose(player.arms[i][2]).origin)
+					if not check(palm.distance_to(player.grab.hands[i])<.08,"both palms reached the lip after turning"):return false
+				game.web_command(["jump"])
+		if player.is_on_floor() or player.position.y<Land.ROUTE[stage].y-2:break
+	if not check(caught==success and player.grab.rng.state==expected_rng.state,"one qualified chance when reaching back, none beyond arm's reach"):return false
+	if not check(player.jump_count==0 and player.double_charges==player.MAX_DOUBLE_CHARGES,"reaching and pulling up use no jump or air charge"):return false
+	if success: return check(player.is_on_floor() and game.ledge==stage and game.falls==0,"stood back on the same object")
+	return check(player.position.y<Land.ROUTE[stage].y-1.0,"kept falling when the rim was missed")
+
 func run() -> void:
 	game=Game.new()
 	root.add_child(game)
 	game.muted=true
 	game.best=100
 	game.player.costumes.select("dino")
+	if not await step_off_edge(1,-1.,7,false,true):return
+	if not await step_off_edge(2,-1.,7,false,true):return
+	if not await step_off_edge(1,0.,7,false,false):return
+	if not await step_off_edge(1,.65,7,false,false):return
+	if not await step_off_edge(1,-1.,30,false,false):return
+	if not await step_off_edge(1,-1.,7,true,false):return
+	if not await step_off_edge(1,-1.,7,false,true,2):return
+	print("PASS reverse-stick girder recovery, single chance, deliberate drops and out-of-reach misses")
 	if not await jump_from_sheet(1,1,false):return
 	if not await jump_from_sheet(1,1,false,true):return
 	if not await jump_from_sheet(-1,1,false):return

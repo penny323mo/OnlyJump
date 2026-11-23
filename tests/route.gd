@@ -115,11 +115,13 @@ func check_blocked_grip() -> bool:
 	game.add_child(ceiling)
 	game.art.solid(ceiling,dock+Vector3(0,1.18,1.36),Vector3(1.4,.2,1.15),"909090")
 	await frames(2)
-	player.grab.available=true
+	player.grab.attempt=player.LedgeGrab.Attempt.JUMP
 	var state := player.grab.rng.state
-	var grabbed := player.grab.try_catch(player,Vector2.UP,0,player.FOOT_RADIUS)
+	if not check(not player.grab.try_catch(player,Vector2.UP,0,player.FOOT_RADIUS) and player.grab.attempt==player.LedgeGrab.Attempt.JUMP,"blocked climb does not consume the jump attempt"):return false
+	player.grab.attempt=player.LedgeGrab.Attempt.SLIP
+	var grabbed := player.grab.try_catch(player,Vector2.UP,14,player.FOOT_RADIUS)
 	ceiling.queue_free()
-	return check(not grabbed and player.grab.available and player.grab.rng.state==state,"no roll under a blocked lip")
+	return check(not grabbed and player.grab.attempt==player.LedgeGrab.Attempt.SLIP and player.grab.rng.state==state,"no roll under a blocked lip on either approach")
 
 func check_standing_jump() -> bool:
 	var player:=game.player

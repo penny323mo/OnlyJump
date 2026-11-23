@@ -351,7 +351,7 @@ func on_landing(index: int, strength: float) -> void:
 		falls += 1
 		notice = "下層平台接住咗你"
 	elif index != ledge:
-		notice = ""
+		notice = "跣腳時拉返向鋼樑，可以試扶邊" if index==16 else ""
 	if index!=ledge: alternate=false
 	summit_times.land(index,elapsed,player.jump_count,falls)
 	ledge = index

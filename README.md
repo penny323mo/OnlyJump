@@ -56,6 +56,8 @@ iPhone Duo 可以用外屏、展開嘅內屏，或者 Safari 雙視窗玩。摺�
 
 企喺三角紙盒同電纜轆上，兩隻鞋會跟住各自腳下嘅斜度，膝頭可以一高一低。喺窄邊只夠一隻腳踩實時，角色會將重心移向嗰邊。[睇站姿對照](https://penny323mo.github.io/OnlyJump/slope-stance.webp)
 
+慢行跣出窄邊時，即刻將搖桿拉返向原本嗰件物件。如果雙手仲夠到上沿、上面有位企，今次失足有一次 70% 機會捉返。跳掣變成「撐上」就可以爬返去。加速衝出邊會更快離開伸手範圍。[睇鋼樑回身扶邊慢鏡](https://penny323mo.github.io/OnlyJump/girder-recovery.mp4)
+
 原作點樣用圓喉、路軌同斜面改變落腳方式，可以睇[《Only Up!》玩法考察](docs/only-up-reference.md)。
 
 跳短少少、向住物件邊沿跌落時，如果雙手掂到上沿而上方有位企，每跳有一次 70% 機會捉住。成功時右手跳掣會變成「撐上」。撳一下可以早啲爬，電腦用空白鍵。放手等一陣亦會自動爬。撐上唔會消耗二段跳。[睇 iPhone Duo 撳掣示範](https://penny323mo.github.io/OnlyJump/duo-pull-up.mp4) · [睇茶几扶邊近鏡](https://penny323mo.github.io/OnlyJump/ledge-grab.mp4)

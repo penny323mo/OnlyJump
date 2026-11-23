@@ -5,8 +5,9 @@ const REACH := .57
 const SETTLE_TIME := .10
 const HANG_TIME := .43
 const CLIMB_TIME := .46
+enum Attempt { NONE, JUMP, SLIP }
 var rng := RandomNumberGenerator.new()
-var available := false
+var attempt := Attempt.NONE
 var active := false
 var elapsed := 0.0
 var climb_start := HANG_TIME
@@ -21,7 +22,7 @@ var support_body: CollisionObject3D
 var support_transform := Transform3D.IDENTITY
 
 func reset() -> void:
-	available = false
+	attempt = Attempt.NONE
 	active = false
 	elapsed = 0
 	support_body = null
@@ -37,14 +38,16 @@ func room_to_move(player: CharacterBody3D, at: Vector3, motion: Vector3) -> bool
 	return not player.test_move(from,motion,null,player.safe_margin)
 
 func try_catch(player: CharacterBody3D, approach: Vector2, last_ledge: int, foot_radius: float) -> bool:
-	if not available or approach.length_squared()<.04: return false
+	if attempt==Attempt.NONE or approach.length_squared()<.04: return false
 	var direction := Vector3(approach.x,0,approach.y).normalized()
 	var foot := player.global_position
 	var ahead := foot+direction*REACH
 	var top := ray(player,ahead+Vector3.UP*1.10,ahead+Vector3.UP*.37)
 	if top.is_empty() or top.normal.y<cos(player.floor_max_angle): return false
 	var body: Object = top.collider
-	if not body.has_meta("ledge") or int(body.get_meta("ledge"))==last_ledge: return false
+	if not body.has_meta("ledge"): return false
+	var same_ledge:=int(body.get_meta("ledge"))==last_ledge
+	if same_ledge != (attempt==Attempt.SLIP): return false
 	var outside := Vector3(foot.x,top.position.y-.055,foot.z)
 	var lip := ray(player,outside,outside+direction*REACH)
 	if lip.get("collider")!=body or absf(lip.normal.y)>.7: return false
@@ -67,8 +70,8 @@ func try_catch(player: CharacterBody3D, approach: Vector2, last_ledge: int, foot
 	var high := Vector3(hang.x,maxf(middle.y,finish.y)+.06,hang.z)
 	var across := Vector3(finish.x,high.y,finish.z)
 	if not room_to_move(player,foot,hang-foot) or not room_to_move(player,hang,high-hang) or not room_to_move(player,high,across-high): return false
-	# One roll for the whole jump, after the lip and the climb path qualify.
-	available = false
+	# Roll only once in this flight, after both hands and the climb path fit.
+	attempt = Attempt.NONE
 	if rng.randf()>=CHANCE: return false
 	support_body=body
 	support_transform=support_body.global_transform
