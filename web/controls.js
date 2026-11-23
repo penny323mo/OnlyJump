@@ -5,7 +5,7 @@ function attachControls(send, isPlaying) {
   const knob = pad.firstElementChild;
   const owners = new Map();
   const active = new Map();
-  const touchOrbitThreshold = 4; // CSS pixels from touchdown
+  const touchOrbitThreshold = 4; // CSS pixels to start or resume a drag
   let pinch = null;
   const roles = '#padZone,#pad,#jump,#sprint,#look';
   // Safari can deliver input on the new display before its resize event.
@@ -47,7 +47,7 @@ function attachControls(send, isPlaying) {
     const leftLookHit = touch && hit === 'look' && x < viewWidth / 2;
     const role = hit === 'padZone' || leftLookHit ? 'pad' : hit;
     if (!role) return false;
-    const contact = {role,x,y,originX:x,originY:y,touch};
+    const contact = {id,role,x,y,originX:x,originY:y,touch};
     if (role==='pad') {
       const current=owners.get(active.get('pad'));
       // A first finger in empty space floats the stick before we know if
@@ -69,7 +69,7 @@ function attachControls(send, isPlaying) {
       if (!pinch && !contact.ownsStick) {
         for (const other of owners.values()) {
           if (!other.touch || !(other.role==='look' || other.role==='free' || (other.role==='pad' && !other.ownsStick))) continue;
-          if (other.orbited && other.role==='look' && role==='pad' && !active.has('pad')) continue;
+          if (other.orbit && other.role==='look' && role==='pad' && !active.has('pad')) continue;
           if (other.role==='pad') restorePad();
           active.delete(other.role);
           contact.role=other.role='pinch';
@@ -121,13 +121,13 @@ function attachControls(send, isPlaying) {
         if (!active.has('jump')) send('jump');
       }
     } else if (contact.role === 'look') {
-      const starting = contact.touch && !contact.orbited;
+      const starting = contact.touch && contact.orbit!=='dragging';
       const dx=x-(starting ? contact.originX : contact.x);
       const dy=y-(starting ? contact.originY : contact.y);
       // Let a second finger join a pinch despite normal fingertip drift.
       // Once a drag starts, send even small adjustments at full precision.
       if (!starting || Math.hypot(dx,dy)>=touchOrbitThreshold) {
-        contact.orbited=true;
+        contact.orbit='dragging';
         const span=Math.max(240,Math.min(innerWidth,innerHeight));
         send('look',dx/span,dy/span);
       }
@@ -135,17 +135,26 @@ function attachControls(send, isPlaying) {
     contact.x=x; contact.y=y;
     return true;
   }
-  function end(id) {
+  function end(id, lifted=false) {
     const contact=owners.get(id);
     if (!contact) return false;
     owners.delete(id);
     active.delete(contact.role);
     if (contact.role==='pinch') {
-      // A lifted/cancelled pinch must not turn the camera or move the player
-      // with its surviving finger. It can still take part in the next pinch.
       const remaining=contact===pinch.a ? pinch.b : pinch.a;
-      remaining.role='free';
       pinch=null;
+      if (lifted && remaining.orbit && !active.has('look')) {
+        // Return control only to the thumb that was already turning the view.
+        // A fresh drag starts here, so pinch travel never rotates the camera.
+        remaining.role='look';
+        remaining.orbit='resuming';
+        remaining.originX=remaining.x;
+        remaining.originY=remaining.y;
+        active.set('look',remaining.id);
+      } else {
+        remaining.role='free';
+        remaining.orbit=null;
+      }
     }
     if (contact.role==='pad') { restorePad(); send('stick',0,0); }
     if (contact.role==='sprint') send('sprint',false);
@@ -172,6 +181,12 @@ function attachControls(send, isPlaying) {
           // jump against this sample's aim while its held controls still exist.
           const sprintId=active.get('sprint');
           let swipe;
+          if (pinch && type==='touchend') {
+            for (const t of e.touches) {
+              const id='t'+t.identifier;
+              if (owners.get(id)?.role==='pinch') move(id,t.clientX,t.clientY);
+            }
+          }
           for (const t of e.changedTouches) {
             const id='t'+t.identifier;
             if (id===sprintId) swipe=t;
@@ -183,7 +198,7 @@ function attachControls(send, isPlaying) {
         if (!moving) {
           for (const t of e.changedTouches) {
             const id='t'+t.identifier;
-            const handled=type==='touchstart' ? begin(id,t.target,t.clientX,t.clientY,true) : end(id);
+            const handled=type==='touchstart' ? begin(id,t.target,t.clientX,t.clientY,true) : end(id,type==='touchend');
             used=handled || used;
           }
         }
@@ -228,7 +243,7 @@ function attachControls(send, isPlaying) {
         move(id,e.clientX,e.clientY);
         updatePinch();
       }
-      end(id);
+      end(id,type==='pointerup');
     },true);
   }
   document.getElementById('look').oncontextmenu=e=>e.preventDefault();

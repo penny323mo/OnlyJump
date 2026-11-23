@@ -260,6 +260,71 @@ test('a new joystick finger can steer while the other thumb is already orbiting'
   assert.deepEqual(calls.at(-1),['stick',1,0]);
 });
 
+test('the turning thumb can keep orbiting after a pinch while the other thumb steers',()=>{
+  const {fire,finger,calls,pad}=fixture();
+  const joy=finger(1,'padZone',88,297), drive=finger(1,'padZone',110,297), reverse=finger(1,'padZone',66,297);
+  const camera=x=>finger(2,'look',x,134), helper=finger(3,'padZone',290,134);
+  fire('touchstart',[joy],[joy]);
+  fire('touchmove',[drive],[drive]);
+  fire('touchstart',[camera(530)],[drive,camera(530)]);
+  fire('touchmove',[camera(550)],[drive,camera(550)]);
+  fire('touchstart',[helper],[drive,camera(550),helper]);
+  fire('touchmove',[camera(585)],[drive,camera(585),helper]);
+  // Safari's lift can carry a newer position for the thumb that stayed down.
+  fire('touchend',[helper],[drive,camera(591)]);
+  fire('touchmove',[camera(593),reverse],[reverse,camera(593)]);
+  assert.equal(calls.filter(([name])=>name==='look').length,1);
+  assert(calls.at(-1)[0]==='stick' && calls.at(-1)[1]<-.45);
+  fire('touchmove',[camera(611)],[reverse,camera(611)]);
+  fire('touchmove',[camera(612)],[reverse,camera(612)]);
+  assert.deepEqual(calls.slice(-2),[['look',20/390,0],['look',1/390,0]]);
+  assert.equal(pad.dataset.active,'true');
+  fire('touchend',[camera(612),reverse],[]);
+  assert.deepEqual(calls.at(-1),['stick',0,0]);
+});
+
+test('repeated pinches retain only the original turning finger on a normal lift',()=>{
+  for(const exit of ['helper','turning thumb','cancel','missing']){
+    const {fire,finger,calls}=fixture();
+    const cam=x=>finger(1,'look',x,150), helper=x=>finger(2,'look',x,150);
+    fire('touchstart',[cam(510)],[cam(510)]);
+    fire('touchmove',[cam(530)],[cam(530)]);
+    fire('touchstart',[helper(650)],[cam(530),helper(650)]);
+    fire('touchmove',[helper(670)],[cam(530),helper(670)]);
+    fire('touchend',[helper(670)],[cam(530)]);
+    fire('touchstart',[helper(660)],[cam(530),helper(660)]);
+    fire('touchmove',[cam(490)],[cam(490),helper(660)]);
+    const before=calls.length;
+    if(exit==='turning thumb'){
+      fire('touchend',[cam(490)],[helper(660)]);
+      fire('touchmove',[helper(690)],[helper(690)]);
+    }else{
+      if(exit==='missing')fire('touchmove',[cam(490)],[cam(490)]);
+      else fire(exit==='cancel'?'touchcancel':'touchend',[helper(660)],[cam(490)]);
+      fire('touchmove',[cam(511)],[cam(511)]);
+    }
+    assert.deepEqual(calls.slice(before),exit==='helper'?[['look',21/390,0]]:[],exit);
+  }
+});
+
+test('a pointer-only orbit resumes from its new position and ignores a cancelled pinch',()=>{
+  for(const end of ['pointerup','pointercancel','lostpointercapture']){
+    const {pointer,calls,window}=fixture(undefined,false);
+    const frames=[];
+    window.requestAnimationFrame=fn=>frames.push(fn);
+    pointer('pointerdown',1,'look',530);pointer('pointermove',1,'look',550);
+    pointer('pointerdown',2,'look',630);
+    pointer('pointermove',1,'look',521);pointer('pointermove',2,'look',651);
+    frames.shift()();
+    pointer('pointermove',1,'look',512);
+    pointer(end,2,'look',651);
+    const before=calls.length;
+    frames.shift()();
+    pointer('pointermove',1,'look',513);pointer('pointermove',1,'look',531);
+    assert.deepEqual(calls.slice(before),end==='pointerup'?[['look',19/390,0]]:[],end);
+  }
+});
+
 test('pointer-only touchscreens sample both fingers together and retire cancelled pinches',()=>{
   const {pointer,calls,window}=fixture(undefined,false);
   const frames=[];
