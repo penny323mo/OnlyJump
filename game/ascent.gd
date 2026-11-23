@@ -245,6 +245,7 @@ func show_intro() -> void:
 	ledge=0
 	alternate=false
 	art.branches.reset()
+	art.platter.turn(0.)
 	art.pickups.reset()
 	clear_controls()
 	player.reset_at(Islands.ROUTE[0])
@@ -258,6 +259,7 @@ func start_run() -> void:
 	falls = 0
 	summit_times.start_run()
 	art.branches.reset()
+	art.platter.turn(0.)
 	art.pickups.reset()
 	alternate=false
 	ledge = 0
@@ -358,6 +360,7 @@ func on_landing(index: int, strength: float) -> void:
 	ledge = index
 	art.branches.land(index)
 	match index:
+		8: notice="黑膠會帶住你轉，行返木邊可以企定"
 		Islands.Branches.TRACK: notice="順住橙槽滑，棋盤格起跳返滑板"
 		Islands.Branches.FAN: notice="企穩扇葉，轉到對面先起跳"
 		Islands.Branches.PENDULUM: notice="擺向鋼樑、接近高位就起跳"
@@ -397,6 +400,7 @@ func _physics_process(delta: float) -> void:
 	if phase=="interrupted" and recenter_camera: game_camera(delta,true)
 	if phase != "playing": return
 	elapsed += delta
+	art.platter.turn(elapsed)
 	art.branches.advance(delta,player.grounded_ledge if player.is_on_floor() else -1,player.position)
 	landing_guide.follow_support()
 	var turn := int(Input.is_physical_key_pressed(KEY_E)) - int(Input.is_physical_key_pressed(KEY_Q))
@@ -612,8 +616,8 @@ func update_hud() -> void:
 		landing_ring.visible = art.branches.bodies[next].collision_layer!=0
 	if landing_ring.visible:
 		var target:=art.stop_position(next)
-		# Raised keys, tape reels and the turntable platter sit above their deck.
-		var visible_top: float = {6:.12,8:.18,9:.22,14:.06,17:.055,24:.10}.get(next,.05)
+		# Leave the ring above raised fittings such as keys and tape reels.
+		var visible_top: float = {6:.12,9:.22,14:.06,17:.055,24:.10}.get(next,.05)
 		landing_ring.position = target+Vector3.UP*visible_top
 	var height := maxf(0.0,player.position.y)
 	var tape_hint:=""

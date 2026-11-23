@@ -17,6 +17,7 @@ const Branches = preload("res://game/branch_routes.gd")
 var branches := Branches.new()
 var pickups := preload("res://game/pickups.gd").new()
 var aerial: MeshInstance3D
+var platter:=preload("res://game/record_platter.gd").new()
 const LAUNDRY_START := 18
 const PREVIOUS_HEIGHTS := [0.,1.35,3.05,4.95,7.05,9.1,11.25,13.5,15.75,17.95,20.25,22.65,25.,27.1,29.25,31.45,33.65,35.85,38.]
 const NAMES := ["士多天台","絲絨梳化","木茶几","膽機電視","皮喼","波鞋鞋底","錄音帶","手提音響","黑膠唱盤","電子琴","古董相機","滑板","玩具跑車","碼頭繫纜柱","貨櫃","橫放電纜轆","吊臂鋼樑","三角形郵筒紙盒","失物招領枱","熨衫板","木衣夾","滾筒洗衣機","晾衫架","鋁摺梯","天台太陽傘"]
@@ -52,7 +53,10 @@ func _ready() -> void:
 			5: model_prop(body,SHOE,4.22,Vector3(0,10,180))
 			6: cassette(body)
 			7: model_prop(body,STEREO,3.8,Vector3(0,-85,0))
-			8: turntable(body)
+			8:
+				turntable(body)
+				body.add_child(platter)
+				platter.build(self)
 			9: keyboard(body)
 			10: model_prop(body,CAMERA,3.1,Vector3(0,30,0))
 			11: skateboard(body)
@@ -109,6 +113,7 @@ func destination(id: int, alternate: bool) -> int:
 	return id+1 if id+1<ROUTE.size() else -1
 
 func stop_position(id: int) -> Vector3:
+	if id==8: return platter.global_position+Vector3.UP*platter.TOP
 	return branches.target(id) if Branches.STOPS.has(id) else ROUTE[id]
 
 func model_prop(body: StaticBody3D, scene: PackedScene, span: float, angles: Vector3) -> void:

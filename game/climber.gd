@@ -156,6 +156,16 @@ func launch_horizontal(horizontal: Vector2, direction: Vector2) -> Vector2:
 func takeoff_rise() -> float:
 	return clampf(track_velocity.y,0.,1.65) if track and is_on_floor() else 0.
 
+func takeoff_carry() -> Vector3:
+	var floor_body:=stance.support as PhysicsBody3D
+	if floor_body and not get_platform_angular_velocity().is_zero_approx():
+		# Use the same planted support even on a floor-snap tick with no new
+		# slide contact. Takeoff uses the runner's centre, not a manifold rim.
+		var state:=PhysicsServer3D.body_get_direct_state(floor_body.get_rid())
+		if state and not state.angular_velocity.is_zero_approx():
+			return state.get_velocity_at_local_position(global_position-state.transform.origin)
+	return get_platform_velocity()
+
 func coasting() -> bool:
 	return track and is_on_floor() and track_velocity.length_squared()>.64
 

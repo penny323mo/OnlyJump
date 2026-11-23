@@ -159,11 +159,6 @@ func cassette(b: StaticBody3D) -> void:
 func turntable(b: StaticBody3D) -> void:
 	deck(b,Vector3(3.65,0.42,2.85),"a4513e",0.11)
 	box(b,Vector3(0,-0.04,0),Vector3(3.5,0.11,2.67),"d1b994")
-	var p := Vector3(-0.33,0.075,0)
-	cone(b,p,0.11,1.20,1.21,"343c40",64)
-	for i in 5: rim(b,p+Vector3.UP*0.057,1.09-i*0.11,0.014,"51605e")
-	cone(b,p+Vector3.UP*0.069,0.028,.35,.35,"d99a55")
-	cone(b,p+Vector3.UP*0.09,0.05,.04,.04,"d7d4bf")
 	tube(b,Vector3(1.40,.23,-0.91),Vector3(1.32,.24,0.52),.047,"b7c5c0")
 	tube(b,Vector3(1.32,.24,0.52),Vector3(0.78,.18,0.77),.05,"bcc7c1")
 	box(b,Vector3(.77,.16,.77),Vector3(.22,.12,.16),"403e3f")

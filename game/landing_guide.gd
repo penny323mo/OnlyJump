@@ -2,6 +2,7 @@ extends MeshInstance3D
 
 const Climber = preload("res://game/climber.gd")
 const Lift = preload("res://game/laundry_lift.gd")
+const RecordPlatter = preload("res://game/record_platter.gd")
 const MARK = preload("res://game/landing_guide.gdshader")
 const MARK_SIZE := .58
 const TICKS_PER_CAST := 4
@@ -147,9 +148,9 @@ func refresh(player: Climber, move: Vector2, tick: float) -> void:
 	if grounded:
 		horizontal = player.launch_horizontal(horizontal,move)
 		speed = horizontal.length()
-		# move_and_slide adds the support's contact velocity on takeoff.
+		# move_and_slide adds the support's velocity at the runner on takeoff.
 		# Air steering still uses the runner's speed relative to the support.
-		var carry := player.get_platform_velocity()
+		var carry := player.takeoff_carry()
 		horizontal += Vector2(carry.x,carry.z)
 		vertical = player.JUMP_SPEED + player.takeoff_rise() + .5*player.GRAVITY*tick + carry.y
 	var ahead:=0.
@@ -208,7 +209,8 @@ func refresh(player: Climber, move: Vector2, tick: float) -> void:
 				var normal := contact.get_collision_normal(i)
 				var body := contact.get_collider(i)
 				if normal.y<floor_y or not body.has_meta("ledge"): continue
-				if body.has_meta("mobile_surface") or body.has_meta("drop_surface"): return
+				# The vinyl rotates under the runner but its round footprint stays put.
+				if body.has_meta("drop_surface") or (body.has_meta("mobile_surface") and not body is RecordPlatter): return
 				if mark_contact(player,body,i,stop,floor_y):return
 			# A wall or underside blocks this arc. Wait for the real deflection.
 			return
