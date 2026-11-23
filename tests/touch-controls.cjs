@@ -116,6 +116,31 @@ test('pinch works on either side or across the screen, with one scale per touch 
   }
 });
 
+test('a staggered pinch across the centre tolerates slight drift of the first fingertip',()=>{
+  const {fire,finger,calls,pad}=fixture();
+  const first=finger(1,'look',480,150), drift=finger(1,'look',477,151);
+  fire('touchstart',[first],[first]);
+  fire('touchmove',[drift],[drift]);
+  const second=finger(2,'padZone',377,151);
+  fire('touchstart',[second],[drift,second]);
+  const wide=finger(1,'look',527,151);
+  fire('touchmove',[wide],[wide,second]);
+  fire('touchend',[wide,second],[]);
+  assert.deepEqual(calls,[['zoom',1.5]]);
+  assert.equal(pad.dataset.active,undefined);
+});
+
+test('a slow one-finger drag retains its full distance and subsequent fine adjustments',()=>{
+  const {fire,finger,calls}=fixture();
+  const start=finger(1,'look',480,150);
+  fire('touchstart',[start],[start]);
+  for(const x of [481,482,483,484,483]) {
+    const moved=finger(1,'look',x,150);
+    fire('touchmove',[moved],[moved]);
+  }
+  assert.deepEqual(calls,[['look',4/390,0],['look',-1/390,0]]);
+});
+
 test('two extra fingers on the left zoom without stealing a moving stick or sprint swipe',()=>{
   const {fire,finger,calls,pad}=fixture();
   const left=finger(1,'padZone',75,280), steered=finger(1,'padZone',110,280);
@@ -125,15 +150,16 @@ test('two extra fingers on the left zoom without stealing a moving stick or spri
   const a=finger(2,'padZone',160,140), b=finger(3,'padZone',260,140);
   fire('touchstart',[a,b],[steered,sprint,a,b]);
   const wide=finger(3,'padZone',310,140);
-  fire('touchmove',[wide],[steered,sprint,a,wide]);
-  fire('touchcancel',[wide],[steered,sprint,a]);
-  fire('touchend',[a],[steered,sprint]);
-  assert.deepEqual(calls.at(-1),['zoom',1.5]);
+  const reversed=finger(1,'padZone',25,280);
+  fire('touchmove',[wide,reversed],[reversed,sprint,a,wide]);
+  fire('touchcancel',[wide],[reversed,sprint,a]);
+  fire('touchend',[a],[reversed,sprint]);
+  assert.deepEqual(calls.slice(-2),[['stick',-1,0],['zoom',1.5]]);
   assert.equal(pad.dataset.active,'true');
   const jump=finger(4,'sprint',760,300);
-  fire('touchmove',[jump],[steered,jump]);
+  fire('touchmove',[jump],[reversed,jump]);
   assert.deepEqual(calls.at(-1),['jump']);
-  fire('touchend',[steered,jump],[]);
+  fire('touchend',[reversed,jump],[]);
   assert.deepEqual(calls.slice(-2),[['stick',0,0],['sprint',false]]);
 });
 

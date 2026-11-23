@@ -5,6 +5,7 @@ function attachControls(send, isPlaying) {
   const knob = pad.firstElementChild;
   const owners = new Map();
   const active = new Map();
+  const touchOrbitThreshold = 4; // CSS pixels from touchdown
   let pinch = null;
   const roles = '#padZone,#pad,#jump,#sprint,#look';
   // Safari can deliver input on the new display before its resize event.
@@ -46,7 +47,7 @@ function attachControls(send, isPlaying) {
     const leftLookHit = touch && hit === 'look' && x < viewWidth / 2;
     const role = hit === 'padZone' || leftLookHit ? 'pad' : hit;
     if (!role) return false;
-    const contact = {role,x,y,touch};
+    const contact = {role,x,y,originX:x,originY:y,touch};
     if (touch && (role==='pad' || role==='look')) {
       if (!pinch) {
         for (const other of owners.values()) {
@@ -70,7 +71,6 @@ function attachControls(send, isPlaying) {
     if (role === 'jump') send('jump');
     if (role === 'sprint') send('sprint',true);
     if (role === 'pad') {
-      contact.originX=x; contact.originY=y;
       contact.travel=pad.getBoundingClientRect().width*.29;
       pad.style.left=x+'px'; pad.style.top=y+'px'; pad.dataset.active='true';
       send('stick',0,0);
@@ -105,9 +105,16 @@ function attachControls(send, isPlaying) {
         if (!active.has('jump')) send('jump');
       }
     } else if (contact.role === 'look') {
-      const span = Math.max(240,Math.min(innerWidth,innerHeight));
-      if (x!==contact.x || y!==contact.y) contact.orbited=true;
-      send('look',(x-contact.x)/span,(y-contact.y)/span);
+      const starting = contact.touch && !contact.orbited;
+      const dx=x-(starting ? contact.originX : contact.x);
+      const dy=y-(starting ? contact.originY : contact.y);
+      // Let a second finger join a pinch despite normal fingertip drift.
+      // Once a drag starts, send even small adjustments at full precision.
+      if (!starting || Math.hypot(dx,dy)>=touchOrbitThreshold) {
+        contact.orbited=true;
+        const span=Math.max(240,Math.min(innerWidth,innerHeight));
+        send('look',dx/span,dy/span);
+      }
     }
     contact.x=x; contact.y=y;
     return true;
