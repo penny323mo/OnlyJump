@@ -11,21 +11,28 @@ function fixture(jumpBounds={left:720,top:260,width:80,height:80},touchEvents=tr
   window.addEventListener = (type,fn)=>handlers.set(type,fn);
   const nodes = {};
   nodes.canvas={focus(){}};
+  const sprintBounds=()=>({left:jumpBounds.left,top:jumpBounds.top-8-jumpBounds.height*.7,
+    width:jumpBounds.width,height:jumpBounds.height*.7,bottom:jumpBounds.top-8});
   for(const id of ['padZone','pad','sprint','jump','look']){
     nodes[id]={id,style:{},dataset:{},closest:()=>nodes[id],firstElementChild:{style:{}},
-      getBoundingClientRect:()=>id==='jump'?jumpBounds:{left:20,top:229,width:136,height:136}};
+      contains:node=>nodes[id]===node,
+      getBoundingClientRect:()=>id==='jump'?jumpBounds:id==='sprint'?sprintBounds():{left:20,top:229,width:136,height:136}};
   }
+  const elementFromPoint=(x,y)=>{
+    const r=sprintBounds();
+    return x>=r.left && x<=r.left+r.width && y>=r.top && y<=r.bottom ? nodes.sprint : nodes.look;
+  };
   const layoutSize=nodes.layoutSize={offsetWidth:844,offsetHeight:390};
   const calls=[];
   const source=readFileSync(join(__dirname,'../web/controls.js'),'utf8');
   const reset=runInNewContext(source+'\nattachControls(send,()=>true)',{
-    window,document:{getElementById:id=>nodes[id]},innerWidth:844,innerHeight:390,
+    window,document:{getElementById:id=>nodes[id],elementFromPoint},innerWidth:844,innerHeight:390,
     send:(...args)=>calls.push(args)
   });
   const finger=(identifier,role,clientX,clientY)=>({identifier,target:nodes[role],clientX,clientY});
   const fire=(type,changedTouches,touches)=>handlers.get(type)({changedTouches,touches,cancelable:true,preventDefault(){}});
-  const pointer=(type,id,role,x)=>handlers.get(type)({pointerId:id,pointerType:'touch',target:nodes[role],
-    clientX:x,clientY:120,button:0,buttons:type==='pointerup'?0:1,preventDefault(){}});
+  const pointer=(type,id,role,x,y=120)=>handlers.get(type)({pointerId:id,pointerType:'touch',target:nodes[role],
+    clientX:x,clientY:y,button:0,buttons:type==='pointerup'?0:1,preventDefault(){}});
   return {fire,finger,pointer,reset,calls,pad:nodes.pad,layoutSize,window};
 }
 
@@ -48,17 +55,48 @@ test('floating pad starts neutral under the thumb, reverses, and returns home on
   assert.equal(pad.style.left,'39px');
 });
 
-test('one right thumb can hold sprint, slide to jump once, and release independently of the pad',()=>{
+test('one right thumb can repeat a running jump only after returning to sprint',()=>{
   const {fire,finger,calls}=fixture();
   const pad=finger(4,'padZone',90,280),run=finger(8,'sprint',760,205),inside=finger(8,'sprint',757,312);
   fire('touchstart',[pad,run],[pad,run]);
   fire('touchmove',[inside],[pad,inside]);
-  fire('touchmove',[run],[pad,run]);
+  const gap=finger(8,'sprint',757,257);
+  fire('touchmove',[gap],[pad,gap]);
   fire('touchmove',[inside],[pad,inside]);
   assert.deepEqual(calls,[['stick',0,0],['sprint',true],['jump']]);
+  fire('touchmove',[run],[pad,run]);
+  fire('touchmove',[inside],[pad,inside]);
+  assert.deepEqual(calls,[['stick',0,0],['sprint',true],['jump'],['jump']]);
   fire('touchend',[inside],[pad]);
   assert.deepEqual(calls.at(-1),['sprint',false]);
   assert(!calls.slice(1).some(c=>c[0]==='stick'));
+});
+
+test('a quick upward return that passes through sprint rearms even on pointer-only screens',()=>{
+  const {pointer,calls}=fixture(undefined,false);
+  pointer('pointerdown',8,'sprint',760,205);
+  pointer('pointermove',8,'sprint',760,345);
+  pointer('pointermove',8,'sprint',760,150);
+  pointer('pointerup',8,'sprint',760,350);
+  assert.deepEqual(calls,[['sprint',true],['jump'],['jump'],['sprint',false]]);
+});
+
+test('a return beside sprint, a moving button, and a cancelled finger cannot repeat a jump',()=>{
+  const box={left:720,top:260,width:80,height:80};
+  const {fire,finger,calls}=fixture(box);
+  const point=(x,y)=>finger(8,'sprint',x,y);
+  const start=point(760,205),land=point(760,305);
+  const move=p=>fire('touchmove',[p],[p]);
+  fire('touchstart',[start],[start]);move(land);
+  move(point(690,282));move(point(690,175));move(land);
+  // Simulate browser chrome moving the sprint button under this finger.
+  box.top+=105;
+  move(land);move(point(760,304));move(point(760,400));
+  assert.deepEqual(calls,[['sprint',true],['jump']]);
+  move(point(760,320));
+  fire('touchcancel',[point(760,400)],[]);
+  assert.deepEqual(calls.at(-1),['sprint',false]);
+  assert.equal(calls.filter(([action])=>action==='jump').length,1);
 });
 
 test('left thumb crossing the centre keeps steering while a separate right thumb looks',()=>{

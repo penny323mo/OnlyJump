@@ -2,6 +2,8 @@
 // contacts even if Safari cancels or reuses another finger.
 function attachControls(send, isPlaying) {
   const pad = document.getElementById('pad');
+  const sprint = document.getElementById('sprint');
+  const jump = document.getElementById('jump');
   const knob = pad.firstElementChild;
   const owners = new Map();
   const active = new Map();
@@ -40,6 +42,33 @@ function attachControls(send, isPlaying) {
     const scale=span/pinch.span;
     pinch.span=span;
     send('zoom',scale);
+  }
+  function entersJump(contact,x,y) {
+    // In button-radius units the ellipse is a unit circle. Check the
+    // whole swipe segment so coalesced events can still cross its edge.
+    const r=jump.getBoundingClientRect();
+    if (!r.width || !r.height) return false;
+    const rx=r.width/2, ry=r.height/2;
+    const startX=(contact.x-r.left-rx)/rx, startY=(contact.y-r.top-ry)/ry;
+    const dx=(x-contact.x)/rx, dy=(y-contact.y)/ry;
+    const length2=dx*dx+dy*dy;
+    if (!length2 || Math.hypot(startX,startY)<=1) return false;
+    const t=Math.max(0,Math.min(1,-(startX*dx+startY*dy)/length2));
+    return Math.hypot(startX+t*dx,startY+t*dy)<=1;
+  }
+  function returnsToSprint(contact,x,y) {
+    if (y>=contact.y) return false;
+    const r=sprint.getBoundingClientRect();
+    if (y>=r.bottom || contact.y<=r.top) return false;
+    const hits=(px,py)=>sprint.contains(document.elementFromPoint(px,py));
+    // Moving the toolbar under a held thumb must not rearm it.
+    if (hits(contact.x,contact.y)) return false;
+    if (hits(x,y)) return true;
+    // A fast return can go all the way past the button between samples.
+    const middle=r.top+r.height/2;
+    if (middle>contact.y || middle<y) return false;
+    const t=(middle-contact.y)/(y-contact.y);
+    return hits(contact.x+(x-contact.x)*t,middle);
   }
   function begin(id, target, x, y, touch) {
     if (!isPlaying() || owners.has(id)) return false;
@@ -104,20 +133,11 @@ function attachControls(send, isPlaying) {
       else { contact.ownsStick=true; dx /= Math.max(1,radius); dy /= Math.max(1,radius); }
       knob.style.transform = 'translate('+dx*contact.travel+'px,'+dy*contact.travel+'px)';
       send('stick',dx,dy);
-    } else if (contact.role === 'sprint' && !contact.jumped) {
-      // In button-radius units the ellipse is a unit circle. Check the
-      // whole swipe segment so coalesced events can still cross its edge.
-      const r=document.getElementById('jump').getBoundingClientRect();
-      if (!r.width || !r.height) return false;
-      const rx=r.width/2, ry=r.height/2;
-      const startX=(contact.x-r.left-rx)/rx, startY=(contact.y-r.top-ry)/ry;
-      const dx=(x-contact.x)/rx, dy=(y-contact.y)/ry;
-      const length2=dx*dx+dy*dy;
-      const t=length2 ? Math.max(0,Math.min(1,-(startX*dx+startY*dy)/length2)) : 0;
-      // A toolbar animation can move the button under a stationary finger.
-      // Require the finger to enter the current button from outside.
-      if (length2>0 && Math.hypot(startX,startY)>1 && Math.hypot(startX+t*dx,startY+t*dy)<=1) {
-        contact.jumped=true;
+    } else if (contact.role === 'sprint') {
+      if (contact.needsReturn) {
+        if (returnsToSprint(contact,x,y)) contact.needsReturn=false;
+      } else if (entersJump(contact,x,y)) {
+        contact.needsReturn=true;
         if (!active.has('jump')) send('jump');
       }
     } else if (contact.role === 'look') {

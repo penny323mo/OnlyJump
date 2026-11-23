@@ -57,9 +57,10 @@ async function exercise(page, url) {
         }
       } else {
         const [pad, run] = window.heldFingers;
-        if (step === 'slide') {
-          [run.clientX, run.clientY] = center('jump');
-          if (document.elementFromPoint(run.clientX,run.clientY)?.id !== 'jump') throw Error('Jump obscured');
+        if (step === 'slide' || step === 'return') {
+          const button=step==='slide'?'jump':'sprint';
+          [run.clientX, run.clientY] = center(button);
+          if (document.elementFromPoint(run.clientX,run.clientY)?.id !== button) throw Error(button+' obscured');
           dispatch('touchmove', [run], [pad,run]);
         } else {
           dispatch('touchend', [pad,run], []);
@@ -94,12 +95,18 @@ async function exercise(page, url) {
       await page.waitForFunction(() => document.querySelector('#sprint').getAttribute('aria-pressed') === 'true');
       await gesture('slide');
       await page.waitForFunction(() => Number(document.querySelector('#height').textContent) > 1.1);
+      await page.waitForFunction(() => Number(document.querySelector('#height').textContent) < .8);
+      await gesture('return');
+      assert.equal(await button('sprint').getAttribute('aria-pressed'), 'true');
+      await gesture('slide');
+      await page.waitForFunction(() => Number(document.querySelector('#height').textContent) > 1.1);
       await gesture('end');
       await page.waitForFunction(() => Number(document.querySelector('#height').textContent) < .8);
       assert.equal(await button('pad').getAttribute('data-active'), null);
       assert.equal(await button('sprint').getAttribute('aria-pressed'), 'false');
       await tap('pause');
-      assert.match(await button('report').innerText(), new RegExp('· ' + (++jumps) + ' 次起跳 · 0 次跌落'));
+      jumps+=2;
+      assert.match(await button('report').innerText(), new RegExp('· ' + jumps + ' 次起跳 · 0 次跌落'));
       await tap('continue');
       console.log(name, width, height, 'ledge 1, jumps', jumps);
     }
