@@ -66,6 +66,8 @@ jobs:
           godot --headless --fixed-fps 60 --quit-after 1500 --script tests/records.gd | tee "$RUNNER_TEMP/records.log"
           grep -Fxq 'PASS standing height, moving basket, old saves and relaunch' "$RUNNER_TEMP/records.log"
           grep -Fxq 'PASS summit times, independent branch splits, ties, pause and relaunch' "$RUNNER_TEMP/records.log"
+          godot --headless --fixed-fps 60 --quit-after 1200 --script tests/interruption.gd | tee "$RUNNER_TEMP/interruption.log"
+          grep -Fxq 'PASS mobile interruption holds airborne and moving-platform state until deliberate input' "$RUNNER_TEMP/interruption.log"
           godot --headless --fixed-fps 60 --quit-after 3500 --script tests/camera.gd | tee "$RUNNER_TEMP/camera.log"
           grep -Fxq 'PASS continuous orbit keeps manual heading and a clear view on nine objects' "$RUNNER_TEMP/camera.log"
           grep -Fxq 'PASS pinch zoom changes camera distance, respects obstacles and preserves heading' "$RUNNER_TEMP/camera.log"

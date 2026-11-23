@@ -53,7 +53,7 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
 #pad,#jump{pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;position:absolute;border-radius:50%;border:1px solid #fff5dba6;background:#30413ba8;color:#fff2d8;display:grid;place-items:center}#pad{left:max(20px,var(--safe-left));bottom:max(25px,var(--safe-bottom));width:96px;height:96px}#pad i{width:36px;height:36px;border-radius:50%;background:#f8edd09e;border:1px solid #fff4d7aa}
 #jump,#sprint{right:var(--control-right);width:var(--action-width);font-size:clamp(18px,5vmin,22px);font-weight:700}
 #jump{bottom:var(--action-bottom);height:var(--action-height)}#jump[data-grip]{color:#fff4dc;background:#79411a;border:2px solid #ffd59a}#jump:active,#jump[data-pressed]{color:#302d24;background:#f8bd72;box-shadow:inset 0 0 0 3px #fff2d8}
-.touch-copy{display:none}body[data-mode=playing] .brand{color:#263b34;background:#fbefdde3;border-radius:4px;padding:6px 10px;font-size:19px}body[data-mode=playing] .mark{width:24px;height:20px}
+.touch-copy{display:none}body:is([data-mode=playing],[data-mode=interrupted]) .brand{color:#263b34;background:#fbefdde3;border-radius:4px;padding:6px 10px;font-size:19px}body:is([data-mode=playing],[data-mode=interrupted]) .mark{width:24px;height:20px}
 @media(any-pointer:coarse){#touch:not([hidden]){display:block}.key-copy{display:none!important}.touch-copy{display:inline}.controls{display:none}}
 @media(max-width:660px) and (orientation:portrait){:root{--gut:21px}.wash{background:linear-gradient(0deg,#f1e3cc 4%,#f1e3cfee 24%,#f2e4ceaa 45%,transparent 66%)}#intro{align-items:end;padding-bottom:72px}.intro-content{width:100%}h1{font-size:clamp(78px,19vw,120px);line-height:.87;margin:8px 0}h1 span{display:inline}h1 span+span{margin-left:.10em}.summary{margin:12px 0 15px;max-width:24em;font-size:14px}.bottom{bottom:max(18px,var(--safe-bottom))}.route-sign{padding:6px 10px}.controls{gap:7px}.route-sign small{display:none}.brand{font-size:21px}.route-sign strong{font-size:11px}#hud{top:calc(max(24px,var(--safe-top)) + 51px)}.alt-card{min-width:136px}}
 @media(max-height:550px){header{top:max(13px,var(--safe-top))}.brand{font-size:19px}.mark{width:24px;height:21px}#intro{padding-top:45px;padding-bottom:40px}.intro-content{width:48vw}h1{font-size:clamp(56px,16vh,85px);margin:8px 0}.summary{font-size:12px;line-height:1.45;margin:8px 0}.primary{padding:9px 13px;min-width:132px}.bottom{bottom:max(10px,var(--safe-bottom))}.route-sign{padding:5px 9px}.route-sign small{display:none}#hud{top:calc(max(13px,var(--safe-top)) + 42px)}.alt-card{padding:7px 10px}.number{font-size:33px}.pill{padding:6px 11px}}
@@ -75,11 +75,11 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
 /* In a short landscape viewport put the toolbar beside the thumb controls. */
 @media(orientation:landscape) and (max-height:282px){
   body{--action-bottom:max(12px,var(--safe-bottom));--action-room:calc((100dvh - var(--action-bottom) - max(17px,var(--safe-top))) / 1.7);--action-base:min(120px,var(--action-room))}
-  body[data-mode=playing] header{right:calc(var(--control-right) + var(--action-width) + 8px)}
+  body:is([data-mode=playing],[data-mode=interrupted]) header{right:calc(var(--control-right) + var(--action-width) + 8px)}
 }
 #hud{z-index:1}
 
-@media(any-pointer:coarse) and (max-width:600px){body[data-mode=playing] .brand{display:none}body[data-mode=playing] header{left:max(12px,var(--safe-left))}body[data-mode=playing] .actions{gap:4px}body[data-mode=playing] .actions .pill{font-size:11px;padding:7px}}
+@media(any-pointer:coarse) and (max-width:600px){body:is([data-mode=playing],[data-mode=interrupted]) .brand{display:none}body:is([data-mode=playing],[data-mode=interrupted]) header{left:max(12px,var(--safe-left))}body:is([data-mode=playing],[data-mode=interrupted]) .actions{gap:4px}body:is([data-mode=playing],[data-mode=interrupted]) .actions .pill{font-size:11px;padding:7px}}
 .panel{max-width:100%;max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px);overflow-y:auto}
 #buttonSizes{display:none;border:0;padding:0;margin:0 0 12px;min-width:0}
 #buttonSizes legend{padding:0;margin-bottom:5px;font-size:13px;font-weight:700}
@@ -179,6 +179,12 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
 @media(prefers-reduced-motion:reduce){#start::before{transition:none}#start[data-state=starting]::after{animation:none}}
 #timing{white-space:pre-line;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:4px}
 #split{font-variant-numeric:tabular-nums;font-weight:700}
+body[data-mode=interrupted] .pause-icon{display:none}
+@media(orientation:landscape) and (max-height:282px){
+  body[data-mode=interrupted] .alt-card{min-width:0}
+  body[data-mode=interrupted] .alt-card>:not(.route):not(.destination){display:none}
+  body[data-mode=interrupted] #notice{grid-column:2;margin-top:0}
+}
 #graphicsRecovery::backdrop{background:#243532e8}
 #graphicsRecovery .primary{justify-content:center;min-height:44px}
 </style>
@@ -188,7 +194,7 @@ $GODOT_HEAD_INCLUDE
 <canvas id="canvas" tabindex="-1" aria-label="OnlyJump 3D 遊戲場景"></canvas><div class="wash"></div>
 <div id="layoutSize" aria-hidden="true"></div>
 <div id="look" hidden aria-label="拖曳轉動視角"></div>
-<header><div class="brand" aria-label="OnlyJump"><i class="mark"></i>OnlyJump</div><div class="actions"><button class="pill" id="mute" aria-pressed="false" disabled><span class="soundmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="soundLabel">音效開</span></button><button class="pill" id="align" hidden>◎ 對準目標</button><button class="pill" id="pause" hidden><i class="pause-icon"></i>暫停</button></div></header>
+<header><div class="brand" aria-label="OnlyJump"><i class="mark"></i>OnlyJump</div><div class="actions"><button class="pill" id="mute" aria-pressed="false" disabled><span class="soundmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="soundLabel">音效開</span></button><button class="pill" id="align" hidden>◎ 對準目標</button><button class="pill" id="resumeHere" hidden>▶ 繼續</button><button class="pill" id="pause" hidden><i class="pause-icon" aria-hidden="true"></i><span id="pauseLabel">暫停</span></button></div></header>
 <main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1>
 <p class="summary" id="introGuide"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左手移動，右手掃動轉鏡。喺畫面空位用兩指張開拉近、合埋拉遠。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>分岔位撳「揀路」睇另一條路，青白十字係預計落點。</p>
 <p class="summary" id="error" role="status" hidden></p>
@@ -267,6 +273,9 @@ function sendControl(action,...args) {
   }
   send?.(action,...args);
 }
+function sceneControlsAvailable() {
+  return (mode==='playing' || mode==='interrupted') && !graphicsLost && !document.hidden;
+}
 let releaseContacts;
 function clearInputs() {
   releaseContacts?.();
@@ -344,7 +353,7 @@ function placePickupLabel(bounds,w,h,x,y,blocked) {
   return best;
 }
 window.OnlyJumpUI = {
-  lightweight,
+  lightweight,touchGraphics,
   clearInputs,
   pickupHint(x,y,name,x1=x,y1=y,x2=x,y2=y,bodyX1,bodyY1,bodyX2,bodyY2,markX1,markY1,markX2,markY2) {
     const tag=el('pickupHint');
@@ -399,12 +408,16 @@ window.OnlyJumpUI = {
   update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges,itemTotal,hookHint,gripAction,artStyle,bestClock="",result="",pace="") {
     const changed = mode !== next;
     const playing = next === 'playing', intro = next === 'intro', won = next === 'won';
+    const interrupted=next==='interrupted', scene=playing || interrupted;
     if(changed){
       mode=document.body.dataset.mode=next;
       el('intro').hidden=el('legend').hidden=!intro;
-      el('look').hidden=el('align').hidden=el('pause').hidden=el('hud').hidden=!playing;
-      el('touch').hidden=!(playing || next==='paused');
-      el('touch').inert=!playing;
+      el('look').hidden=el('pause').hidden=el('hud').hidden=!scene;
+      el('align').hidden=!playing;
+      el('resumeHere').hidden=!interrupted;
+      setText('pauseLabel',interrupted?'選項':'暫停');
+      el('touch').hidden=!(scene || next==='paused');
+      el('touch').inert=!scene;
       el('overlay').hidden=!(won || next==='paused');
       el('hintOptions').hidden=next!=='paused';
     }
@@ -413,7 +426,7 @@ window.OnlyJumpUI = {
     if(ability==='hook')setText('power','飛爪 · '+hookHint);
     else if(ability)setText('power',powers[ability]+' · '+(armed?'撳跳點火':Math.ceil(seconds)+' 秒')+(ability==='double'?' · 餘 '+charges+' 次':''));
     setHidden('branch',!playing || !fork);
-    setText('sectionName',laundry?'天台晾衣場':'失物天台');
+    setText('sectionName',interrupted?'已暫停':(laundry?'天台晾衣場':'失物天台'));
     if(character!==selectedCast){
       selectedCast=character;
       cast.forEach(([id,name],i)=>{
@@ -441,10 +454,11 @@ window.OnlyJumpUI = {
     if(intro) setText('summitSign',bestClock?'最快登頂 · '+bestClock:'太陽傘頂 · 20.7 m');
     setPressed('sprint',sprint);
     setText('sprint',sprint?'加速中':'加速');
-    setText('jump',playing && gripAction || '跳躍');
-    el('jump').toggleAttribute('data-grip',playing && gripAction==='撐上');
-    setText('notice',notice);
-    setHidden('notice',!notice);
+    setText('jump',scene && gripAction || '跳躍');
+    el('jump').toggleAttribute('data-grip',scene && gripAction==='撐上');
+    const message=interrupted?'推搖桿或撳「'+(gripAction || '跳躍')+'」繼續':notice;
+    setText('notice',message);
+    setHidden('notice',!message);
     if(won || next==='paused'){
       setText('panelTitle',won?'登上太陽傘':'已暫停');
       setText('timing',result);
@@ -457,6 +471,7 @@ window.OnlyJumpUI = {
       if (!playing) clearInputs();
       if (playing) restoreFocus();
       else if (intro) el('start').focus({preventScroll:true});
+      else if (interrupted) el('resumeHere').focus({preventScroll:true});
       else el('continue').focus({preventScroll:true});
     }
   }
@@ -477,16 +492,21 @@ let keyboardSprint=false;
 el('sprint').onkeydown=e=>{if(sprintKey(e)){e.preventDefault();if(!e.repeat){keyboardSprint=true;send('sprint',true)}}};
 el('sprint').onkeyup=e=>{if(sprintKey(e)){e.preventDefault();keyboardSprint=false;send('sprint',false)}};
 el('sprint').onblur=()=>{if(keyboardSprint){keyboardSprint=false;send('sprint',false)}};
-el('jump').onclick=e=>{if(e.detail===0 && mode==='playing')sendControl('jump')};
+el('jump').onclick=e=>{if(e.detail===0 && sceneControlsAvailable())sendControl('jump')};
 el('pause').onclick=()=>send('pause');
+el('resumeHere').onclick=()=>{if(sceneControlsAvailable())send('resume')};
 el('mute').onclick=()=>{send('mute');restoreFocus()};
 el('continue').onclick=()=>send(mode==='won'?'restart':'pause');
 el('reset').onclick=()=>send('restart');
 el('menu').onclick=()=>send('menu');
-document.addEventListener('visibilitychange',()=>{if(document.hidden && send)send('hide')});
-for (const event of ['blur','pagehide','orientationchange']) window.addEventListener(event,()=>{clearInputs();if(send)send('hide')});
+function interrupt() {
+  send?.('hide');
+  clearInputs();
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)interrupt()});
+for (const event of ['blur','pagehide','orientationchange']) window.addEventListener(event,interrupt);
 document.addEventListener('keydown',e=>{
-  if (mode==='paused' && (e.code==='Escape'||e.code==='KeyP') && e.target!==canvas) { e.preventDefault(); send('pause'); }
+  if ((mode==='paused' || mode==='interrupted') && (e.code==='Escape'||e.code==='KeyP') && e.target!==canvas) { e.preventDefault(); if(!e.repeat)send('pause'); }
   else if(mode==='paused' && e.code==='KeyR' && e.target!==canvas) {e.preventDefault();send('restart');}
   else if (e.code==='Tab' && !el('overlay').hidden) {
     const buttons=Array.from(el('overlay').querySelectorAll('button,summary,input[type=checkbox],input[type=radio]:checked,a[href]')).filter(node=>node.getClientRects().length);
@@ -578,7 +598,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
     bootFailure('遊戲檔案未下載完成，請檢查網絡再試。');
     return;
   }
-  releaseContacts=attachControls(sendControl,()=>mode==='playing');
+  releaseContacts=attachControls(sendControl,sceneControlsAvailable);
   const config=$GODOT_CONFIG;
   config.mainPack=Object.keys(config.fileSizes).find(name=>name.endsWith('.pck'));
   const missing=Engine.getMissingFeatures({threads:false});

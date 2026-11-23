@@ -29,6 +29,7 @@ var summit_times := preload("res://game/summit_times.gd").new(Islands.ROUTE.size
 var record_path := "user://summit.cfg"
 var muted := false
 var web: JavaScriptObject
+var touch_web := false
 var web_callback: JavaScriptObject
 var native_label: Label
 var stick := Vector2.ZERO
@@ -55,6 +56,7 @@ var notice := ""
 func _ready() -> void:
 	if OS.has_feature("web"):
 		web = JavaScriptBridge.get_interface("OnlyJumpUI")
+		touch_web = web != null and bool(web.touchGraphics)
 	var lightweight := web != null and bool(web.lightweight)
 	if lightweight:
 		get_viewport().msaa_3d = Viewport.MSAA_DISABLED
@@ -178,8 +180,9 @@ func web_command(args: Array) -> void:
 				save_record()
 		"start": start_run()
 		"pause": toggle_pause()
-		"hide":
-			if phase == "playing": toggle_pause()
+		"hide": interrupt_run()
+		"resume":
+			if phase=="interrupted": resume_run()
 		"menu": show_intro()
 		"restart": start_run()
 		"mute":
@@ -189,18 +192,20 @@ func web_command(args: Array) -> void:
 				footfall.stop()
 			save_record()
 		"stick":
-			if phase == "playing" and args.size() == 3:
+			if phase in ["playing","interrupted"] and args.size() == 3:
 				stick = Vector2(float(args[1]),float(args[2])).limit_length()
+				if phase=="interrupted" and not stick.is_zero_approx(): resume_run()
 			return
 		"look":
-			if phase == "playing" and args.size() == 3:
+			if phase in ["playing","interrupted"] and args.size() == 3:
 				orbit(float(args[1]),float(args[2]))
 			return
 		"zoom":
-			if phase == "playing" and args.size() == 2:
+			if phase in ["playing","interrupted"] and args.size() == 2:
 				var scale_factor := float(args[1])
 				if is_finite(scale_factor) and scale_factor > 0:
 					camera_reach = clampf(camera_reach/scale_factor,CLOSEST_ZOOM,FARTHEST_ZOOM)
+					if phase=="interrupted": recenter_camera=true
 			return
 		"branch":
 			if phase=="playing" and Islands.Branches.FORKS.has(ledge):
@@ -213,7 +218,7 @@ func web_command(args: Array) -> void:
 		"align":
 			if phase == "playing": face_target()
 		"sprint":
-			if phase == "playing" and args.size()==2: sprint = bool(args[1])
+			if phase in ["playing","interrupted"] and args.size()==2: sprint = bool(args[1])
 		"route_ring","landing_guide":
 			if phase=="paused" and args.size()==2:
 				set_hint(str(args[0]),bool(args[1]))
@@ -222,6 +227,7 @@ func web_command(args: Array) -> void:
 				oil_paint.visible=args[1]=="oil"
 				save_record()
 		"jump":
+			if phase=="interrupted": resume_run()
 			if phase == "playing": queue_jump()
 	update_hud()
 
@@ -263,17 +269,28 @@ func start_run() -> void:
 	update_hud()
 
 func toggle_pause() -> void:
-	if phase == "playing":
+	if phase in ["playing","interrupted"]:
 		phase = "paused"
 		clear_controls()
 	elif phase == "paused":
-		phase = "playing"
-		player.resume_on_carrier=player.is_on_floor() and not player.get_platform_velocity().is_zero_approx()
+		resume_run()
+		return
+	update_hud()
+
+func interrupt_run() -> void:
+	if phase not in ["playing","interrupted"]: return
+	phase="interrupted" if touch_web else "paused"
+	clear_controls()
+	update_hud()
+
+func resume_run() -> void:
+	phase="playing"
+	player.resume_on_carrier=player.is_on_floor() and not player.get_platform_velocity().is_zero_approx()
 	update_hud()
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and phase == "playing":
-		toggle_pause()
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		interrupt_run()
 
 func _input(event: InputEvent) -> void:
 	if phase == "playing" and not web:
@@ -374,6 +391,7 @@ func set_hint(which: String, enabled: bool) -> void:
 	update_hud()
 
 func _physics_process(delta: float) -> void:
+	if phase=="interrupted" and recenter_camera: game_camera(delta,true)
 	if phase != "playing": return
 	elapsed += delta
 	art.branches.advance(delta,player.grounded_ledge if player.is_on_floor() else -1,player.position)
