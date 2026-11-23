@@ -101,6 +101,7 @@ func _ready() -> void:
 	add_child(landing_guide)
 	add_child(player)
 	player.build(art)
+	landing_guide.configure(player,art.branches.lift)
 	var column := BoxShape3D.new()
 	column.size = Vector3(.30,player.BODY_HEIGHT+.06,.30)
 	camera_sweep.shape = column
@@ -395,6 +396,7 @@ func _physics_process(delta: float) -> void:
 	if phase != "playing": return
 	elapsed += delta
 	art.branches.advance(delta,player.grounded_ledge if player.is_on_floor() else -1,player.position)
+	landing_guide.follow_support()
 	var turn := int(Input.is_physical_key_pressed(KEY_E)) - int(Input.is_physical_key_pressed(KEY_Q))
 	if turn != 0: orbit(turn*delta*2.1/3.55,0)
 	var move := world_move()
