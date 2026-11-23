@@ -11,6 +11,7 @@ var step_query := PhysicsTestMotionParameters3D.new()
 var hit := PhysicsTestMotionResult3D.new()
 var support: Node3D
 var local_point := Vector3.ZERO
+var inward := Vector3.ZERO
 var first_fraction := INF
 
 func configure(player: Climber, basket: Lift) -> void:
@@ -68,7 +69,8 @@ func sweep(body: Node3D, query: PhysicsTestMotionParameters3D, start_pose: Trans
 		touchdown=clampf(from.y/(from.y-to.y),fraction,1.)
 	var foot:=from.lerp(to,touchdown)
 	local_point=Vector3(clampf(foot.x,-extent.x,extent.x),0.,clampf(foot.z,middle.z-extent.y,middle.z+extent.y))
-	if Vector2(foot.x-local_point.x,foot.z-local_point.z).length()>Climber.FOOT_RADIUS-query.margin:return
+	inward=Vector3(local_point.x-foot.x,0.,local_point.z-foot.z)
+	if inward.length()>Climber.FOOT_RADIUS-query.margin:return
 	support=body
 
 func trace(start: Vector3, end: Vector3, ahead: float, duration: float, tick: float, floor_y: float) -> bool:

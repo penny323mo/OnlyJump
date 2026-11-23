@@ -196,7 +196,7 @@ $GODOT_HEAD_INCLUDE
 <div id="look" hidden aria-label="拖曳轉動視角"></div>
 <header><div class="brand" aria-label="OnlyJump"><i class="mark"></i>OnlyJump</div><div class="actions"><button class="pill" id="mute" aria-pressed="false" disabled><span class="soundmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="soundLabel">音效開</span></button><button class="pill" id="align" hidden>◎ 對準目標</button><button class="pill" id="resumeHere" hidden>▶ 繼續</button><button class="pill" id="pause" hidden><i class="pause-icon" aria-hidden="true"></i><span id="pauseLabel">暫停</span></button></div></header>
 <main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1>
-<p class="summary" id="introGuide"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左手移動，右手掃動轉鏡。喺畫面空位用兩指張開拉近、合埋拉遠。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>分岔位撳「揀路」睇另一條路，青白十字係預計落點。</p>
+<p class="summary" id="introGuide"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左手移動，右手掃動轉鏡。喺畫面空位用兩指張開拉近、合埋拉遠。撳跳掣普通跳。按住上方加速掣，滑落跳掣就跑跳。</span>分岔位撳「揀路」睇另一條路，青白十字係落點，鞋邊先掂到時，黃箭嘴會指返入物件。</p>
 <p class="summary" id="error" role="status" hidden></p>
 <button class="primary" id="start" disabled aria-busy="true" data-state="loading"><span id="start-label">載入中</span><span id="loadPercent">0%</span><span class="arrow" aria-hidden="true" hidden></span></button><button class="secondary" id="pickCast" disabled>角色 · <span id="chosenCast">天台速遞員</span></button></div></main>
 <div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong id="summitSign">太陽傘頂 · 20.7 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
@@ -212,7 +212,7 @@ $GODOT_HEAD_INCLUDE
 <details id="hintOptions"><summary>遊戲選項</summary>
 <fieldset id="artStyles"><legend>畫風</legend><label><input type="radio" name="artStyle" value="normal" checked>一般</label><label><input type="radio" name="artStyle" value="oil">油畫</label></fieldset>
 <label><input type="checkbox" id="routeRing">下一站橙圈</label>
-<label><input type="checkbox" id="landingGuide" checked>預計落點十字</label>
+<label><input type="checkbox" id="landingGuide" checked>預計落點</label>
 <button class="secondary" id="graphicsMode">以輕量模式重開</button>
 </details>
 <button class="primary" id="continue"></button><button class="secondary" id="reset">重新開始</button><button class="secondary" id="menu">返回主畫面</button><a class="credits" href="./credits.txt" target="_blank" rel="noopener">模型鳴謝</a></div></section>
