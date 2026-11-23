@@ -59,10 +59,10 @@ func surface_normal(point: Vector3) -> Vector3:
 	return hit.get("normal",Vector3.ZERO)
 
 func check_rescue(seed_value: int, should_catch: bool) -> bool:
-	# A deliberately short jump from the sofa to the coffee table.
+	# A deliberately short jump from the toy car to the quay bollard.
 	game.start_run()
 	var player := game.player
-	player.reset_at(Land.ROUTE[1])
+	player.reset_at(Land.ROUTE[12]+Vector3.BACK*.35)
 	await frames(10)
 	game.face_target()
 	player.grab.rng.seed=seed_value
@@ -71,7 +71,7 @@ func check_rescue(seed_value: int, should_catch: bool) -> bool:
 	expected_rng.randf()
 	game.web_command(["sprint",true])
 	game.web_command(["stick",0,-1])
-	await frames(6)
+	await frames(8)
 	game.web_command(["jump"])
 	await frames(4)
 	game.web_command(["stick",0,0])
@@ -103,8 +103,8 @@ func check_rescue(seed_value: int, should_catch: bool) -> bool:
 	if not check(player.grab.rng.state==expected_rng.state,"one chance per eligible jump"):return false
 	if not check(saw_hang==should_catch and saw_climb==should_catch,"rescue outcome"):return false
 	if should_catch:
-		return check(tested_pause and game.ledge==2 and player.is_on_floor() and player.jump_count==1,"finish pull-up on the table without another jump")
-	return check(game.ledge!=2,"missed grip keeps falling")
+		return check(tested_pause and game.ledge==13 and player.is_on_floor() and player.jump_count==1,"finish pull-up on the bollard without another jump")
+	return check(game.ledge!=13,"missed grip keeps falling")
 
 func check_blocked_grip() -> bool:
 	game.start_run()

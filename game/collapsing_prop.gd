@@ -15,18 +15,18 @@ func build(art: Props, is_drawer: bool) -> void:
 	home=transform
 	fitting.transform=home
 	if drawer:
-		art.deck(self,Vector3(2.22,.17,1.54),"c8915f")
-		art.solid(self,Vector3(-1.05,.095,0),Vector3(.12,.30,1.54),"a46b46")
-		art.solid(self,Vector3(1.05,.095,.55),Vector3(.12,.30,.36),"a46b46")
-		art.solid(self,Vector3(0,.045,.77),Vector3(2.22,.31,.14),"955838")
+		art.deck(self,Vector3(1.78,.17,1.54),"c8915f")
+		art.solid(self,Vector3(-.83,.095,0),Vector3(.12,.30,1.54),"a46b46")
+		art.solid(self,Vector3(.83,.095,.55),Vector3(.12,.30,.36),"a46b46")
+		art.solid(self,Vector3(0,.045,.77),Vector3(1.78,.31,.14),"955838")
 		for x: float in [-.27,.27]:
 			art.tube(self,Vector3(x,.06,.84),Vector3(x,.06,.99),.042,"d9a550")
 		art.tube(self,Vector3(-.27,.06,.99),Vector3(.27,.06,.99),.052,"edbc68")
 		# The outer channels stay put. Their red end stops are uncovered as the tray slides out.
 		for side: float in [-1.,1.]:
-			art.box(fitting,Vector3(side*.91,-.21,-.52),Vector3(.14,.11,1.28),"515e60")
-			art.box(fitting,Vector3(side*.91,-.15,-.76),Vector3(.13,.06,.22),"d95132",.018)
-			art.box(self,Vector3(side*.91,-.15,.10),Vector3(.085,.07,1.30),"becac5")
+			art.box(fitting,Vector3(side*.70,-.21,-.52),Vector3(.14,.11,1.28),"515e60")
+			art.box(fitting,Vector3(side*.70,-.15,-.76),Vector3(.13,.06,.22),"d95132",.018)
+			art.box(self,Vector3(side*.70,-.15,.10),Vector3(.085,.07,1.30),"becac5")
 	else:
 		art.deck(self,Vector3(1.25,.17,2.54),"b47e4e")
 		for side: float in [-1.,1.]:

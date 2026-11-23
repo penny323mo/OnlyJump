@@ -14,7 +14,7 @@ func board() -> bool:
 	await start_on(6)
 	game.web_command(["branch"])
 	if not check(game.art.destination(6,game.alternate)==B.TAPE,"cassette offers the tape measure"):return false
-	await forward_jump(.76,11)
+	await forward_jump(.76,9)
 	if not await reach_floor(B.TAPE):return false
 	await frames(24)
 	if not check(game.art.branches.tape.cycle<0.,"standing on the case does not release the tape"):return false

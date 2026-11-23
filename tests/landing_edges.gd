@@ -54,6 +54,7 @@ func parcel_side(index: int) -> bool:
 func mesh_jump(steps: int, edge: bool) -> bool:
 	await start_on(0)
 	game.face_target()
+	if edge: game.camera_yaw+=deg_to_rad(32.) # Aim at the exposed left cushion.
 	await forward_jump(.89,steps)
 	var guide:=game.landing_guide
 	var p:=game.player
@@ -104,8 +105,8 @@ func run() -> void:
 	if not await lower_rung():return
 	for side in [5,11]:
 		if not await parcel_side(side):return
-	if not await mesh_jump(13,true):return
-	if not await mesh_jump(16,false):return
+	if not await mesh_jump(16,true):return
+	if not await mesh_jump(13,false):return
 	if not await moving_rim(2.,Vector3(1.06,0,0),false):return
 	if not await moving_rim(.35,Vector3(-.68,0,-1.8),true):return
 	print("PASS landing arrows on real box and mesh rims, lower rungs, moving decks and folding steps")

@@ -276,7 +276,7 @@ func run() -> void:
 	await start_on(4)
 	if not await leap(B.DRAWER,Vector3(0,0,.68),false):return
 	await frames(210)
-	if not check(game.ledge==0 and game.falls==1 and game.player.position.length()<.12,"outer lip misses the awning"):return
+	if not check(game.player.is_on_floor() and game.ledge==2 and game.falls==1 and game.player.jump_count==1,"coffee table catches a fall past the awning"):return
 	await start_on(8)
 	if not await leap(B.FAN,Vector3.ZERO,false):return
 	var local_foot: Vector3=game.art.branches.bodies[B.FAN].to_local(game.player.position)

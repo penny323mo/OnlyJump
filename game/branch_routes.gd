@@ -28,7 +28,7 @@ const STOPS := {
 	TAPE: ["發條捲尺",Vector3(.04,5.49,-7.80),7,9],
 	FAN: ["天台大風扇",Vector3(-.75,7.32,-21.55),9,10],
 	BED: ["迷你彈床",Vector3(-3.70,.67,-2.55),1,3],
-	DRAWER: ["鬆脫抽屜",Vector3(-3.18,3.78,-8.94),5,6],
+	DRAWER: ["鬆脫抽屜",Vector3(-2.44,3.78,-8.77),5,6],
 	AWNING: ["士多布篷",Vector3(-3.34,1.03,-9.64),1,2],
 	PENDULUM: ["掛鐘銅擺",Vector3(4.45,11.72,-17.50),14,16],
 	CLOCK_CASE: ["舊掛鐘頂",Vector3(4.45,16.17,-18.37),17,18],
@@ -137,8 +137,8 @@ func build(art: Props, main: Array) -> void:
 	pendulum.build(art,bodies[CLOCK_CASE])
 
 func build_awning(art: Props, body: StaticBody3D) -> void:
-	const WIDTH := 2.44
-	const DEPTH := 1.70
+	const WIDTH := 2.98
+	const DEPTH := 2.34
 	const STRIPES := 7
 	body.rotation.x=deg_to_rad(12)
 	var hit:=CollisionShape3D.new()

@@ -113,11 +113,13 @@ func wheels(body: Node3D, span: Vector2, y: float, r: float, tint: String) -> vo
 			cone(body,p+Vector3.RIGHT*b*r*0.44,0.025,r*0.43,r*0.43,"49535a",16).rotation.z = PI/2
 
 func coffee_table(b: StaticBody3D) -> void:
-	deck(b,Vector3(3.65,0.19,2.25),"95613f",0.095)
-	box(b,Vector3(0,-0.17,0),Vector3(3.45,0.15,2.08),"533d32")
+	deck(b,Vector3(3.95,.19,2.98),"95613f",.095)
+	box(b,Vector3(0,-.17,0),Vector3(3.75,.15,2.80),"533d32")
+	# The pull-out tray beneath the far edge still catches a missed lift.
+	solid(b,Vector3(.74,-.17,-1.79),Vector3(1.60,.13,.86),"bd8352",.045)
 	for x in [-1,1]:
 		for z in [-1,1]:
-			tube(b,Vector3(x*1.30,-0.18,z*0.70),Vector3(x*1.51,-1.36,z*.85),0.085,"6c4435")
+			tube(b,Vector3(x*1.50,-.18,z*1.05),Vector3(x*1.70,-1.36,z*1.23),.085,"6c4435")
 	box(b,Vector3(-1.14,0.039,0.48),Vector3(0.69,0.066,0.83),"d45c44").rotation.y = -0.16
 	label(b,Vector3(-1.13,0.077,0.49),"FORM",0.16,"fff0c7",true).rotation.y = -0.16
 
@@ -147,7 +149,7 @@ func suitcase(b: StaticBody3D) -> void:
 	label(b,Vector3(-0.44,0.026,0.42),"MACAU",0.20,"586369",true).rotation.y=-.16
 
 func cassette(b: StaticBody3D) -> void:
-	deck(b,Vector3(3.75,0.31,2.33),"343940",0.13)
+	deck(b,Vector3(4.30,0.31,2.52),"343940",0.13)
 	box(b,Vector3(0,0.016,-0.10),Vector3(3.30,0.037,1.66),"e7d7ac")
 	box(b,Vector3(0,0.045,-0.56),Vector3(3.23,0.023,0.29),"cb664c")
 	box(b,Vector3(0,0.044,0.08),Vector3(2.53,0.03,0.68),"4e5350",0.08)
@@ -155,6 +157,15 @@ func cassette(b: StaticBody3D) -> void:
 		cone(b,Vector3(x,0.069,0.08),0.03,.268,.268,"e1d5af")
 		cone(b,Vector3(x,0.092,0.08),0.028,.13,.13,"323c42",8)
 	label(b,Vector3(0,0.065,-0.57),"SIDE A    /    60",0.18,"fff0c9",true)
+
+func speaker(b: StaticBody3D, top: Vector3) -> void:
+	solid(b,top+Vector3.DOWN*.73,Vector3(2.48,1.46,2.40),"a36842",.085)
+	box(b,top+Vector3(0,-.75,1.19),Vector3(2.31,1.30,.08),"383e3c",.045)
+	for x: float in [-.55,.55]:
+		var face:=top+Vector3(x,-.76,1.25)
+		cone(b,face,.08,.48,.48,"232d30",28).rotation.x=PI/2
+		cone(b,face+Vector3.BACK*.056,.07,.36,.22,"536264",24).rotation.x=PI/2
+		cone(b,face+Vector3.BACK*.10,.06,.15,.11,"d2a75d",20).rotation.x=PI/2
 
 func turntable(b: StaticBody3D) -> void:
 	deck(b,Vector3(3.65,0.42,2.85),"a4513e",0.11)
