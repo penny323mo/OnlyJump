@@ -53,6 +53,8 @@ jobs:
           grep -Fxq 'PASS branches, rotating fan, timed pickups, double-jump stunts, lower recovery and five characters' "$RUNNER_TEMP/branches.log"
           godot --headless --fixed-fps 60 --quit-after 1300 --script tests/turntable.gd | tee "$RUNNER_TEMP/turntable.log"
           grep -Fxq 'PASS turntable walk-on, rotating ride, wooden surround, tangent jumps and landing marks' "$RUNNER_TEMP/turntable.log"
+          godot --headless --max-fps 60 --quit-after 1100 --script tests/keyboard.gd | tee "$RUNNER_TEMP/keyboard.log"
+          grep -Fxq 'PASS playable keyboard, white and chromatic runs, pitch, real key travel, mute and restart' "$RUNNER_TEMP/keyboard.log"
           godot --headless --fixed-fps 60 --quit-after 1800 --script tests/glide-guide.gd | tee "$RUNNER_TEMP/glide-guide.log"
           grep -Fxq 'PASS glide landing guide, midair expiry, steering, settings and unstable footing' "$RUNNER_TEMP/glide-guide.log"
           godot --headless --fixed-fps 60 --quit-after 1600 --script tests/landing_edges.gd | tee "$RUNNER_TEMP/landing-edges.log"

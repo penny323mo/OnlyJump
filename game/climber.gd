@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 const SpringPad = preload("res://game/spring_pad.gd")
+const PlayableKeyboard = preload("res://game/playable_keyboard.gd")
 const ToyTrack = preload("res://game/toy_track.gd")
 const LedgeGrab = preload("res://game/ledge_grab.gd")
 const COURIER = preload("res://assets/character/courier.glb")
@@ -310,6 +311,13 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 	var reach := Vector2(-model.basis.z.x,-model.basis.z.z) if horizontal.is_zero_approx() else horizontal
 	# A slipping player can turn their hands back while still travelling outwards.
 	if grab.attempt==LedgeGrab.Attempt.SLIP: reach=move
+	# The flat sole is wider than a black key. Give a planted stride room
+	# to clear the adjacent lip; normal floor snap plants it on the new key.
+	if on_floor_before and velocity.y==0. and not horizontal.is_zero_approx() and stance.support is PlayableKeyboard.PianoKey:
+		var next_foot:=position+Vector3(horizontal.x,0.,horizontal.y)*delta
+		var next_key:=ground_at(next_foot,.16)
+		if next_key.get("collider") is PlayableKeyboard.PianoKey:
+			move_and_collide(Vector3.UP*.09)
 	# A teleport leaves the previous floor cached until the next slide. Its
 	# velocity must not carry the runner sideways at the new spawn point.
 	if detach_on_move:

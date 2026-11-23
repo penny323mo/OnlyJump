@@ -164,18 +164,6 @@ func turntable(b: StaticBody3D) -> void:
 	box(b,Vector3(.77,.16,.77),Vector3(.22,.12,.16),"403e3f")
 	cone(b,Vector3(1.43,.05,1.03),.12,.105,.105,"554a43")
 
-func keyboard(b: StaticBody3D) -> void:
-	deck(b,Vector3(4.25,0.31,1.75),"95483c")
-	box(b,Vector3(0,.03,0.24),Vector3(4.01,.07,.95),"343c40")
-	for i in 18:
-		var x := (i-8.5)*0.21
-		box(b,Vector3(x,.084,0.26),Vector3(.198,.07,.90),"f1e7ce")
-		if i%7 in [0,1,3,4,5] and i<17:
-			box(b,Vector3(x+.107,.159,.05),Vector3(.129,.13,.52),"343e40")
-	for i in 4:
-		cone(b,Vector3(1.06+i*.21,.076,-.51),.128,.074,.065,"dfc4a2")
-	label(b,Vector3(-1.18,.025,-.51),"POLYTONE",.17,"f8d99e",true)
-
 func skateboard(b: StaticBody3D) -> void:
 	deck(b,Vector3(1.65,0.16,4.05),"b98452",0.19)
 	box(b,Vector3(0,.010,0),Vector3(1.58,.040,3.95),"455253",0.18)

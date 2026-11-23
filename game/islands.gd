@@ -17,6 +17,7 @@ const Branches = preload("res://game/branch_routes.gd")
 var branches := Branches.new()
 var pickups := preload("res://game/pickups.gd").new()
 var aerial: MeshInstance3D
+var keys:=preload("res://game/playable_keyboard.gd").new()
 var platter:=preload("res://game/record_platter.gd").new()
 const LAUNDRY_START := 18
 const PREVIOUS_HEIGHTS := [0.,1.35,3.05,4.95,7.05,9.1,11.25,13.5,15.75,17.95,20.25,22.65,25.,27.1,29.25,31.45,33.65,35.85,38.]
@@ -57,7 +58,9 @@ func _ready() -> void:
 				turntable(body)
 				body.add_child(platter)
 				platter.build(self)
-			9: keyboard(body)
+			9:
+				body.add_child(keys)
+				keys.build(self,body)
 			10: model_prop(body,CAMERA,3.1,Vector3(0,30,0))
 			11: skateboard(body)
 			12: model_prop(body,CAR,4.05,Vector3(0,28,0))

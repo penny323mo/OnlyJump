@@ -191,6 +191,7 @@ func web_command(args: Array) -> void:
 			if muted:
 				audio.stop()
 				footfall.stop()
+				art.keys.silence()
 			save_record()
 		"stick":
 			if phase in ["playing","interrupted"] and args.size() == 3:
@@ -246,6 +247,7 @@ func show_intro() -> void:
 	alternate=false
 	art.branches.reset()
 	art.platter.turn(0.)
+	art.keys.reset()
 	art.pickups.reset()
 	clear_controls()
 	player.reset_at(Islands.ROUTE[0])
@@ -260,6 +262,7 @@ func start_run() -> void:
 	summit_times.start_run()
 	art.branches.reset()
 	art.platter.turn(0.)
+	art.keys.reset()
 	art.pickups.reset()
 	alternate=false
 	ledge = 0
@@ -274,6 +277,7 @@ func start_run() -> void:
 func toggle_pause() -> void:
 	if phase in ["playing","interrupted"]:
 		phase = "paused"
+		art.keys.silence()
 		clear_controls()
 	elif phase == "paused":
 		resume_run()
@@ -283,6 +287,7 @@ func toggle_pause() -> void:
 func interrupt_run() -> void:
 	if phase not in ["playing","interrupted"]: return
 	phase="interrupted" if touch_web else "paused"
+	art.keys.silence()
 	clear_controls()
 	update_hud()
 
@@ -361,6 +366,7 @@ func on_landing(index: int, strength: float) -> void:
 	art.branches.land(index)
 	match index:
 		8: notice="黑膠會帶住你轉，行返木邊可以企定"
+		9: notice="沿白鍵行可以彈音階，行近黑鍵會踩到半音"
 		Islands.Branches.TRACK: notice="順住橙槽滑，棋盤格起跳返滑板"
 		Islands.Branches.FAN: notice="企穩扇葉，轉到對面先起跳"
 		Islands.Branches.PENDULUM: notice="擺向鋼樑、接近高位就起跳"
@@ -407,6 +413,7 @@ func _physics_process(delta: float) -> void:
 	if turn != 0: orbit(turn*delta*2.1/3.55,0)
 	var move := world_move()
 	player.step(delta,move,sprint or Input.is_physical_key_pressed(KEY_SHIFT),camera)
+	art.keys.advance(delta,player.is_on_floor() and player.grounded_ledge==9,player.position,muted)
 	if player.hook.time_left>0: landing_guide.hide()
 	if player.is_on_floor() and player.grounded_ledge>=0 and not player.grab.active:
 		var foot_height:=snappedf(player.position.y,.1)
@@ -617,7 +624,7 @@ func update_hud() -> void:
 	if landing_ring.visible:
 		var target:=art.stop_position(next)
 		# Leave the ring above raised fittings such as keys and tape reels.
-		var visible_top: float = {6:.12,9:.22,14:.06,17:.055,24:.10}.get(next,.05)
+		var visible_top: float = {6:.12,9:.095,14:.06,17:.055,24:.10}.get(next,.05)
 		landing_ring.position = target+Vector3.UP*visible_top
 	var height := maxf(0.0,player.position.y)
 	var tape_hint:=""
