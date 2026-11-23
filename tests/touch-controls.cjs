@@ -13,7 +13,7 @@ function fixture(jumpBounds={left:720,top:260,width:80,height:80},touchEvents=tr
   nodes.canvas={focus(){}};
   for(const id of ['padZone','pad','sprint','jump','look']){
     nodes[id]={id,style:{},dataset:{},closest:()=>nodes[id],firstElementChild:{style:{}},
-      getBoundingClientRect:()=>id==='jump'?jumpBounds:{width:136,height:136}};
+      getBoundingClientRect:()=>id==='jump'?jumpBounds:{left:20,top:229,width:136,height:136}};
   }
   const layoutSize=nodes.layoutSize={offsetWidth:844,offsetHeight:390};
   const calls=[];
@@ -161,6 +161,31 @@ test('two extra fingers on the left zoom without stealing a moving stick or spri
   assert.deepEqual(calls.at(-1),['jump']);
   fire('touchend',[reversed,jump],[]);
   assert.deepEqual(calls.slice(-2),[['stick',0,0],['sprint',false]]);
+});
+
+test('a thumb resting on the visible stick can start steering during a pinch, in either touchdown order',()=>{
+  for(const stickFirst of [true,false]){
+    const {fire,finger,calls,pad}=fixture();
+    const stick=finger(1,'padZone',88,297), first=finger(2,'look',590,150), second=finger(3,'padZone',270,150);
+    const touches=stickFirst?[stick,first]:[first,stick];
+    fire('touchstart',[touches[0]],[touches[0]]);
+    fire('touchstart',[touches[1]],touches);
+    assert.equal(pad.dataset.active,'true');
+    fire('touchstart',[second],[...touches,second]);
+    const wide=finger(3,'padZone',190,150), drive=finger(1,'padZone',108,297);
+    fire('touchmove',[drive,wide],[drive,first,wide]);
+    assert(calls.some(([name,x])=>name==='stick' && x>0.4));
+    assert.deepEqual(calls.filter(([name])=>name==='zoom'),[['zoom',1.25]]);
+    fire('touchend',[first,wide],[drive]);
+    assert.equal(pad.dataset.active,'true');
+    const reverse=finger(1,'padZone',68,297);
+    fire('touchmove',[reverse],[reverse]);
+    assert(calls.at(-1)[1]<-0.4);
+    fire('touchend',[reverse],[]);
+    assert.deepEqual(calls.at(-1),['stick',0,0]);
+    assert.equal(pad.dataset.active,undefined);
+    assert(!calls.some(([name])=>name==='look' || name==='jump'));
+  }
 });
 
 test('reset clears a pinch and fresh fingers can orbit and pinch again',()=>{

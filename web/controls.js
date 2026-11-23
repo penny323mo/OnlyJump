@@ -1,5 +1,5 @@
-// Two free scene touches can pinch. Buttons and a stick already in motion
-// keep their contacts even if Safari cancels or reuses another finger.
+// Two free scene touches can pinch. Buttons and the joystick keep their
+// contacts even if Safari cancels or reuses another finger.
 function attachControls(send, isPlaying) {
   const pad = document.getElementById('pad');
   const knob = pad.firstElementChild;
@@ -48,10 +48,18 @@ function attachControls(send, isPlaying) {
     const role = hit === 'padZone' || leftLookHit ? 'pad' : hit;
     if (!role) return false;
     const contact = {role,x,y,originX:x,originY:y,touch};
+    const padBounds=role==='pad' && !active.has('pad') ? pad.getBoundingClientRect() : null;
+    if (padBounds) {
+      const {left,top,width,height}=padBounds;
+      // The visible stick belongs to the thumb from touchdown. Elsewhere
+      // the floating pad can still become one half of a two-finger pinch.
+      contact.ownsStick=Math.hypot(x-left-width/2,y-top-height/2)<=width/2;
+      contact.travel=width*.29;
+    }
     if (touch && (role==='pad' || role==='look')) {
-      if (!pinch) {
+      if (!pinch && !contact.ownsStick) {
         for (const other of owners.values()) {
-          if (!other.touch || !(other.role==='look' || other.role==='free' || (other.role==='pad' && !other.steered))) continue;
+          if (!other.touch || !(other.role==='look' || other.role==='free' || (other.role==='pad' && !other.ownsStick))) continue;
           if (other.orbited && other.role==='look' && role==='pad' && !active.has('pad')) continue;
           if (other.role==='pad') restorePad();
           active.delete(other.role);
@@ -71,7 +79,6 @@ function attachControls(send, isPlaying) {
     if (role === 'jump') send('jump');
     if (role === 'sprint') send('sprint',true);
     if (role === 'pad') {
-      contact.travel=pad.getBoundingClientRect().width*.29;
       pad.style.left=x+'px'; pad.style.top=y+'px'; pad.dataset.active='true';
       send('stick',0,0);
     }
@@ -85,7 +92,7 @@ function attachControls(send, isPlaying) {
       let dy = (y-contact.originY)/contact.travel;
       const radius = Math.hypot(dx,dy);
       if (radius < 0.11) dx = dy = 0;
-      else { contact.steered=true; dx /= Math.max(1,radius); dy /= Math.max(1,radius); }
+      else { contact.ownsStick=true; dx /= Math.max(1,radius); dy /= Math.max(1,radius); }
       knob.style.transform = 'translate('+dx*contact.travel+'px,'+dy*contact.travel+'px)';
       send('stick',dx,dy);
     } else if (contact.role === 'sprint' && !contact.jumped) {
