@@ -199,8 +199,11 @@ func run() -> void:
 	if not check(absf(game.player.velocity.x-takeoff)<.03,"coast without air braking"):return
 	game.start_run()
 	await frames(6)
+	var expected_checkpoint:=0
 	for index in range(1,Land.ROUTE.size()):
 		if not await leap(index):return
+		if index in [6,12,18,24]:expected_checkpoint=index
+		if not check(game.highest_checkpoint==expected_checkpoint,"checkpoint advances only on its marked landing"):return
 	if not check(pre_jump_marks>=12,"takeoff guide coverage"):return
 	if not check(game.phase=="won" and game.player.jump_count==24 and game.art.pickups.count==0,"summit"):return
 	var record:=ConfigFile.new()
@@ -255,7 +258,7 @@ func run() -> void:
 		await frames(1)
 		if game.falls==2:break
 	await frames(24)
-	if not check(game.falls==2 and game.stick.is_zero_approx() and game.player.position.length()<.1,"respawn releases input"):return
+	if not check(game.falls==2 and game.stick.is_zero_approx() and game.player.position.distance_to(Land.ROUTE[0])<.1,"respawn releases input"):return
 	game.toggle_pause()
 	var time := game.elapsed
 	await frames(8)

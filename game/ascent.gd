@@ -23,6 +23,7 @@ var phase := "intro"
 var elapsed := 0.0
 var falls := 0
 var ledge := 0
+var highest_checkpoint := 0
 var alternate := false
 var best := 0.0
 var summit_times := preload("res://game/summit_times.gd").new(Islands.ROUTE.size()-1)
@@ -259,6 +260,7 @@ func start_run() -> void:
 	phase = "playing"
 	elapsed = 0
 	falls = 0
+	highest_checkpoint = 0
 	summit_times.start_run()
 	art.branches.reset()
 	art.platter.turn(0.)
@@ -363,6 +365,8 @@ func on_landing(index: int, strength: float) -> void:
 	if index!=ledge: alternate=false
 	summit_times.land(index,elapsed,player.jump_count,falls)
 	ledge = index
+	if index in Islands.CHECKPOINTS and index>highest_checkpoint:
+		highest_checkpoint=index
 	art.branches.land(index)
 	match index:
 		8: notice="黑膠會帶住你轉，行返木邊可以企定"
@@ -627,6 +631,8 @@ func update_hud() -> void:
 		var visible_top: float = {6:.12,9:.095,14:.06,17:.055,24:.10}.get(next,.05)
 		landing_ring.position = target+Vector3.UP*visible_top
 	var height := maxf(0.0,player.position.y)
+	var remaining := 0.0 if phase=="won" else snappedf(snappedf(maxf(0.,Islands.ROUTE[-1].y-player.position.y),.01),.1)
+	var checkpoint_name:=art.stop_name(highest_checkpoint) if highest_checkpoint>0 else ""
 	var tape_hint:=""
 	if phase=="playing" and ledge==Islands.Branches.TAPE and player.is_on_floor():
 		tape_hint=art.branches.tape.rider_hint(player.position)
@@ -646,7 +652,7 @@ func update_hud() -> void:
 		var message := notice if tape_hint.is_empty() else tape_hint
 		if player.grab.active: message = "沿邊推可橫移，向外拉住放手" if player.grab.can_pull_up() else "爬緊上去"
 		var destination:="電視銅環" if aiming_at_aerial() else (art.stop_name(next) if next>=0 else "")
-		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action,"oil" if oil_paint.visible else "normal",summit_times.best_clock,result,pace)
+		web.update(phase,height,best,art.stage(ledge),Islands.ROUTE.size()-1,sprint,elapsed,falls,player.jump_count,muted,message,destination,show_route_ring,show_landing_guide,Islands.Branches.FORKS.has(ledge),art.stage(ledge)>=Islands.LAUNDRY_START,player.costumes.key,player.ability,player.ability_time,player.jet_armed,art.pickups.count,player.double_charges,art.pickups.ITEMS.size(),hook_hint,grip_action,"oil" if oil_paint.visible else "normal",summit_times.best_clock,result,pace,remaining,checkpoint_name)
 		var show_pickups:=phase=="playing" and not player.spring_pad and not player.grab.active and player.hook.time_left<=0 and not tracking_aerial()
 		var hint: Node3D=art.pickups.visible_hint(camera,player) if show_pickups else null
 		if hint:
@@ -667,9 +673,10 @@ func update_hud() -> void:
 	elif native_label:
 		match phase:
 			"intro": native_label.text = "ONLYJUMP   /   Lost Property\nEnter to climb    /    1–5 change character    ·    %s" % player.costumes.NAMES[player.costumes.key]
-			"won": native_label.text = "Summit reached   ·   %d jumps    /    Enter to play again" % player.jump_count
+			"won": native_label.text = "Summit reached   ·   0.0 m to summit   ·   %d jumps    /    Enter to play again" % player.jump_count
 			"paused": native_label.text = "Paused   /   P to resume   ·   R to restart\n1   Next object ring: %s    ·    2   Landing guide: %s\n3   Art style: %s" % [str(show_route_ring),str(show_landing_guide),"Oil paint" if oil_paint.visible else "Normal"]
-			_: native_label.text = "%04.1f m    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,art.stage(ledge),Islands.ROUTE.size()-1]
+			_: native_label.text = "%04.1f m    ·    %.1f m to summit    ·    Ledge %d / %d\nWASD move   ·   Drag or Q / E orbit   ·   F face target   ·   Space jump   ·   Shift sprint   ·   P pause" % [height,remaining,art.stage(ledge),Islands.ROUTE.size()-1]
+		if phase!="intro" and not checkpoint_name.is_empty():native_label.text+="\nCheckpoint · "+checkpoint_name
 		if hook_hint!="" and phase=="playing": native_label.text+="\n飛爪 · "+hook_hint
 		if grip_action!="" and phase=="playing": native_label.text+="\n"+("Space · 撐上　沿邊推可橫移，向外拉住放手" if player.grab.can_pull_up() else grip_action)
 		if not tape_hint.is_empty():native_label.text+="\n"+tape_hint

@@ -76,6 +76,16 @@ func run() -> void:
 	reopen()
 	if not check(not game.oil_paint.visible and is_equal_approx(game.best,top),"restoring normal style keeps the height record"):return
 	if not check_split_times():return
+	# Only touching a marked object counts. Visit a lower stage after the car,
+	# then a lower checkpoint, without restarting the run.
+	await start_on(12)
+	if not check(game.highest_checkpoint==12,"landed on the toy car checkpoint"):return
+	for id in [7,6]:
+		game.player.reset_at(game.art.stop_position(id))
+		await frames(12)
+		if not check(game.ledge==id and game.highest_checkpoint==12,"a lower landing keeps the highest checkpoint"):return
+	game.start_run()
+	if not check(game.highest_checkpoint==0,"fresh run clears the checkpoint"):return
 	await start_on(23)
 	var before_pause:=game.elapsed
 	game.toggle_pause()
@@ -83,6 +93,8 @@ func run() -> void:
 	if not check(game.elapsed==before_pause,"pause excludes time from the finish"):return
 	game.toggle_pause()
 	if not await leap(24,Vector3.ZERO,false):return
+	game.update_hud()
+	if not check(game.highest_checkpoint==24 and "Checkpoint · 天台太陽傘" in game.native_label.text and "0.0 m to summit" in game.native_label.text,"summit gauge reaches zero on the parasol"):return
 	var finish:=game.summit_times.best.duplicate(true)
 	if not check(finish.splits[24]==roundi(game.elapsed*100),"finish matches final physics tick"):return
 	game.start_run()

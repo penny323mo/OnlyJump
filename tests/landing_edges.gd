@@ -54,7 +54,7 @@ func parcel_side(index: int) -> bool:
 func mesh_jump(steps: int, edge: bool) -> bool:
 	await start_on(0)
 	game.face_target()
-	if edge: game.camera_yaw+=deg_to_rad(32.) # Aim at the exposed left cushion.
+	game.camera_yaw+=deg_to_rad(-40. if edge else -48.) # Both trajectories aim at the side sofa.
 	await forward_jump(.89,steps)
 	var guide:=game.landing_guide
 	var p:=game.player
@@ -68,7 +68,7 @@ func mesh_jump(steps: int, edge: bool) -> bool:
 		if first==Vector3.INF:first=guide.position-guide.basis.y*.028
 		if edge and not check((-guide.basis.z).x>.5,"sofa arrow points up the cushion"):return false
 		seen+=1
-	return check(seen>=20 and p.is_on_floor() and game.ledge==1 and first.distance_to(p.position)<p.FOOT_RADIUS+.04,"rendered mesh target remains on the actual sofa landing")
+	return check(seen>=20 and p.is_on_floor() and game.ledge==1 and p.position.x>1.85 and first.distance_to(p.position)<p.FOOT_RADIUS+.04,"rendered mesh target remains on the actual sofa landing")
 
 func moving_rim(phase: float, offset: Vector3, step: bool) -> bool:
 	await start_on(0)
@@ -105,7 +105,7 @@ func run() -> void:
 	if not await lower_rung():return
 	for side in [5,11]:
 		if not await parcel_side(side):return
-	if not await mesh_jump(16,true):return
+	if not await mesh_jump(13,true):return
 	if not await mesh_jump(13,false):return
 	if not await moving_rim(2.,Vector3(1.06,0,0),false):return
 	if not await moving_rim(.35,Vector3(-.68,0,-1.8),true):return

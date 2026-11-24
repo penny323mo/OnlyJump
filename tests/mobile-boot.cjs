@@ -34,8 +34,13 @@ async function play(page) {
   await ready(page);
   const introColors = await checkGameFrame(page);
   await page.locator('#start').tap();
+  const gauge = page.locator('#remainingHeight');
+  await page.waitForFunction(() => document.querySelector('#remainingHeight').textContent === '20.7');
+  assert(await gauge.isVisible());
   await page.locator('#jump').tap();
-  await page.waitForFunction(() => Number(document.querySelector('#height').textContent) > .4, null, { timeout: 4000 });
+  await page.waitForFunction(() => Number(document.querySelector('#height').textContent) > .4 &&
+    Number(document.querySelector('#remainingHeight').textContent) < 20.3, null, { timeout: 4000 });
+  await page.waitForFunction(() => document.querySelector('#remainingHeight').textContent === '20.7');
   const colors = await checkGameFrame(page);
   console.log('Rendered colours in menu/game', introColors, colors);
 }

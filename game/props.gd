@@ -112,14 +112,26 @@ func wheels(body: Node3D, span: Vector2, y: float, r: float, tint: String) -> vo
 			cone(body,p,r*0.85,r,r,tint,20).rotation.z = PI/2
 			cone(body,p+Vector3.RIGHT*b*r*0.44,0.025,r*0.43,r*0.43,"49535a",16).rotation.z = PI/2
 
+func footstool(b: StaticBody3D) -> void:
+	# One upholstered cushion, with a darker piping seam and four tapered feet.
+	deck(b,Vector3(3.14,.33,2.34),"339487",.16)
+	box(b,Vector3.DOWN*.35,Vector3(3.04,.14,2.24),"215e58",.065)
+	box(b,Vector3.DOWN*.46,Vector3(2.87,.21,2.09),"347c71",.095)
+	for x: float in [-1.19,1.19]:
+		for z: float in [-.82,.82]:
+			cone(b,Vector3(x,-.70,z),.34,.092,.14,"9c714a",16)
+	for x: float in [-.74,0.,.74]:
+		for z: float in [-.49,.49]:
+			cone(b,Vector3(x,.003,z),.012,.046,.038,"276e65",16)
+
 func coffee_table(b: StaticBody3D) -> void:
-	deck(b,Vector3(3.95,.19,2.98),"95613f",.095)
-	box(b,Vector3(0,-.17,0),Vector3(3.75,.15,2.80),"533d32")
+	deck(b,Vector3(3.12,.19,2.87),"95613f",.095)
+	box(b,Vector3(0,-.17,0),Vector3(2.98,.15,2.68),"533d32")
 	# The pull-out tray beneath the far edge still catches a missed lift.
 	solid(b,Vector3(.74,-.17,-1.79),Vector3(1.60,.13,.86),"bd8352",.045)
 	for x in [-1,1]:
 		for z in [-1,1]:
-			tube(b,Vector3(x*1.50,-.18,z*1.05),Vector3(x*1.70,-1.36,z*1.23),.085,"6c4435")
+			tube(b,Vector3(x*1.19,-.18,z*1.05),Vector3(x*1.40,-1.36,z*1.23),.085,"6c4435")
 	box(b,Vector3(-1.14,0.039,0.48),Vector3(0.69,0.066,0.83),"d45c44").rotation.y = -0.16
 	label(b,Vector3(-1.13,0.077,0.49),"FORM",0.16,"fff0c7",true).rotation.y = -0.16
 
@@ -149,7 +161,7 @@ func suitcase(b: StaticBody3D) -> void:
 	label(b,Vector3(-0.44,0.026,0.42),"MACAU",0.20,"586369",true).rotation.y=-.16
 
 func cassette(b: StaticBody3D) -> void:
-	deck(b,Vector3(4.30,0.31,2.52),"343940",0.13)
+	deck(b,Vector3(3.80,0.31,2.22),"343940",0.13)
 	box(b,Vector3(0,0.016,-0.10),Vector3(3.30,0.037,1.66),"e7d7ac")
 	box(b,Vector3(0,0.045,-0.56),Vector3(3.23,0.023,0.29),"cb664c")
 	box(b,Vector3(0,0.044,0.08),Vector3(2.53,0.03,0.68),"4e5350",0.08)

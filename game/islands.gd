@@ -3,9 +3,9 @@ extends "res://game/props.gd"
 # Position is the crown or usable centre of each object. Lower rises and
 # shorter approaches on narrow objects fit the standing and running arcs.
 const ROUTE := [
-	Vector3(0,0,0),Vector3(.52,.62,-3.89),Vector3(-1.55,1.34,-6.40),
-	Vector3(-4.63,2.10,-5.63),Vector3(-5.93,2.94,-8.45),Vector3(-3.58,3.78,-10.84),
-	Vector3(-.27,4.68,-11.40),Vector3(3.90,5.52,-13.85),Vector3(2.09,6.46,-17.87),
+	Vector3(0,0,-1.24),Vector3(0,.52,-3.66),Vector3(-1.15,1.34,-6.55),
+	Vector3(-4.63,2.10,-5.63),Vector3(-5.93,2.94,-8.45),Vector3(-4.28,3.78,-10.91),
+	Vector3(-.27,4.68,-11.30),Vector3(3.90,5.52,-13.89),Vector3(2.09,6.46,-17.87),
 	Vector3(-2.12,7.35,-17.33),Vector3(-4.70,8.26,-20.42),Vector3(-1.72,9.22,-23.25),
 	Vector3(2.42,10.16,-22.70),Vector3(5.12,11.03,-19.68),Vector3(8.00,11.88,-21.25),
 	Vector3(10.95,12.80,-18.56),Vector3(9.42,13.72,-14.90),Vector3(5.62,14.64,-15.55),
@@ -20,10 +20,11 @@ var aerial: MeshInstance3D
 var keys:=preload("res://game/playable_keyboard.gd").new()
 var platter:=preload("res://game/record_platter.gd").new()
 const LAUNDRY_START := 18
+const CHECKPOINTS := [6,12,18,24]
 # The speaker beside the stereo is the first foothold from the cassette.
 const SPEAKER_TOP := Vector3(-2.55,0,-.48)
 const PREVIOUS_HEIGHTS := [0.,1.35,3.05,4.95,7.05,9.1,11.25,13.5,15.75,17.95,20.25,22.65,25.,27.1,29.25,31.45,33.65,35.85,38.]
-const NAMES := ["士多天台","絲絨梳化","木茶几","膽機電視","皮喼","波鞋鞋底","錄音帶","手提音響","黑膠唱盤","電子琴","古董相機","滑板","玩具跑車","碼頭繫纜柱","貨櫃","橫放電纜轆","吊臂鋼樑","三角形郵筒紙盒","失物招領枱","熨衫板","木衣夾","滾筒洗衣機","晾衫架","鋁摺梯","天台太陽傘"]
+const NAMES := ["士多天台","絲絨腳凳","木茶几","膽機電視","皮喼","波鞋鞋底","錄音帶","手提音響","黑膠唱盤","電子琴","古董相機","滑板","玩具跑車","碼頭繫纜柱","貨櫃","橫放電纜轆","吊臂鋼樑","三角形郵筒紙盒","失物招領枱","熨衫板","木衣夾","滾筒洗衣機","晾衫架","鋁摺梯","天台太陽傘"]
 const SOFA = preload("res://assets/props/sofa.glb")
 const SHOE = preload("res://assets/props/sneaker.glb")
 const STEREO = preload("res://assets/props/boombox.glb")
@@ -41,16 +42,18 @@ func _ready() -> void:
 		add_child(body)
 		body.position = ROUTE[index]
 		match index:
-			0: rooftop(body)
+			0:
+				# Keep a short run-up from spawn, with clear air beyond the roof lip.
+				body.position=Vector3(.65,0,.52)
+				rooftop(body)
 			1:
-				model_prop(body,SOFA,4.70,Vector3(0,10,0))
-				# A matching footstool extends the seat towards the starting roof.
-				var seat:=Vector3(.35,-.16,.99)
-				solid(body,seat,Vector3(3.0,.28,1.65),"287e71",.11)
-				box(body,seat+Vector3.DOWN*.23,Vector3(2.82,.24,1.48),"276457",.075)
-				for x: float in [-1.18,1.18]:
-					for z: float in [-.55,.55]:
-						cone(body,seat+Vector3(x,-.43,z),.20,.073,.085,"75513b",12)
+				footstool(body)
+				# The separate sofa catches jumps to the right of the stool.
+				var sofa:=StaticBody3D.new()
+				sofa.set_meta("ledge",index)
+				add_child(sofa)
+				sofa.position=body.position+Vector3(3.22,.06,-.57)
+				model_prop(sofa,SOFA,3.24,Vector3(0,-86,0))
 			2: coffee_table(body)
 			3:
 				television(body)
@@ -61,7 +64,7 @@ func _ready() -> void:
 				aerial=rim(body,base+Vector3(0,1.63,-.14),.29,.068,"e4a842")
 				aerial.rotation.x=PI/2
 			4: suitcase(body)
-			5: model_prop(body,SHOE,4.70,Vector3(0,10,180))
+			5: model_prop(body,SHOE,3.50,Vector3(0,170,180))
 			6: cassette(body)
 			7:
 				model_prop(body,STEREO,3.8,Vector3(0,-85,0))

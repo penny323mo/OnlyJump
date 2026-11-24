@@ -36,7 +36,7 @@ h1{font-family:BarlowPoster,'Arial Narrow',Impact,sans-serif;font-style:italic;f
 .controls{font-size:12px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-weight:650}.controls span{display:inline-flex;align-items:center;gap:7px}kbd{font:600 11px/1.4 var(--mono);padding:2px 5px;border:1px solid #34403a66;background:#faedd5d9;border-radius:4px}
 .route-sign{background:#fff1dcd9;border:1px solid #fff6df82;border-radius:4px;display:flex;gap:13px;padding:10px 14px;align-items:center}.route-sign strong{font-size:13px}.route-sign small{display:block;margin-top:2px;font:10px var(--mono);letter-spacing:.07em}
 .flag-icon{display:block;width:16px;height:23px;border-left:2px solid var(--orange);transform:skew(-6deg)}.flag-icon:after{content:'';display:block;width:14px;height:11px;background:var(--orange);clip-path:polygon(0 0,100% 30%,0 100%)}
-#hud{position:absolute;left:var(--gut-left);top:calc(max(24px,var(--safe-top)) + 59px);pointer-events:none}.alt-card{display:inline-block;padding:13px 16px 12px;background:#fbefdde8;color:var(--ink);border:1px solid #fbefdde8;border-radius:5px;min-width:160px}.alt-card .route{font-size:11px;letter-spacing:.04em}.alt-card .route:before{width:16px;height:2px}.number{font:800 italic 52px/.98 BarlowPoster,sans-serif;margin:6px 0}.number small{font:13px var(--mono);margin-left:4px}.route-progress{height:3px;background:#c4bcab;margin:8px 0}.route-progress i{display:block;height:100%;background:var(--orange);width:0}.stats{font-size:11px;font-variant-numeric:tabular-nums}
+#hud{position:absolute;left:var(--gut-left);top:calc(max(24px,var(--safe-top)) + 59px);pointer-events:none}.alt-card{display:inline-block;padding:13px 16px 12px;background:#fbefdde8;color:var(--ink);border:1px solid #fbefdde8;border-radius:5px;min-width:160px}.alt-card .route{font-size:11px;letter-spacing:.04em}.alt-card .route:before{width:16px;height:2px}.number{font:800 italic 52px/.98 BarlowPoster,sans-serif;margin:6px 0}.height-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.to-summit{white-space:nowrap;font:600 11px/1.2 system-ui;color:#455650}.to-summit b{font-size:14px;font-variant-numeric:tabular-nums}#checkpoint{margin-top:4px;color:#246052;font-weight:650}.number small{font:13px var(--mono);margin-left:4px}.route-progress{height:3px;background:#c4bcab;margin:8px 0}.route-progress i{display:block;height:100%;background:var(--orange);width:0}.stats{font-size:11px;font-variant-numeric:tabular-nums}
 #notice{font-size:12px;background:var(--paper);display:block;width:max-content;max-width:85vw;padding:6px 10px;margin-top:7px;border-radius:4px}
 #overlay{position:absolute;inset:0;padding:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);display:grid;grid-template-columns:minmax(0,1fr);place-items:center;background:#273a374a;backdrop-filter:blur(4px);z-index:4}
 .panel{width:min(365px,90vw);background:var(--paper);border:1px solid #fffae5;border-radius:6px;padding:29px;box-shadow:0 12px 50px #28373030}.panel h2{font-size:30px;letter-spacing:-.04em;margin:12px 0 6px}.panel p{font-size:14px;line-height:1.7;margin:8px 0 20px}.panel .primary{width:100%;margin-bottom:10px}.panel .secondary{display:inline-flex;padding:8px 14px;margin-right:6px}.panel .route{font-size:12px}
@@ -200,7 +200,7 @@ $GODOT_HEAD_INCLUDE
 <p class="summary" id="error" role="status" hidden></p>
 <button class="primary" id="start" disabled aria-busy="true" data-state="loading"><span id="start-label">載入中</span><span id="loadPercent">0%</span><span class="arrow" aria-hidden="true" hidden></span></button><button class="secondary" id="pickCast" disabled>角色 · <span id="chosenCast">天台速遞員</span></button></div></main>
 <div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong id="summitSign">太陽傘頂 · 20.7 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
-<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route" id="sectionName">失物天台</div><div class="number"><span id="height">0.0</span><small>m</small></div><div class="route-progress"><i id="progress"></i></div><div class="destination"><span class="stats" id="nextProp"></span><button id="branch" hidden aria-label="揀另一條路">⇄ 揀路</button></div><div class="stats">進度 <b id="ledge">0 / 24</b> · <span id="time">00:00</span></div><div class="stats" id="split" hidden></div><div class="stats" id="power" hidden></div></div><span id="notice" role="status" hidden></span></section>
+<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route" id="sectionName">失物天台</div><div class="height-row"><div class="number"><span id="height">0.0</span><small>m</small></div><span class="to-summit">距頂 <b id="remainingHeight">—</b> m</span></div><div class="route-progress"><i id="progress"></i></div><div class="destination"><span class="stats" id="nextProp"></span><button id="branch" hidden aria-label="揀另一條路">⇄ 揀路</button></div><div class="stats">進度 <b id="ledge">0 / 24</b> · <span id="time">00:00</span></div><div class="stats" id="checkpoint" role="status" hidden></div><div class="stats" id="split" hidden></div><div class="stats" id="power" hidden></div></div><span id="notice" role="status" hidden></span></section>
 <div id="pickupLayer"><i id="pickupLine" aria-hidden="true" hidden></i><span id="pickupHint" hidden></span></div>
 <div id="touch" hidden><div id="padZone" aria-label="左半屏浮動搖桿"><div id="pad"><i></i></div></div><button id="sprint" aria-pressed="false" aria-label="按住加速，滑落跳掣起跳，滑返上再滑落可以連跳">加速</button><button id="jump">跳躍</button></div>
 <section id="overlay" hidden><div class="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"><div class="route">失物天台</div><h2 id="panelTitle"></h2><p id="timing" hidden></p><p id="report"></p>
@@ -405,7 +405,7 @@ window.OnlyJumpUI = {
     el('pickCast').disabled = el('mute').disabled = false;
     setStartState('ready','開始攀登',temporarySaves?'今局使用暫存，離開後唔會儲存今局紀錄。':'');
   },
-  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges,itemTotal,hookHint,gripAction,artStyle,bestClock="",result="",pace="") {
+  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges,itemTotal,hookHint,gripAction,artStyle,bestClock="",result="",pace="",remaining,checkpoint="") {
     const changed = mode !== next;
     const playing = next === 'playing', intro = next === 'intro', won = next === 'won';
     const interrupted=next==='interrupted', scene=playing || interrupted;
@@ -443,6 +443,11 @@ window.OnlyJumpUI = {
     setPressed('mute',muted);
     setText('soundLabel',muted?'音效關':'音效開');
     setText('height',height.toFixed(1));
+    const remainingText=Number.isFinite(remaining)?remaining.toFixed(1):'—';
+    setText('remainingHeight',remainingText);
+    const checkpointText=checkpoint?'Checkpoint · '+checkpoint:'';
+    setText('checkpoint',checkpointText);
+    setHidden('checkpoint',!checkpoint);
     const stageText=ledge+' / '+total;
     if(el('ledge').textContent!==stageText){
       el('ledge').textContent=stageText;
@@ -463,7 +468,7 @@ window.OnlyJumpUI = {
       setText('panelTitle',won?'登上太陽傘':'已暫停');
       setText('timing',result);
       setHidden('timing',!result);
-      setText('report',(won && result?'':'用時 '+timer(elapsed)+' · ')+jumps+' 次起跳 · '+falls+' 次跌落。最高落腳點 '+best.toFixed(1)+' m。執到道具 '+finds+' / '+itemTotal+'。');
+      setText('report',(won && result?'':'用時 '+timer(elapsed)+' · ')+jumps+' 次起跳 · '+falls+' 次跌落。最高落腳點 '+best.toFixed(1)+' m。執到道具 '+finds+' / '+itemTotal+'。距頂 '+remainingText+' m。'+checkpointText);
       setText('continue',won?'再攀一次 ↗':'繼續攀登 ↗');
       setHidden('reset',won);
     }
