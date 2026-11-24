@@ -59,8 +59,8 @@ func upper_floor_first() -> bool:
 	await start_on(0)
 	var lift:=game.art.branches.lift
 	var p:=game.player
-	await frames(roundi((6.-lift.phase)*60.))
-	p.reset_at(lift.position_at(lift.phase+.5)+Vector3(.12,4.,.05))
+	await frames(roundi((5.6-lift.phase)*60.))
+	p.reset_at(lift.position_at(lift.phase+.5)+Vector3(-.85,4.,.72))
 	var mark:=Vector3.INF
 	for tick in 90:
 		await frames(1)

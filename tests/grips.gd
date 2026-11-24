@@ -94,7 +94,7 @@ func jump_from_sheet(direction: float, seed_value: int, collapse: bool, quick :=
 func step_off_edge(seed_value: int, return_stick: float, delay: int, sprint: bool, expect_roll: bool, stage := 16) -> bool:
 	game.start_run()
 	var player:=game.player
-	# Approach the exposed side of the table; the sofa sits below its other edge.
+	# Approach the exposed side of the table.
 	var start: Vector3=Land.ROUTE[stage]+(Vector3.LEFT if stage==2 else Vector3.ZERO)
 	player.reset_at(start)
 	player.grab.rng.seed=seed_value

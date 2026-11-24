@@ -40,7 +40,7 @@ const STOPS := {
 	COIL: ["斜頭彈簧",Vector3(-4.35,18.02,-5.58),21,23],
 }
 const FORKS := {0:BED,4:DRAWER,6:TAPE,8:FAN,10:LEVEL,13:PENDULUM,18:POLE,19:LIFT,20:COIL,21:BOARD}
-const LIFT_END := Vector3(-8.20,18.20,-5.65)
+const LIFT_END := Vector3(-8.20,18.20,-4.83)
 const DROP_AFTER := {DRAWER:1.6,BOARD:1.15}
 var bodies := {}
 var springs: Array[SpringPad] = []
@@ -134,6 +134,7 @@ func build(art: Props, main: Array) -> void:
 				art.deck(b,Vector3(2.64,.085,2.72),"668eb7")
 				for side: float in [-1,1]:
 					art.box(b,Vector3(side*1.19,.003,0),Vector3(.085,.012,2.71),"e5d8bd")
+	(bodies[BOARD] as CollapsingProp).catch_surface=bodies[SHEET]
 	pendulum.build(art,bodies[CLOCK_CASE])
 
 func build_awning(art: Props, body: StaticBody3D) -> void:

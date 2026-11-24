@@ -10,7 +10,7 @@ const ITEMS := {
 }
 var items := {}
 const LABELS := {"double":"二段跳","jet":"噴射器","glide":"緩降","hook":"飛爪"}
-const FRAME_TIPS := [Vector3.UP*.52,Vector3.RIGHT*.41,Vector3.DOWN*.42,Vector3.LEFT*.41,Vector3.BACK*.41,Vector3.FORWARD*.41]
+const FRAME_TIPS := [Vector3.UP*.52,Vector3.RIGHT*.41,Vector3.DOWN*.29,Vector3.LEFT*.41,Vector3.BACK*.41,Vector3.FORWARD*.41]
 var count := 0
 var time := 0.
 

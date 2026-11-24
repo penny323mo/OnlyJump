@@ -51,11 +51,11 @@ func parcel_side(index: int) -> bool:
 		await frames(1)
 	return check(not p.is_on_floor() and p.position.y<Land.ROUTE[17].y-1.2,"runner actually falls past the bevel")
 
-func mesh_jump(steps: int, edge: bool) -> bool:
-	await start_on(0)
+func mesh_jump(edge: bool) -> bool:
+	await start_on(4)
 	game.face_target()
-	game.camera_yaw+=deg_to_rad(-40. if edge else -48.) # Both trajectories aim at the side sofa.
-	await forward_jump(.89,steps)
+	game.camera_yaw+=deg_to_rad(4. if edge else 0.)
+	await forward_jump(.84,12)
 	var guide:=game.landing_guide
 	var p:=game.player
 	var first:=Vector3.INF
@@ -64,11 +64,11 @@ func mesh_jump(steps: int, edge: bool) -> bool:
 		await frames(1)
 		if p.is_on_floor():break
 		if not guide.visible:continue
-		if not check(arrow_visible()==edge,"running jump distinguishes the curved sofa lip from its seat"):return false
+		if not check(arrow_visible()==edge,"running jump distinguishes the edge of the sneaker sole from its centre"):return false
 		if first==Vector3.INF:first=guide.position-guide.basis.y*.028
-		if edge and not check((-guide.basis.z).x>.5,"sofa arrow points up the cushion"):return false
+		if edge and not check((-guide.basis.z).z>.80,"arrow points back onto the sneaker sole"):return false
 		seen+=1
-	return check(seen>=20 and p.is_on_floor() and game.ledge==1 and p.position.x>1.85 and first.distance_to(p.position)<p.FOOT_RADIUS+.04,"rendered mesh target remains on the actual sofa landing")
+	return check(seen>=20 and p.is_on_floor() and game.ledge==5 and first.distance_to(p.position)<p.FOOT_RADIUS+.04,"rendered mesh target remains on the actual sneaker landing")
 
 func moving_rim(phase: float, offset: Vector3, step: bool) -> bool:
 	await start_on(0)
@@ -105,8 +105,8 @@ func run() -> void:
 	if not await lower_rung():return
 	for side in [5,11]:
 		if not await parcel_side(side):return
-	if not await mesh_jump(13,true):return
-	if not await mesh_jump(13,false):return
+	if not await mesh_jump(true):return
+	if not await mesh_jump(false):return
 	if not await moving_rim(2.,Vector3(1.06,0,0),false):return
 	if not await moving_rim(.35,Vector3(-.68,0,-1.8),true):return
 	print("PASS landing arrows on real box and mesh rims, lower rungs, moving decks and folding steps")

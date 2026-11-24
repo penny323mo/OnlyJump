@@ -50,7 +50,7 @@ func run() -> void:
 	await frames(2)
 	if not check(game.player.velocity.y>4 and not game.player.is_on_floor() and is_zero_approx(game.player.stance.compression),"immediate jump releases the landing pose"):return
 	if not await drop(1,1.):return
-	if not check(game.footfall.stream==preload("res://audio/land-fabric.wav"),"sofa plays fabric"):return
+	if not check(game.footfall.stream==preload("res://audio/land-fabric.wav"),"footstool plays fabric"):return
 	game.web_command(["mute"])
 	if not await drop(2,2.):return
 	if not check(not game.footfall.playing and game.footfall.stream==preload("res://audio/land-fabric.wav") and game.player.stance.compression>0,"mute silences landing audio and keeps the pose"):return

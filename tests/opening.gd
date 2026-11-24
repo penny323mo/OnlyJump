@@ -6,7 +6,7 @@ func check_opening_spacing() -> bool:
 	var pairs: Array[Vector2i]=[]
 	for stage in range(8):
 		pairs.append(Vector2i(stage,stage+1))
-	pairs.append_array([Vector2i(1,1),Vector2i(0,Land.Branches.BED),Vector2i(4,Land.Branches.DRAWER),
+	pairs.append_array([Vector2i(0,Land.Branches.BED),Vector2i(4,Land.Branches.DRAWER),
 		Vector2i(5,Land.Branches.DRAWER),Vector2i(6,Land.Branches.TAPE)])
 	var hulls: Dictionary={}
 	for body in game.art.get_children():
@@ -20,15 +20,12 @@ func check_opening_spacing() -> bool:
 				for local in vertices:
 					var point:=mesh.to_global(local)
 					footprint.append(Vector2(point.x,point.z))
-		if not hulls.has(id):hulls[id]=[]
-		hulls[id].append(Geometry2D.convex_hull(footprint))
+		if not check(not hulls.has(id),"one clearly identifiable opening object per stop"):return false
+		hulls[id]=Geometry2D.convex_hull(footprint)
 	for pair in pairs:
-		for i in hulls[pair.x].size():
-			var margin:=Geometry2D.offset_polygon(hulls[pair.x][i],.25)
-			for j in hulls[pair.y].size():
-				if pair.x==pair.y and i>=j:continue
-				if not check(margin.size()==1 and Geometry2D.intersect_polygons(margin[0],hulls[pair.y][j]).is_empty(),
-					"25 cm of open space between %s and %s" % [game.art.stop_name(pair.x),game.art.stop_name(pair.y)]):return false
+		var margin:=Geometry2D.offset_polygon(hulls[pair.x],.25)
+		if not check(margin.size()==1 and Geometry2D.intersect_polygons(margin[0],hulls[pair.y]).is_empty(),
+			"25 cm of open space between %s and %s" % [game.art.stop_name(pair.x),game.art.stop_name(pair.y)]):return false
 	return true
 
 func ordinary_jump(target: int, runup: int, angle: float, strength := 1.) -> bool:

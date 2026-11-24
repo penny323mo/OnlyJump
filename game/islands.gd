@@ -7,11 +7,11 @@ const ROUTE := [
 	Vector3(-4.63,2.10,-5.63),Vector3(-5.93,2.94,-8.45),Vector3(-4.28,3.78,-10.91),
 	Vector3(-.27,4.68,-11.30),Vector3(3.90,5.52,-13.89),Vector3(2.09,6.46,-17.87),
 	Vector3(-2.12,7.35,-17.33),Vector3(-4.70,8.26,-20.42),Vector3(-1.72,9.22,-23.25),
-	Vector3(2.42,10.16,-22.70),Vector3(5.12,11.03,-19.68),Vector3(8.00,11.88,-21.25),
+	Vector3(2.42,10.16,-22.70),Vector3(5.12,11.03,-19.68),Vector3(7.88,11.88,-21.47),
 	Vector3(10.95,12.80,-18.56),Vector3(9.42,13.72,-14.90),Vector3(5.62,14.64,-15.55),
 	Vector3(3.04,15.55,-12.38),Vector3(-.65,16.38,-10.65),Vector3(-3.95,17.16,-8.72),
 	Vector3(-7.0,18.06,-10.52),Vector3(-10.27,18.87,-8.46),Vector3(-10.62,19.72,-4.90),
-	Vector3(-7.22,20.65,-3.00)
+	Vector3(-8.82,20.65,-1.10)
 ]
 const Branches = preload("res://game/branch_routes.gd")
 var branches := Branches.new()
@@ -25,7 +25,6 @@ const CHECKPOINTS := [6,12,18,24]
 const SPEAKER_TOP := Vector3(-2.55,0,-.48)
 const PREVIOUS_HEIGHTS := [0.,1.35,3.05,4.95,7.05,9.1,11.25,13.5,15.75,17.95,20.25,22.65,25.,27.1,29.25,31.45,33.65,35.85,38.]
 const NAMES := ["士多天台","絲絨腳凳","木茶几","膽機電視","皮喼","波鞋鞋底","錄音帶","手提音響","黑膠唱盤","電子琴","古董相機","滑板","玩具跑車","碼頭繫纜柱","貨櫃","橫放電纜轆","吊臂鋼樑","三角形郵筒紙盒","失物招領枱","熨衫板","木衣夾","滾筒洗衣機","晾衫架","鋁摺梯","天台太陽傘"]
-const SOFA = preload("res://assets/props/sofa.glb")
 const SHOE = preload("res://assets/props/sneaker.glb")
 const STEREO = preload("res://assets/props/boombox.glb")
 const CAMERA = preload("res://assets/props/camera.glb")
@@ -46,14 +45,7 @@ func _ready() -> void:
 				# Keep a short run-up from spawn, with clear air beyond the roof lip.
 				body.position=Vector3(.65,0,.52)
 				rooftop(body)
-			1:
-				footstool(body)
-				# The separate sofa catches jumps to the right of the stool.
-				var sofa:=StaticBody3D.new()
-				sofa.set_meta("ledge",index)
-				add_child(sofa)
-				sofa.position=body.position+Vector3(3.22,.06,-.57)
-				model_prop(sofa,SOFA,3.24,Vector3(0,-86,0))
+			1: footstool(body)
 			2: coffee_table(body)
 			3:
 				television(body)
@@ -185,10 +177,10 @@ func rooftop(b: StaticBody3D) -> void:
 		box(b,Vector3(2.81,.027,.59+i*.10),Vector3(.55,.017,.039),"8c9990")
 	for i in 7:
 		box(b,Vector3(.40+i*.405,.015,-2.36),Vector3(.13,.016,.40),"ddad60").rotation.y=-.48
-	box(b,Vector3(0,-5.17,0),Vector3(7.38,9.8,5.10),"c39272",.10)
+	box(b,Vector3(-.50,-6.085,0),Vector3(6.52,11.63,5.10),"c39272",.10)
 	for j in 4:
 		for i in 4:
-			var p := Vector3((i-1.5)*1.66,-1.51-j*2.1,2.56)
+			var p := Vector3(-.50+(i-1.5)*1.52,-1.51-j*2.1,2.56)
 			box(b,p,Vector3(1.16,1.38,.08),"e1c7a2")
 			box(b,p+Vector3.BACK*.06,Vector3(.97,1.18,.08),"55777c")
 			box(b,p+Vector3.BACK*.12,Vector3(.05,1.15,.03),"b9c2ac")

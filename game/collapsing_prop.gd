@@ -1,8 +1,10 @@
 extends AnimatableBody3D
 
 const Props = preload("res://game/props.gd")
+const BOARD_SIZE := Vector3(1.25,.17,2.54)
 const BOARD_PITCH := -PI/15.
 const HINGE := Vector3(0,-.10,-1.17)
+var catch_surface: StaticBody3D
 var drawer := false
 var home: Transform3D
 
@@ -28,7 +30,7 @@ func build(art: Props, is_drawer: bool) -> void:
 			art.box(fitting,Vector3(side*.70,-.15,-.76),Vector3(.13,.06,.22),"d95132",.018)
 			art.box(self,Vector3(side*.70,-.15,.10),Vector3(.085,.07,1.30),"becac5")
 	else:
-		art.deck(self,Vector3(1.25,.17,2.54),"b47e4e")
+		art.deck(self,BOARD_SIZE,"b47e4e")
 		for side: float in [-1.,1.]:
 			var pin:=art.cone(fitting,HINGE+Vector3.RIGHT*side*.63,.13,.105,.105,"586b68",16)
 			pin.rotation.z=PI/2
@@ -60,14 +62,19 @@ func advance(elapsed: float, deadline: float) -> void:
 		return
 	collision_layer=0
 	var falling:=elapsed-deadline
-	if falling>=1.1:
-		if visible:
-			hide()
-			# Park while non-solid so respawning imparts no return-trip velocity.
-			transform=home
-		return
+	if not visible:return
 	# Continue from the last loaded pose instead of snapping back to the mounting.
 	transform=strain(1.)
 	position+=Vector3.DOWN*8.*falling*falling
-	if drawer: position+=Vector3(-.65,0,1.60)*smoothstep(.04,.63,falling)
+	var slide:=Vector3(1.8,0,-1.8) if drawer else Vector3(-.70,0,-.95)
+	position+=slide*smoothstep(0.,.62,falling)
 	rotate_object_local(Vector3.BACK,falling*.65)
+	# The plank disappears on contact with the rescue sheet below.
+	var spent:=falling>=1.0
+	if catch_surface:
+		var deck_bounds:=AABB(Vector3(-BOARD_SIZE.x*.5,-BOARD_SIZE.y,-BOARD_SIZE.z*.5),BOARD_SIZE)
+		spent=spent or (global_transform*deck_bounds).position.y<=catch_surface.global_position.y+.02
+	if spent:
+		hide()
+		# Park while non-solid so respawning imparts no return-trip velocity.
+		transform=home

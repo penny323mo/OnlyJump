@@ -44,6 +44,9 @@ jobs:
           set -euo pipefail
           godot --headless --fixed-fps 60 --quit-after 6500 --script tests/route.gd | tee "$RUNNER_TEMP/ascent.log"
           grep -Fxq 'PASS mobile parkour: 24 landings, instant jump, sprint, orbit, edge hold, recovery' "$RUNNER_TEMP/ascent.log"
+          godot --headless --fixed-fps 60 --quit-after 100 --script tests/course_layout.gd 2>&1 | tee "$RUNNER_TEMP/layout.log"
+          if grep -qE '^(SCRIPT ERROR|ERROR):' "$RUNNER_TEMP/layout.log"; then exit 1; fi
+          grep -Fxq 'PASS course mesh placement, lift travel and collapsing props' "$RUNNER_TEMP/layout.log"
           godot --headless --fixed-fps 60 --quit-after 14000 --script tests/opening.gd | tee "$RUNNER_TEMP/opening.log"
           grep -Fxq 'PASS nine forgiving walk jumps and a continuous ordinary climb to the camera' "$RUNNER_TEMP/opening.log"
           godot --headless --fixed-fps 60 --quit-after 1700 --script tests/stance.gd | tee "$RUNNER_TEMP/stance.log"
