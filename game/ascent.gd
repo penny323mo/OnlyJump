@@ -87,7 +87,11 @@ func _ready() -> void:
 	light.light_color = Color("ffebce")
 	light.light_energy = 0.49
 	light.shadow_enabled = not lightweight
-	light.directional_shadow_max_distance = 46
+	# At the widest zoom (11 m), keep the runner and the next landing inside
+	# one shadow map instead of drawing the whole course into four cascades.
+	light.directional_shadow_max_distance = 22 if touch_web else 46
+	if touch_web:
+		light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	add_child(light)
 	add_child(art)
 	var ring := TorusMesh.new()
