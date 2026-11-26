@@ -203,6 +203,29 @@ func check_fan_footing() -> bool:
 	game.web_command(["stick",0,0])
 	return check(player.position.y<blade.position.y-.15 and player.jump_count==0,"stepping off the tip releases the foothold")
 
+func check_fan_lamps() -> bool:
+	var fan:=game.art.branches.fan
+	var to_camera:=game.art.stop_position(game.art.destination(B.FAN,false))-fan.position
+	to_camera.y=0.
+	var lit_ticks:=[0,0,0]
+	var dark_ticks:=0
+	for degree in 360:
+		fan.set_angle(deg_to_rad(degree))
+		var lit:=0
+		for wing in fan.lamps.size():
+			var lamp:=fan.lamps[wing]
+			if not lamp.is_visible_in_tree():continue
+			var heading:=lamp.global_basis.x
+			if not check(heading.angle_to(to_camera)<deg_to_rad(19.),"lit chevrons point at the real exit"):return false
+			lit_ticks[wing]+=1
+			lit+=1
+		if not check(lit<=1,"only the aligned blade lights up"):return false
+		if lit==0:dark_ticks+=1
+	for ticks: int in lit_ticks:
+		if not check(ticks>=27 and ticks<=29,"each blade shows a steady, roughly one-second window"):return false
+	fan.set_angle(0.)
+	return check(dark_ticks>240,"indicators go dark between blades")
+
 func check_moving_takeoff(source: int, phase_ticks: int, aim: int, landing: int) -> bool:
 	game.start_run()
 	await frames(phase_ticks)
@@ -219,6 +242,7 @@ func check_moving_takeoff(source: int, phase_ticks: int, aim: int, landing: int)
 	await frames(9)
 	if not check(player.is_on_floor() and game.ledge==source and player.get_platform_velocity().length()>.6,"moving support before jump"):return false
 	game.landing_guide.refresh(player,game.world_move(),1./60)
+	if source==B.FAN and not check(game.art.branches.fan.lamps[1].visible,"departure from the lit blade"):return false
 	if not check(game.landing_guide.visible,"visible takeoff prediction"):return false
 	var mark:=game.landing_guide.global_position
 	game.web_command(["jump"])
@@ -239,6 +263,7 @@ func run() -> void:
 	game.best=100
 	game.muted=true
 	if not await check_fork_hints():return
+	if not check_fan_lamps():return
 	if not await check_spring_impacts():return
 	for id: String in game.player.costumes.NAMES:
 		game.player.costumes.select(id)
@@ -331,7 +356,15 @@ func run() -> void:
 	await start_on(8)
 	await frames(251) # Board the next blade past the turntable, away from the key.
 	if not await leap(B.FAN,Vector3.ZERO,false):return
-	while game.art.branches.fan_angle<5.19: await frames(1)
+	var fan:=game.art.branches.fan
+	var rider_lamp:=fan.lamps[0]
+	for lamp in fan.lamps:
+		if lamp.global_position.distance_squared_to(game.player.position)<rider_lamp.global_position.distance_squared_to(game.player.position):
+			rider_lamp=lamp
+	for tick in 760:
+		if rider_lamp.visible:break
+		await frames(1)
+	if not check(rider_lamp.visible,"the rider's own arrow comes around"):return
 	if not await leap(10,Vector3.ZERO,false):return
 	await start_on(18)
 	if not await leap(B.POLE,Vector3.ZERO,false):return

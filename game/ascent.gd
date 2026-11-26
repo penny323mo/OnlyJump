@@ -368,7 +368,7 @@ func on_landing(index: int, strength: float) -> void:
 		8: notice="黑膠會帶住你轉，行返木邊可以企定"
 		9: notice="沿白鍵行可以彈音階，行近黑鍵會踩到半音"
 		Islands.Branches.TRACK: notice="順住橙槽滑，棋盤格起跳返滑板"
-		Islands.Branches.FAN: notice="企穩扇葉，轉到對面先起跳"
+		Islands.Branches.FAN: notice="企穩扇葉，你嗰塊葉尖亮起雙箭嘴就向相機助跑跳"
 		Islands.Branches.PENDULUM: notice="擺向鋼樑、接近高位就起跳"
 		Islands.Branches.LEVEL: notice="踩低近端，跑到紅刻度起跳"
 		Islands.Branches.POLE: notice="沿桿行到高端，再跳洗衣機"

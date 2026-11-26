@@ -7,6 +7,7 @@ const SpiritLevel = preload("res://game/spirit_level.gd")
 const LaundryLift = preload("res://game/laundry_lift.gd")
 const TapeMeasure = preload("res://game/tape_measure.gd")
 const ToyTrack = preload("res://game/toy_track.gd")
+const RooftopFan = preload("res://game/rooftop_fan.gd")
 const CollapsingProp = preload("res://game/collapsing_prop.gd")
 const BED := 100
 const DRAWER := 101
@@ -44,7 +45,7 @@ const APPROACH_HINTS := {
 	BED: "踩中細金圈，彈上%s",
 	DRAWER: "抽屜會滑走，趁早跳去%s",
 	TAPE: "踩銀色尺頭，見紅段就跳去%s",
-	FAN: "搭扇葉轉向%s，再由葉尖起跳",
+	FAN: "等腳下葉尖雙箭嘴亮起，助跑跳去%s",
 	LEVEL: "踩上近端，跑到紅刻度跳去%s",
 	PENDULUM: "低位跳上銅擺，擺高再跳去%s",
 	POLE: "沿斜桿行到高端，再跳去%s",
@@ -62,7 +63,7 @@ var lift: LaundryLift
 var tape: TapeMeasure
 var timers := {}
 var clock := 0.0
-var fan_angle := 0.0
+var fan: RooftopFan
 
 func approach_hint(id: int, exit_name: String) -> String:
 	if DROP_AFTER.has(id) and bodies[id].collision_layer==0:
@@ -93,7 +94,8 @@ func build(art: Props, main: Array) -> void:
 			lift=LaundryLift.new()
 			b=lift
 		elif id==FAN:
-			b=AnimatableBody3D.new()
+			fan=RooftopFan.new()
+			b=fan
 		else:
 			b=StaticBody3D.new()
 		if b is AnimatableBody3D:
@@ -117,20 +119,7 @@ func build(art: Props, main: Array) -> void:
 			AWNING:
 				build_awning(art,b)
 			FAN:
-				var hub:=art.cone(b,Vector3.DOWN*.08,.16,.46,.44,"e1a735",24)
-				var axle:=CollisionShape3D.new()
-				var shape:=CylinderShape3D.new()
-				shape.radius=.44
-				shape.height=.16
-				axle.shape=shape
-				b.add_child(axle)
-				axle.position=hub.position
-				art.cone(b,Vector3.DOWN*.45,.58,.25,.30,"45606a",20)
-				for wing in 3:
-					var yaw:=wing*TAU/3
-					var root:=Vector3.RIGHT.rotated(Vector3.UP,yaw)
-					art.solid(b,root*1.20+Vector3.DOWN*.072,Vector3(1.97,.13,.72),"319d9d" if wing%2==0 else "e59646",.06,yaw)
-					art.box(b,root*1.95,Vector3(.13,.018,.64),"f1d79e",.006).rotation.y=yaw
+				fan.build(art,main[STOPS[id][3]])
 			POLE:
 				var axis := Vector3(-1,.21,.24).normalized()
 				var collar := art.cone(b,Vector3.DOWN*.26,5.40,.27,.27,"4b939b",24)
@@ -200,8 +189,8 @@ func target(id: int) -> Vector3:
 		var from_disc:=Vector3(2.84,0,3.68).normalized()
 		var best_tip:=Vector3.ZERO
 		var closest:=-2.
-		for wing in 3:
-			var tip:=Vector3.RIGHT.rotated(Vector3.UP,body.rotation.y+wing*TAU/3)
+		for wing in RooftopFan.WINGS:
+			var tip:=Vector3.RIGHT.rotated(Vector3.UP,body.rotation.y+wing*TAU/RooftopFan.WINGS)
 			if tip.dot(from_disc)>closest:
 				closest=tip.dot(from_disc)
 				best_tip=tip
@@ -215,8 +204,7 @@ func reset() -> void:
 	level.reset()
 	for spring in springs: spring.reset()
 	clock=0
-	fan_angle=0
-	bodies[FAN].rotation.y=0
+	fan.set_angle(0.)
 	timers.clear()
 	for id: int in DROP_AFTER:
 		(bodies[id] as CollapsingProp).reset()
@@ -230,8 +218,7 @@ func advance(delta: float, occupied: int, foot: Vector3) -> void:
 	pendulum.advance(delta)
 	level.advance(delta,occupied==LEVEL,foot)
 	for spring in springs: spring.advance(delta)
-	fan_angle=fmod(fan_angle+delta*.50,TAU)
-	bodies[FAN].rotation.y=fan_angle
+	fan.set_angle(fan.angle+delta*RooftopFan.TURN_SPEED)
 	clock=fmod(clock+delta,LaundryLift.PERIOD)
 	lift.advance(clock)
 	for id: int in timers.keys():
