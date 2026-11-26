@@ -174,25 +174,25 @@ func rooftop(b: StaticBody3D) -> void:
 	# A flush drain and hazard paint leave the entire takeoff lane usable.
 	box(b,Vector3(2.81,.01,.89),Vector3(.64,.023,.78),"485758")
 	for i in 7:
-		box(b,Vector3(2.81,.027,.59+i*.10),Vector3(.55,.017,.039),"8c9990")
+		trim_box(b,Vector3(2.81,.027,.59+i*.10),Vector3(.55,.017,.039),"8c9990")
 	for i in 7:
-		box(b,Vector3(.40+i*.405,.015,-2.36),Vector3(.13,.016,.40),"ddad60").rotation.y=-.48
+		trim_box(b,Vector3(.40+i*.405,.015,-2.36),Vector3(.13,.016,.40),"ddad60").rotation.y=-.48
 	box(b,Vector3(-.50,-6.085,0),Vector3(6.52,11.63,5.10),"c39272",.10)
 	for j in 4:
 		for i in 4:
 			var p := Vector3(-.50+(i-1.5)*1.52,-1.51-j*2.1,2.56)
-			box(b,p,Vector3(1.16,1.38,.08),"e1c7a2")
-			box(b,p+Vector3.BACK*.06,Vector3(.97,1.18,.08),"55777c")
-			box(b,p+Vector3.BACK*.12,Vector3(.05,1.15,.03),"b9c2ac")
+			trim_box(b,p,Vector3(1.16,1.38,.08),"e1c7a2")
+			trim_box(b,p+Vector3.BACK*.06,Vector3(.97,1.18,.08),"55777c")
+			trim_box(b,p+Vector3.BACK*.12,Vector3(.05,1.15,.03),"b9c2ac")
 	# End the parapet before the trampoline frame, clear of the sagging fabric.
 	solid(b,Vector3(-3.53,.22,.5),Vector3(.25,.44,3.97),"c3b59b")
 	for i in 9:
-		box(b,Vector3((i-4)*.72,-2.41,3.0),Vector3(.73,.13,1.20),"b95843" if i%2==0 else "e5cd9f").rotation.x=.20
+		trim_box(b,Vector3((i-4)*.72,-2.41,3.0),Vector3(.73,.13,1.20),"b95843" if i%2==0 else "e5cd9f").rotation.x=.20
 	box(b,Vector3(-.11,-.93,2.66),Vector3(5.90,.85,.18),"245d61")
 	label(b,Vector3(-.11,-.91,2.77),"LOST PROPERTY",.52,"ffdea4")
 	# Printed loading-bay markings give the starting roof a sense of scale.
 	for i in 5:
-		box(b,Vector3(-2.55+i*1.14,.009,1.99),Vector3(.78,.016,.10),"d9c992")
+		trim_box(b,Vector3(-2.55+i*1.14,.009,1.99),Vector3(.78,.016,.10),"d9c992")
 	label(b,Vector3(-1.98,.013,.16),"DEPOT",.41,"e8ddb9",true).rotation.y=PI/2
 	batch_static_trim(b)
 

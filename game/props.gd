@@ -4,6 +4,7 @@ extends Node3D
 # are visual. Imported props get their collision directly from their visible mesh.
 var materials := {}
 var bevel_meshes := {}
+var trim_meshes := {}
 
 func material(tint: String) -> StandardMaterial3D:
 	if not materials.has(tint):
@@ -26,6 +27,12 @@ func box(parent: Node3D, pos: Vector3, size: Vector3, tint: String, bevel := 0.0
 	if not bevel_meshes.has(key):
 		bevel_meshes[key] = rounded_box(size,bevel)
 	return piece(parent,bevel_meshes[key],pos,tint)
+
+# Thin paint and facade strips only need one bevel segment at play distance.
+func trim_box(parent: Node3D, pos: Vector3, size: Vector3, tint: String) -> MeshInstance3D:
+	if not trim_meshes.has(size):
+		trim_meshes[size] = rounded_box(size,.035,false)
+	return piece(parent,trim_meshes[size],pos,tint)
 
 # For fixed trim on a single prop, keep one mesh per shared finish. Labels,
 # custom shaders and collision shapes keep their own nodes and coordinates.
@@ -51,7 +58,7 @@ func batch_static_trim(parent: StaticBody3D) -> void:
 		trim.material_override = finish
 		parent.add_child(trim)
 
-func rounded_box(size: Vector3, radius: float) -> ArrayMesh:
+func rounded_box(size: Vector3, radius: float, smooth_bevel := true) -> ArrayMesh:
 	var half := size / 2
 	var r := minf(radius,minf(half.x,minf(half.y,half.z))*0.87)
 	var inner := half - Vector3.ONE*r
@@ -62,10 +69,13 @@ func rounded_box(size: Vector3, radius: float) -> ArrayMesh:
 		var v := (face+2)%3
 		var us := [-half[u],-inner[u]-r*.55,-inner[u],inner[u],inner[u]+r*.55,half[u]]
 		var vs := [-half[v],-inner[v]-r*.55,-inner[v],inner[v],inner[v]+r*.55,half[v]]
+		if not smooth_bevel:
+			us = [-half[u],-inner[u],inner[u],half[u]]
+			vs = [-half[v],-inner[v],inner[v],half[v]]
 		for sign_value in [-1,1]:
 			var order := [0,1,3,0,3,2] if sign_value < 0 else [0,3,1,0,2,3]
-			for i in 5:
-				for j in 5:
+			for i in us.size()-1:
+				for j in vs.size()-1:
 					for corner: int in order:
 						var p := Vector3.ZERO
 						p[face] = sign_value*half[face]
@@ -236,8 +246,8 @@ func bollard(b: StaticBody3D) -> void:
 func container(b: StaticBody3D) -> void:
 	deck(b,Vector3(4.17,1.76,2.21),"367477")
 	for j in 16:
-		for z in [-1,1]: box(b,Vector3((j-7.5)*.244,-.88,z*1.105),Vector3(.07,1.6,.08),"4f8989")
-		box(b,Vector3((j-7.5)*.244,0.016,0),Vector3(.065,.034,2.02),"5f9290")
+		for z in [-1,1]: trim_box(b,Vector3((j-7.5)*.244,-.88,z*1.105),Vector3(.07,1.6,.08),"4f8989")
+		trim_box(b,Vector3((j-7.5)*.244,0.016,0),Vector3(.065,.034,2.02),"5f9290")
 	box(b,Vector3(-.87,-.80,1.16),Vector3(1.9,.61,.05),"315e62")
 	label(b,Vector3(-.87,-.80,1.2),"PORT  07",.27,"e5d4aa")
 	batch_static_trim(b)
