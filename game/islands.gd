@@ -194,6 +194,7 @@ func rooftop(b: StaticBody3D) -> void:
 	for i in 5:
 		box(b,Vector3(-2.55+i*1.14,.009,1.99),Vector3(.78,.016,.10),"d9c992")
 	label(b,Vector3(-1.98,.013,.16),"DEPOT",.41,"e8ddb9",true).rotation.y=PI/2
+	batch_static_trim(b)
 
 func finish_counter(b: StaticBody3D) -> void:
 	deck(b,Vector3(3.55,.27,2.45),"a46f49")
@@ -269,21 +270,41 @@ func city() -> void:
 
 func crane() -> void:
 	var p := Vector3(22,-10,-35)
-	var steel := "bf8453"
+	var beams: Array[Transform3D] = []
 	for x in [-.60,.60]:
-		for z in [-.60,.60]: tube(self,p+Vector3(x,0,z),p+Vector3(x,38,z),.095,steel)
+		for z in [-.60,.60]: crane_beam(beams,p+Vector3(x,0,z),p+Vector3(x,38,z),.095)
 	for i in 19:
 		var a := p+Vector3(-.60,2*i,.60)
-		tube(self,a,a+Vector3(1.2,2,0),.06,steel)
-		tube(self,a+Vector3(1.2,0,-1.2),a+Vector3(1.2,2,0),.06,steel)
+		crane_beam(beams,a,a+Vector3(1.2,2,0),.06)
+		crane_beam(beams,a+Vector3(1.2,0,-1.2),a+Vector3(1.2,2,0),.06)
 	for z in [-.54,.54]:
-		tube(self,p+Vector3(-12,37,z),p+Vector3(4,37,z),.12,steel)
-		tube(self,p+Vector3(-12,38,z),p+Vector3(4,38,z),.10,steel)
+		crane_beam(beams,p+Vector3(-12,37,z),p+Vector3(4,37,z),.12)
+		crane_beam(beams,p+Vector3(-12,38,z),p+Vector3(4,38,z),.10)
 		for i in 8:
-			tube(self,p+Vector3(-12+i*2,37,z),p+Vector3(-11+i*2,38,z),.063,steel)
-			tube(self,p+Vector3(-11+i*2,38,z),p+Vector3(-10+i*2,37,z),.063,steel)
+			crane_beam(beams,p+Vector3(-12+i*2,37,z),p+Vector3(-11+i*2,38,z),.063)
+			crane_beam(beams,p+Vector3(-11+i*2,38,z),p+Vector3(-10+i*2,37,z),.063)
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = 1.
+	cylinder.bottom_radius = 1.
+	cylinder.height = 1.
+	cylinder.radial_segments = 12
+	cylinder.rings = 0
+	var batch := MultiMesh.new()
+	batch.transform_format = MultiMesh.TRANSFORM_3D
+	batch.mesh = cylinder
+	batch.instance_count = beams.size()
+	for i in beams.size(): batch.set_instance_transform(i,beams[i])
+	var lattice := MultiMeshInstance3D.new()
+	lattice.multimesh = batch
+	lattice.material_override = material("bf8453")
+	add_child(lattice)
 	tube(self,p+Vector3(-10,37,0),p+Vector3(-10,31,0),.034,"50616b")
 	box(self,p+Vector3(3,36.5,0),Vector3(2.6,1.6,1.8),"78918d",.12)
+
+func crane_beam(beams: Array[Transform3D], a: Vector3, b: Vector3, radius: float) -> void:
+	var rotation := Basis(Quaternion(Vector3.UP,a.direction_to(b)))
+	var size := Vector3(radius,a.distance_to(b),radius)
+	beams.append(Transform3D(rotation * Basis.from_scale(size),(a+b)/2))
 
 func skyline() -> void:
 	var towers: Array[Transform3D] = []

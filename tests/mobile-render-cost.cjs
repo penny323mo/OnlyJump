@@ -22,6 +22,11 @@ async function run() {
         get: () => ui,
         set: bridge => {
           ui = bridge;
+          const update = bridge.update;
+          bridge.update = (...args) => {
+            window.ledge = args[3];
+            return update.apply(bridge, args);
+          };
           const bind = bridge.bindGame;
           bridge.bindGame = callback => {
             window.drive = callback;
@@ -49,6 +54,37 @@ async function run() {
     });
     console.log('Rooftop pan, median WebGL draws per rendered frame:', median);
     assert(median < 1100, 'Mobile rooftop shadow rendering exceeded its draw budget');
+
+    // From the shoe, both the starter roof and the container can be in view.
+    // Walk the route so the render budget covers this sightline during a jump.
+    await page.reload();
+    await page.getByRole('button', { name: '開始攀登', exact: true }).tap({ timeout: 90000 });
+    const shoeDraws = await page.evaluate(async () => {
+      const frame = () => new Promise(requestAnimationFrame);
+      const align = document.getElementById('align');
+      const draws = [];
+      for (let target = 1; target <= 6; target++) {
+        align.click();
+        window.drive('stick', 0, -1);
+        const start = await frame();
+        while (performance.now() - start < 300) await frame();
+        window.drive('jump');
+        const deadline = performance.now() + 1800;
+        while (window.ledge !== target && performance.now() < deadline) {
+          const before = window.drawCount;
+          await frame();
+          const count = window.drawCount - before;
+          if (target === 6 && count) draws.push(count);
+        }
+        window.drive('stick', 0, 0);
+        if (window.ledge !== target) throw Error('Missed landing ' + target);
+        for (let i = 0; i < 8; i++) await frame();
+      }
+      if (draws.length < 12) throw Error('Too few rendered frames on the cassette approach');
+      return draws.sort((a, b) => a - b)[Math.floor(draws.length / 2)];
+    });
+    console.log('Shoe to cassette, median WebGL draws per rendered frame:', shoeDraws);
+    assert(shoeDraws < 1100, 'Mobile cassette approach exceeded its draw budget');
   } finally {
     await browser.close();
   }

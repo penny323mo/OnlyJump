@@ -27,6 +27,30 @@ func box(parent: Node3D, pos: Vector3, size: Vector3, tint: String, bevel := 0.0
 		bevel_meshes[key] = rounded_box(size,bevel)
 	return piece(parent,bevel_meshes[key],pos,tint)
 
+# For fixed trim on a single prop, keep one mesh per shared finish. Labels,
+# custom shaders and collision shapes keep their own nodes and coordinates.
+func batch_static_trim(parent: StaticBody3D) -> void:
+	var by_material := {}
+	for child in parent.get_children():
+		var part := child as MeshInstance3D
+		if not part or not part.material_override is StandardMaterial3D: continue
+		if part.get_child_count() or not part.mesh or part.mesh.get_surface_count() != 1: continue
+		var finish := part.material_override
+		if not by_material.has(finish): by_material[finish] = []
+		by_material[finish].append(part)
+	for finish: Material in by_material:
+		var pieces: Array = by_material[finish]
+		if pieces.size() < 3: continue
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for part: MeshInstance3D in pieces:
+			surface.append_from(part.mesh,0,part.transform)
+			part.free()
+		var trim := MeshInstance3D.new()
+		trim.mesh = surface.commit()
+		trim.material_override = finish
+		parent.add_child(trim)
+
 func rounded_box(size: Vector3, radius: float) -> ArrayMesh:
 	var half := size / 2
 	var r := minf(radius,minf(half.x,minf(half.y,half.z))*0.87)
@@ -216,6 +240,7 @@ func container(b: StaticBody3D) -> void:
 		box(b,Vector3((j-7.5)*.244,0.016,0),Vector3(.065,.034,2.02),"5f9290")
 	box(b,Vector3(-.87,-.80,1.16),Vector3(1.9,.61,.05),"315e62")
 	label(b,Vector3(-.87,-.80,1.2),"PORT  07",.27,"e5d4aa")
+	batch_static_trim(b)
 
 func reel_section(body: StaticBody3D, center: Vector3, radius: float, length: float, tint: String) -> void:
 	var wheel := cone(body,center,length,radius,radius,tint,48)
