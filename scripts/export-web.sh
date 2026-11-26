@@ -8,6 +8,7 @@ touch build/.gdignore
 "$editor" --headless --export-release Web build/web/index.html
 mkdir -p build/web/fonts
 cp web/fonts/BarlowCondensed-ExtraBoldItalic.ttf web/fonts/OFL.txt build/web/fonts/
+cp web/apple-touch-icon.png build/web/
 cp web/controls.js web/credits.txt web/ledge-grab.mp4 web/duo-pull-up.mp4 web/girder-recovery.mp4 web/girder-traverse.mp4 web/awning-grapple.mp4 web/pendulum-clock.mp4 web/spirit-level.mp4 web/laundry-lift.mp4 web/tape-measure.mp4 web/toy-track.mp4 web/turntable.mp4 web/polytone.mp4 web/characters.webp web/slope-stance.webp web/landing-marks.webp build/web/
 # Pages caches subresources independently of HTML. A new shell must load
 # the matching input bridge and game pack even if Safari cached the old ones.
