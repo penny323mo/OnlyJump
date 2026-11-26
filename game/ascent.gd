@@ -368,7 +368,6 @@ func on_landing(index: int, strength: float) -> void:
 		8: notice="黑膠會帶住你轉，行返木邊可以企定"
 		9: notice="沿白鍵行可以彈音階，行近黑鍵會踩到半音"
 		Islands.Branches.TRACK: notice="順住橙槽滑，棋盤格起跳返滑板"
-		Islands.Branches.FAN: notice="企穩扇葉，你嗰塊葉尖亮起雙箭嘴就向相機助跑跳"
 		Islands.Branches.PENDULUM: notice="擺向鋼樑、接近高位就起跳"
 		Islands.Branches.LEVEL: notice="踩低近端，跑到紅刻度起跳"
 		Islands.Branches.POLE: notice="沿桿行到高端，再跳洗衣機"
@@ -629,9 +628,12 @@ func update_hud() -> void:
 	var height := maxf(0.0,player.position.y)
 	var remaining := 0.0 if phase=="won" else snappedf(snappedf(maxf(0.,Islands.ROUTE[-1].y-player.position.y),.01),.1)
 	var checkpoint_name:=art.stop_name(highest_checkpoint) if highest_checkpoint>0 else ""
-	var tape_hint:=""
-	if phase=="playing" and ledge==Islands.Branches.TAPE and player.is_on_floor():
-		tape_hint=art.branches.tape.rider_hint(player.position)
+	var rider_hint:=""
+	if phase=="playing" and player.is_on_floor() and not player.grab.active:
+		if ledge==Islands.Branches.TAPE:
+			rider_hint=art.branches.tape.rider_hint(player.position)
+		elif player.grounded_ledge==Islands.Branches.FAN and not player.jet_armed:
+			rider_hint=art.branches.fan.rider_hint(player.position,art.stop_name(next))
 	var approach:=""
 	if phase=="playing" and alternate and player.is_on_floor() and not player.grab.active:
 		approach=art.branches.approach_hint(next,art.stop_name(art.destination(next,false)))
@@ -648,7 +650,7 @@ func update_hud() -> void:
 	var pace:=summit_times.pace_at(ledge,elapsed) if phase=="playing" else ""
 	var result:=summit_times.finish_summary if phase=="won" else summit_times.best_summary
 	if web:
-		var message := notice if tape_hint.is_empty() else tape_hint
+		var message := notice if rider_hint.is_empty() else rider_hint
 		if not approach.is_empty(): message=approach
 		if player.grab.active: message = "沿邊推可橫移，向外拉住放手" if player.grab.can_pull_up() else "爬緊上去"
 		var destination:="電視銅環" if aiming_at_aerial() else (art.stop_name(next) if next>=0 else "")
@@ -679,7 +681,7 @@ func update_hud() -> void:
 		if phase!="intro" and not checkpoint_name.is_empty():native_label.text+="\nCheckpoint · "+checkpoint_name
 		if hook_hint!="" and phase=="playing": native_label.text+="\n飛爪 · "+hook_hint
 		if grip_action!="" and phase=="playing": native_label.text+="\n"+("Space · 撐上　沿邊推可橫移，向外拉住放手" if player.grab.can_pull_up() else grip_action)
-		if not tape_hint.is_empty():native_label.text+="\n"+tape_hint
+		if not rider_hint.is_empty():native_label.text+="\n"+rider_hint
 		if not approach.is_empty():native_label.text+="\n%s · %s" % [art.stop_name(next),approach]
 		if phase in ["intro","paused","won"] and not result.is_empty(): native_label.text+="\n"+result
 		if not pace.is_empty(): native_label.text+="\n"+pace

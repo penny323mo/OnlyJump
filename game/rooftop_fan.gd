@@ -3,6 +3,8 @@ extends AnimatableBody3D
 const Props = preload("res://game/props.gd")
 const WINGS := 3
 const TURN_SPEED := .50
+const PANEL_RADIUS := 1.63
+const RUNUP_RADIUS := 1.
 
 var angle := 0.
 var exit_bearing := 0.
@@ -29,7 +31,7 @@ func build(art: Props, exit_point: Vector3) -> void:
 		var radial:=Vector3.RIGHT.rotated(Vector3.UP,yaw)
 		art.solid(self,radial*1.20+Vector3.DOWN*.072,Vector3(1.97,.13,.72),"319d9d" if wing%2==0 else "e59646",.06,yaw)
 		art.box(self,radial*2.08,Vector3(.09,.018,.64),"f1d79e",.006).rotation.y=yaw
-		var panel:=art.box(self,radial*1.63+Vector3.UP*.002,Vector3(.78,.024,.61),"263e42",.014)
+		var panel:=art.box(self,radial*PANEL_RADIUS+Vector3.UP*.002,Vector3(.78,.024,.61),"263e42",.014)
 		panel.rotation.y=yaw
 		var lamp:=MeshInstance3D.new()
 		lamp.mesh=chevrons
@@ -73,3 +75,11 @@ func set_angle(value: float) -> void:
 		# Lead the alignment slightly so the rider has time for a short run-up.
 		var past_exit:=angle_difference(exit_bearing,bearing)
 		lamps[wing].visible=past_exit>=deg_to_rad(-10.) and past_exit<=deg_to_rad(18.)
+
+func rider_hint(foot: Vector3, destination: String) -> String:
+	if to_local(foot).slide(Vector3.UP).length_squared()<RUNUP_RADIUS*RUNUP_RADIUS:
+		return "行去扇葉外半截，留意葉尖雙箭嘴"
+	for lamp in lamps:
+		if lamp.visible and lamp.to_local(foot).x>=RUNUP_RADIUS-PANEL_RADIUS:
+			return "雙箭嘴着咗，向%s助跑跳" % destination
+	return "企穩扇葉，等腳下雙箭嘴着燈"

@@ -217,6 +217,9 @@ func check_fan_lamps() -> bool:
 			if not lamp.is_visible_in_tree():continue
 			var heading:=lamp.global_basis.x
 			if not check(heading.angle_to(to_camera)<deg_to_rad(19.),"lit chevrons point at the real exit"):return false
+			if not check(fan.rider_hint(lamp.global_position,"古董相機").contains("着咗"),"lit wing cues its own rider"):return false
+			var other:=fan.lamps[(wing+1)%fan.lamps.size()]
+			if not check(fan.rider_hint(other.global_position,"古董相機").contains("等腳下"),"rider on a dark wing waits"):return false
 			lit_ticks[wing]+=1
 			lit+=1
 		if not check(lit<=1,"only the aligned blade lights up"):return false
@@ -224,6 +227,7 @@ func check_fan_lamps() -> bool:
 	for ticks: int in lit_ticks:
 		if not check(ticks>=27 and ticks<=29,"each blade shows a steady, roughly one-second window"):return false
 	fan.set_angle(0.)
+	if not check(fan.rider_hint(fan.position,"古董相機").contains("外半截"),"hub has no takeoff cue"):return false
 	return check(dark_ticks>240,"indicators go dark between blades")
 
 func check_moving_takeoff(source: int, phase_ticks: int, aim: int, landing: int) -> bool:
