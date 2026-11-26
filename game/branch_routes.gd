@@ -40,6 +40,18 @@ const STOPS := {
 	COIL: ["斜頭彈簧",Vector3(-4.35,18.02,-5.58),21,23],
 }
 const FORKS := {0:BED,4:DRAWER,6:TAPE,8:FAN,10:LEVEL,13:PENDULUM,18:POLE,19:LIFT,20:COIL,21:BOARD}
+const APPROACH_HINTS := {
+	BED: "踩中細金圈，彈上%s",
+	DRAWER: "抽屜會滑走，趁早跳去%s",
+	TAPE: "踩銀色尺頭，見紅段就跳去%s",
+	FAN: "搭扇葉轉向%s，再由葉尖起跳",
+	LEVEL: "踩上近端，跑到紅刻度跳去%s",
+	PENDULUM: "低位跳上銅擺，擺高再跳去%s",
+	POLE: "沿斜桿行到高端，再跳去%s",
+	LIFT: "等近站踏板放平，搭到對面跳去%s",
+	COIL: "跳落斜面金圈，彈上%s",
+	BOARD: "木板會跌，趁板頭未沉跳去%s",
+}
 const LIFT_END := Vector3(-8.20,18.20,-4.83)
 const DROP_AFTER := {DRAWER:1.6,BOARD:1.15}
 var bodies := {}
@@ -51,6 +63,13 @@ var tape: TapeMeasure
 var timers := {}
 var clock := 0.0
 var fan_angle := 0.0
+
+func approach_hint(id: int, exit_name: String) -> String:
+	if DROP_AFTER.has(id) and bodies[id].collision_layer==0:
+		return "等%s返位，再去%s" % [STOPS[id][0],exit_name]
+	if id==LIFT and lift.position.is_equal_approx(lift.entry) and is_zero_approx(lift.plate.rotation.x):
+		return "近站踏板已放平，搭到對面跳去%s" % exit_name
+	return APPROACH_HINTS[id] % exit_name
 
 func build(art: Props, main: Array) -> void:
 	for id: int in STOPS:

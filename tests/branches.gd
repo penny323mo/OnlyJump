@@ -7,6 +7,36 @@ func start_on(id: int) -> void:
 	game.player.reset_at(game.art.stop_position(id))
 	await frames(6)
 
+func check_fork_hints() -> bool:
+	for source: int in B.FORKS:
+		await start_on(source)
+		var branch: int=B.FORKS[source]
+		var exit_name:=game.art.stop_name(game.art.destination(branch,false))
+		game.web_command(["branch"])
+		var hint:=game.native_label.text
+		if not check(game.alternate and hint.contains(game.art.stop_name(branch)) and hint.contains(exit_name),"show the selected branch and exit from "+game.art.stop_name(source)):return false
+		if B.DROP_AFTER.has(branch):
+			game.art.branches.land(branch)
+			game.art.branches.advance(B.DROP_AFTER[branch]+.05,source,game.player.position)
+			game.update_hud()
+			if not check(game.native_label.text.contains("返位"),"wait for the missing trap"):return false
+			game.art.branches.advance(4.,source,game.player.position)
+			game.update_hud()
+			if not check(not game.native_label.text.contains("返位") and game.native_label.text.contains(exit_name),"restored trap shows its jump again"):return false
+		if branch==B.LIFT:
+			if not check(hint.contains("已放平"),"open boarding step at the near dock"):return false
+			game.art.branches.lift.advance(B.LaundryLift.PERIOD*.5)
+			game.update_hud()
+			if not check(game.native_label.text.contains("等近站") and not game.native_label.text.contains("已放平"),"wait while basket is at its far dock"):return false
+		game.web_command(["branch"])
+		if not check(not game.alternate and not game.native_label.text.contains(exit_name),"main route clears the branch preview"):return false
+	await start_on(0)
+	game.web_command(["branch"])
+	game.web_command(["jump"])
+	await frames(8)
+	game.update_hud()
+	return check(not game.player.is_on_floor() and not game.native_label.text.contains(game.art.stop_name(B.BED)),"jump clears the takeoff instructions")
+
 func forward_jump(strength: float, runup_ticks: int) -> void:
 	game.web_command(["sprint",true])
 	game.web_command(["stick",0,-strength])
@@ -208,6 +238,7 @@ func run() -> void:
 	root.add_child(game)
 	game.best=100
 	game.muted=true
+	if not await check_fork_hints():return
 	if not await check_spring_impacts():return
 	for id: String in game.player.costumes.NAMES:
 		game.player.costumes.select(id)

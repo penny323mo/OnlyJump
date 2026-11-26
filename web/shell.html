@@ -118,6 +118,10 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
 #hintOptions input{width:18px;height:18px;accent-color:var(--ink)}
 #branch{pointer-events:auto;border:0;background:#244e50;color:#fff3d9;padding:5px 9px;border-radius:4px;font-weight:700}
 .destination{display:flex;align-items:center;gap:7px;min-height:24px}
+#hud[data-branch] #notice{max-width:min(18em,calc(40vw - var(--gut-left)));line-height:1.35}
+@media(any-pointer:coarse) and (orientation:landscape) and (max-height:414px){
+  body[data-mode=playing] #hud[data-branch] #notice{grid-column:2;grid-row:1;margin-top:0;max-width:min(16em,28vw)}
+}
 #pickCast{margin:5px 0 0 5px}
 #cast{max-width:calc(100vw - var(--safe-left) - var(--safe-right) - 12px);inset:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);color:var(--ink);background:var(--paper);width:min(660px,94vw);max-height:min(91dvh,calc(100dvh - var(--safe-top) - var(--safe-bottom) - 12px));border:0;border-radius:9px;padding:clamp(14px,3vw,25px);box-shadow:0 12px 50px #20343855}
 #cast::backdrop{background:#1c393897}#cast h2{margin:0;font-size:21px}
@@ -202,7 +206,7 @@ $GODOT_HEAD_INCLUDE
 <p class="summary" id="error" role="status" hidden></p>
 <button class="primary" id="start" disabled aria-busy="true" data-state="loading"><span id="start-label">載入中</span><span id="loadPercent">0%</span><span class="arrow" aria-hidden="true" hidden></span></button><button class="secondary" id="pickCast" disabled>角色 · <span id="chosenCast">天台速遞員</span></button></div></main>
 <div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong id="summitSign">太陽傘頂 · 20.7 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
-<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route" id="sectionName">失物天台</div><div class="height-row"><div class="number"><span id="height">0.0</span><small>m</small></div><span class="to-summit">距頂 <b id="remainingHeight">—</b> m</span></div><div class="route-progress"><i id="progress"></i></div><div class="destination"><span class="stats" id="nextProp"></span><button id="branch" hidden aria-label="揀另一條路">⇄ 揀路</button></div><div class="stats">進度 <b id="ledge">0 / 24</b> · <span id="time">00:00</span></div><div class="stats" id="checkpoint" role="status" hidden></div><div class="stats" id="split" hidden></div><div class="stats" id="power" hidden></div></div><span id="notice" role="status" hidden></span></section>
+<section id="hud" hidden aria-label="路線進度"><div class="alt-card"><div class="route" id="sectionName">失物天台</div><div class="height-row"><div class="number"><span id="height">0.0</span><small>m</small></div><span class="to-summit">距頂 <b id="remainingHeight">—</b> m</span></div><div class="route-progress"><i id="progress"></i></div><div class="destination"><span class="stats" id="nextProp"></span><button id="branch" hidden><span aria-hidden="true">⇄</span> <span id="branchLabel">揀路</span></button></div><div class="stats">進度 <b id="ledge">0 / 24</b> · <span id="time">00:00</span></div><div class="stats" id="checkpoint" role="status" hidden></div><div class="stats" id="split" hidden></div><div class="stats" id="power" hidden></div></div><span id="notice" role="status" hidden></span></section>
 <div id="pickupLayer"><i id="pickupLine" aria-hidden="true" hidden></i><span id="pickupHint" hidden></span></div>
 <div id="touch" hidden><div id="padZone" aria-label="左半屏浮動搖桿"><div id="pad"><i></i></div></div><button id="sprint" aria-pressed="false" aria-label="按住加速，滑落跳掣起跳，滑返上再滑落可以連跳">加速</button><button id="jump">跳躍</button></div>
 <section id="overlay" hidden><div class="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"><div class="route">失物天台</div><h2 id="panelTitle"></h2><p id="timing" hidden></p><p id="report"></p>
@@ -407,7 +411,7 @@ window.OnlyJumpUI = {
     el('pickCast').disabled = el('mute').disabled = false;
     setStartState('ready','開始攀登',temporarySaves?'今局使用暫存，離開後唔會儲存今局紀錄。':'');
   },
-  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges,itemTotal,hookHint,gripAction,artStyle,bestClock="",result="",pace="",remaining,checkpoint="") {
+  update(next,height,best,ledge,total,sprint,elapsed,falls,jumps,muted,notice,target,routeRing,landingGuide,fork,laundry,character,ability,seconds,armed,finds,charges,itemTotal,hookHint,gripAction,artStyle,bestClock="",result="",pace="",remaining,checkpoint="",alternate=false) {
     const changed = mode !== next;
     const playing = next === 'playing', intro = next === 'intro', won = next === 'won';
     const interrupted=next==='interrupted', scene=playing || interrupted;
@@ -428,6 +432,8 @@ window.OnlyJumpUI = {
     if(ability==='hook')setText('power','飛爪 · '+hookHint);
     else if(ability)setText('power',powers[ability]+' · '+(armed?'撳跳點火':Math.ceil(seconds)+' 秒')+(ability==='double'?' · 餘 '+charges+' 次':''));
     setHidden('branch',!playing || !fork);
+    setText('branchLabel',alternate?'返主線':'揀路');
+    el('hud').toggleAttribute('data-branch',alternate);
     setText('sectionName',interrupted?'已暫停':(laundry?'天台晾衣場':'失物天台'));
     if(character!==selectedCast){
       selectedCast=character;
@@ -436,7 +442,7 @@ window.OnlyJumpUI = {
         if(id===character)el('chosenCast').textContent=name;
       });
     }
-    setText('nextProp',target?'下一站 · '+target:'');
+    setText('nextProp',target?(alternate?'分支 · ':'下一站 · ')+target:'');
     if(next==='paused'){
       for (const radio of artChoices) radio.checked=radio.value===artStyle;
       el('routeRing').checked=routeRing;

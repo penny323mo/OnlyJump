@@ -124,14 +124,21 @@ async function orbit(page) {
       for(const height of [small,large]) {
         await page.setViewportSize({width,height});
         await page.waitForFunction(([w,h])=>innerWidth===w && innerHeight===h,[width,height]);
-        if(await page.locator('#continue').isVisible())await page.locator('#continue').tap();
+        if(await page.locator('#resumeHere').isVisible())await page.locator('#resumeHere').tap();
         const result=await orbit(page);
         assert(result.shown>0,'expected a visible pickup');
         if(width<400)assert(result.lines>0 && result.hidden>0,'expected both a displaced label and the pickup to rotate out of view');
         console.log(pose,width+'×'+height,result);
       }
     }
-    await page.locator('#branch').tap();
+    const chooseBranch=page.getByRole('button',{name:'揀路',exact:true});
+    await chooseBranch.tap();
+    await page.locator('#notice').filter({hasText:'踩中細金圈，彈上膽機電視'}).waitFor();
+    assert.equal(await page.locator('#nextProp').textContent(),'分支 · 迷你彈床');
+    await page.getByRole('button',{name:'返主線',exact:true}).tap();
+    assert.equal(await page.locator('#nextProp').textContent(),'下一站 · 絲絨腳凳');
+    assert(await page.locator('#notice').isHidden());
+    await chooseBranch.tap();
     await page.locator('#pickupHint').waitFor({state:'visible'});
     assert.match(await page.locator('#pickupHint').textContent(), /二段跳/);
     await page.locator('#pause').tap();
