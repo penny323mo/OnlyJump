@@ -24,6 +24,8 @@ async function exercise(page, url) {
   const tap = id => button(id).tap();
   await button('start').waitFor();
   await page.waitForFunction(() => !document.querySelector('#start').disabled, null, { timeout: 90000 });
+  assert.match(await button('introGuide').innerText(), /搖桿.*絲絨腳凳/);
+  assert.doesNotMatch(await button('introGuide').innerText(), /空白鍵/);
   await tap('pickCast');
   await page.getByRole('button', { name: '短手暴龍', exact: true }).tap();
   await tap('start');
@@ -81,6 +83,18 @@ async function exercise(page, url) {
   await page.waitForFunction(() => Number(document.querySelector('#height').textContent) > .4);
   await gesture('end');
   await page.waitForFunction(() => document.querySelector('#ledge').textContent === '1 / 24');
+  await tap('pause');
+  const guide=button('controlGuide');
+  await guide.locator('summary').tap();
+  assert.match(await guide.innerText(), /同一隻手指滑落「跳躍」/);
+  assert.doesNotMatch(await guide.innerText(), /Shift/);
+  assert.match(await button('report').innerText(), /1 次起跳 · 0 次跌落/);
+  await tap('continue');
+  await tap('pause');
+  assert.equal(await guide.evaluate(node=>node.open), false);
+  assert.match(await button('report').innerText(), /1 次起跳 · 0 次跌落/);
+  assert.equal(await button('ledge').textContent(), '1 / 24');
+  await tap('continue');
   let jumps = 1;
   for (const [name, width, small, large] of poses) {
     for (const height of [small, large]) {

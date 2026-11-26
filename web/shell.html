@@ -32,6 +32,7 @@ header{position:absolute;top:max(24px,var(--safe-top));left:var(--gut-left);righ
 .intro-content{width:min(38vw,460px);pointer-events:auto}.route{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;letter-spacing:.12em}.route:before{content:'';width:29px;height:3px;background:var(--orange)}
 h1{font-family:BarlowPoster,'Arial Narrow',Impact,sans-serif;font-style:italic;font-weight:800;font-size:clamp(94px,min(11vw,19vh),194px);text-transform:uppercase;line-height:.77;letter-spacing:-.039em;margin:.20em 0 .17em -.025em}h1 span{display:block}h1 b{color:var(--orange)}
 .summary{max-width:22em;margin:24px 0 21px;font-size:clamp(14px,1.15vw,17px);line-height:1.8;font-weight:540;letter-spacing:.02em}
+#introGuide:not([hidden]) + #error{margin:0 0 8px;font-size:12px;line-height:1.4}
 .primary{min-width:172px;border:0;border-radius:4px;background:var(--ink);color:#fff2d8;font-weight:700;padding:14px 18px;display:inline-flex;align-items:center;justify-content:space-between;gap:28px;font-size:15px;box-shadow:0 2px 0 #0002}
 .primary:hover{background:#334b44}.primary .arrow{display:inline-block;font:24px/18px Arial}.fine{font:12px/1.4 var(--mono);letter-spacing:.06em}
 .bottom{position:absolute;left:var(--gut-left);bottom:max(24px,var(--safe-bottom));right:var(--gut-right);display:flex;align-items:end;justify-content:space-between;gap:20px;pointer-events:none}
@@ -112,8 +113,11 @@ body[data-button-size=compact]{--action-scale:.85}body[data-button-size=large]{-
   .alt-card .route,.alt-card .number{display:inline-flex;align-items:baseline;vertical-align:baseline}
   .alt-card .number{margin:0 0 0 6px;font-size:26px}
 }
-#hintOptions{margin:0 0 10px;font-size:14px}
-#hintOptions summary{width:max-content;padding:6px 0;font-weight:700;cursor:pointer}
+.panel details{margin:0 0 10px;font-size:14px}
+.panel summary{width:fit-content;padding:6px 0;font-weight:700;cursor:pointer}
+#controlGuide dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 10px;margin:4px 0 12px;line-height:1.5}
+#controlGuide dt{font-weight:700}
+#controlGuide dd{margin:0}
 #hintOptions label{display:inline-flex;gap:6px;align-items:center;padding:7px 8px 7px 0}
 #hintOptions input{width:18px;height:18px;accent-color:var(--ink)}
 #branch{pointer-events:auto;border:0;background:#244e50;color:#fff3d9;padding:5px 9px;border-radius:4px;font-weight:700}
@@ -202,7 +206,7 @@ $GODOT_HEAD_INCLUDE
 <div id="look" hidden aria-label="拖曳轉動視角"></div>
 <header><div class="brand" aria-label="OnlyJump"><i class="mark"></i>OnlyJump</div><div class="actions"><button class="pill" id="mute" aria-pressed="false" disabled><span class="soundmark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="soundLabel">音效開</span></button><button class="pill" id="align" hidden>◎ 對準目標</button><button class="pill" id="resumeHere" hidden>▶ 繼續</button><button class="pill" id="pause" hidden><i class="pause-icon" aria-hidden="true"></i><span id="pauseLabel">暫停</span></button></div></header>
 <main id="intro"><div class="intro-content"><div class="route">失物天台</div><h1 lang="en"><span>Only</span><span>Jump<b>.</b></span></h1>
-<p class="summary" id="introGuide"><span class="key-copy">WASD 移動，空白鍵即跳。按住 Shift 助跑，拖曳轉視角。</span><span class="touch-copy">左手移動，右手掃動轉鏡。喺畫面空位用兩指張開拉近、合埋拉遠。撳跳掣普通跳。按住加速，滑落跳掣起跳。滑返上再滑落可以連跳。</span>分岔位撳「揀路」睇另一條路，青白十字係落點，鞋邊先掂到時，黃箭嘴會指返入物件。</p>
+<p class="summary" id="introGuide"><span class="key-copy">按住 W 行前兩步，撳空白鍵</span><span class="touch-copy">左手推住搖桿向前行兩步，右手撳「跳躍」</span>跳上面前張絲絨腳凳。沿住半空嘅物件一路向上，終點係天台嗰把太陽傘。</p>
 <p class="summary" id="error" role="status" hidden></p>
 <button class="primary" id="start" disabled aria-busy="true" data-state="loading"><span id="start-label">載入中</span><span id="loadPercent">0%</span><span class="arrow" aria-hidden="true" hidden></span></button><button class="secondary" id="pickCast" disabled>角色 · <span id="chosenCast">天台速遞員</span></button></div></main>
 <div class="bottom" id="legend"><div class="controls key-copy"><span><kbd>W A S D</kbd>移動 / 瞄準</span><span><kbd>SPACE</kbd>跳躍</span><span><kbd>SHIFT</kbd>加速</span></div><div class="route-sign"><i class="flag-icon"></i><div><strong id="summitSign">太陽傘頂 · 20.7 m</strong><small lang="en">LOST PROPERTY</small></div></div></div>
@@ -210,18 +214,27 @@ $GODOT_HEAD_INCLUDE
 <div id="pickupLayer"><i id="pickupLine" aria-hidden="true" hidden></i><span id="pickupHint" hidden></span></div>
 <div id="touch" hidden><div id="padZone" aria-label="左半屏浮動搖桿"><div id="pad"><i></i></div></div><button id="sprint" aria-pressed="false" aria-label="按住加速，滑落跳掣起跳，滑返上再滑落可以連跳">加速</button><button id="jump">跳躍</button></div>
 <section id="overlay" hidden><div class="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"><div class="route">失物天台</div><h2 id="panelTitle"></h2><p id="timing" hidden></p><p id="report"></p>
+<button class="primary" id="continue"></button>
 <fieldset id="buttonSizes"><legend>右手按掣大小</legend>
 <label><input type="radio" name="buttonSize" value="compact"><span>細</span></label>
 <label><input type="radio" name="buttonSize" value="standard" checked><span>標準</span></label>
 <label><input type="radio" name="buttonSize" value="large"><span>加大</span></label>
 </fieldset>
+<details id="controlGuide" hidden><summary>操作說明</summary>
+<dl>
+<dt>移動</dt><dd><span class="touch-copy">喺左半屏落指再拖動，放手回中。推住方向撳「跳躍」，角色就向嗰邊跳。</span><span class="key-copy">用 WASD 或方向鍵移動，撳空白鍵跳。</span></dd>
+<dt>助跑跳</dt><dd><span class="touch-copy">按住「加速」，同一隻手指滑落「跳躍」起跳。滑返上再滑落，就可以再跳。</span><span class="key-copy">推住方向兼按住 Shift 助跑，再撳空白鍵起跳。</span></dd>
+<dt>鏡頭</dt><dd><span class="touch-copy">右半屏空位拖動轉鏡。喺畫面空位用兩指張開拉近、合埋拉遠。撳「對準目標」望向下一站。</span><span class="key-copy">拖曳滑鼠或按 Q、E 轉鏡，按 F 望向下一站。</span></dd>
+<dt>落腳位</dt><dd>青白十字係預計落點。見到黃箭嘴，就向箭嘴方向移入物件。分岔位撳「揀路」可以睇捷徑。</dd>
+<dt>跌落去</dt><dd>跌到下層物件，可以就地再爬。跌到街面先會返起點。</dd>
+</dl></details>
 <details id="hintOptions"><summary>遊戲選項</summary>
 <fieldset id="artStyles"><legend>畫風</legend><label><input type="radio" name="artStyle" value="normal" checked>一般</label><label><input type="radio" name="artStyle" value="oil">油畫</label></fieldset>
 <label><input type="checkbox" id="routeRing">下一站橙圈</label>
 <label><input type="checkbox" id="landingGuide" checked>預計落點</label>
 <button class="secondary" id="graphicsMode">以輕量模式重開</button>
 </details>
-<button class="primary" id="continue"></button><button class="secondary" id="reset">重新開始</button><button class="secondary" id="menu">返回主畫面</button><a class="credits" href="./credits.txt" target="_blank" rel="noopener">模型鳴謝</a></div></section>
+<button class="secondary" id="reset">重新開始</button><button class="secondary" id="menu">返回主畫面</button><a class="credits" href="./credits.txt" target="_blank" rel="noopener">模型鳴謝</a></div></section>
 <dialog id="cast" aria-labelledby="castTitle"><div class="cast-header"><h2 id="castTitle">揀角色</h2><button class="secondary" id="closeCast">返回</button></div><div class="cast-grid" id="castList"></div></dialog>
 <dialog class="panel" id="graphicsRecovery" aria-labelledby="graphicsTitle"><h2 id="graphicsTitle">3D 畫面中斷</h2><p>重新開局會返回天台起點。輕量模式會降低解像度，並關閉陰影同油畫效果。</p><button class="primary" id="recoverGraphics">以輕量模式重開</button></dialog>
 <noscript>請開啟 JavaScript 載入遊戲。</noscript>
@@ -426,6 +439,8 @@ window.OnlyJumpUI = {
       el('touch').inert=!scene;
       el('overlay').hidden=!(won || next==='paused');
       el('hintOptions').hidden=next!=='paused';
+      el('controlGuide').hidden=next!=='paused';
+      if(next!=='paused') el('controlGuide').open=false;
     }
     const powers={double:'二段跳',jet:'噴射器',glide:'滑翔襪'};
     setHidden('power',!ability);
@@ -540,7 +555,7 @@ function setStartState(state,label,message='') {
   setHidden('loadPercent',!busy);
   start.querySelector('.arrow').hidden=start.disabled;
   setHidden('error',!message);
-  setHidden('introGuide',Boolean(message));
+  setHidden('introGuide',Boolean(message) && state!=='ready');
   setText('error',message);
 }
 function watchBootProgress() {
