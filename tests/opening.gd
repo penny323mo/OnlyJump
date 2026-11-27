@@ -65,6 +65,20 @@ func run() -> void:
 	game.muted=true
 	game.best=100
 	if not check_opening_spacing():return
+	# Releasing the stick between the tap and the physics tick still uses the
+	# tap direction. A short approach should be as responsive as a standing tap.
+	for strength: float in [.45,1.]:
+		for ticks in [0,1,3,5]:
+			game.start_run()
+			await frames(15)
+			game.web_command(["stick",0.,-strength])
+			if ticks: await frames(ticks)
+			game.web_command(["jump"])
+			game.web_command(["stick",0.,0.])
+			await frames(1)
+			var player := game.player
+			if not check(not player.is_on_floor() and -player.velocity.z >= strength*player.STANDING_PUSH-.02,
+				"short run-up preserves stick-scaled takeoff at tick %d" % ticks): return
 	for strength: float in [.8,1.]:
 		for angle: float in [-12.,0.,12.]:
 			game.start_run()

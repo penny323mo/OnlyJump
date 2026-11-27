@@ -76,20 +76,20 @@ func _ready() -> void:
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.ambient_light_color = Color("e9edf5")
 	env.fog_enabled = true
-	env.fog_light_color = Color("a4b9cb")
-	env.fog_density = 0.0085
-	env.fog_sky_affect = 0.23
+	env.fog_light_color = Color("d3b7aa")
+	env.fog_density = 0.0041
+	env.fog_sky_affect = 0.10
 	var world := WorldEnvironment.new()
 	world.environment = env
 	add_child(world)
 	var light := DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-47,-32,0)
-	light.light_color = Color("ffebce")
+	light.rotation_degrees = Vector3(-37,-125,0)
+	light.light_color = Color("ffe4be")
 	light.light_energy = 0.49
 	light.shadow_enabled = not lightweight
 	# At the widest zoom (11 m), keep the runner and the next landing inside
 	# one shadow map instead of drawing the whole course into four cascades.
-	light.directional_shadow_max_distance = 22 if touch_web else 46
+	light.directional_shadow_max_distance = 19 if touch_web else 46
 	if touch_web:
 		light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	add_child(light)
@@ -409,6 +409,7 @@ func _physics_process(delta: float) -> void:
 	if phase=="interrupted" and recenter_camera: game_camera(delta,true)
 	if phase != "playing": return
 	elapsed += delta
+	art.street_life.advance(elapsed)
 	art.platter.turn(elapsed)
 	art.branches.advance(delta,player.grounded_ledge if player.is_on_floor() else -1,player.position)
 	landing_guide.follow_support()

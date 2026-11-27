@@ -48,6 +48,7 @@ var jump_buffer := 0.0
 var grace := 0.0
 var tap_direction := Vector2.ZERO
 var air_speed := 0.0
+var runup_time := 0.0
 var model := Node3D.new()
 var stunt_pivot := Node3D.new()
 const STUNT_SECONDS := .47
@@ -115,6 +116,8 @@ func reset_at(p: Vector3) -> void:
 	jump_buffer = 0
 	grace = 0
 	jump_count = 0
+	runup_time = 0.
+	model.rotation.x = 0.
 	grounded_ledge = -1
 	standing_platform = null
 	resume_on_carrier = false
@@ -150,8 +153,15 @@ func ground_at(point: Vector3, depth: float) -> Dictionary:
 	return get_world_3d().direct_space_state.intersect_ray(query)
 
 func launch_horizontal(horizontal: Vector2, direction: Vector2) -> Vector2:
-	if track and is_on_floor(): horizontal=Vector2(track_velocity.x,track_velocity.z)
-	if is_on_floor() and horizontal.length_squared()<.04: return direction*STANDING_PUSH
+	if not is_on_floor(): return horizontal
+	if track: horizontal = Vector2(track_velocity.x,track_velocity.z)
+	if horizontal.length_squared()<.04: return direction*STANDING_PUSH
+	if track or runup_time >= .13: return horizontal
+	# The first few run-up ticks should never launch shorter than the same
+	# stick from rest. Keep analog precision and momentum on sideways turns.
+	var push := direction * STANDING_PUSH
+	if horizontal.length_squared() < push.length_squared() and horizontal.normalized().dot(direction.normalized()) > .85:
+		return horizontal.lerp(push,1.-smoothstep(.09,.13,runup_time))
 	return horizontal
 
 func takeoff_rise() -> float:
@@ -205,6 +215,10 @@ func step(delta: float, move: Vector2, running: bool, camera: Camera3D) -> void:
 		if not grab.active: end_grab_pose()
 		return
 	var on_floor_before := is_on_floor()
+	if not on_floor_before or (move.is_zero_approx() and jump_buffer<=0.):
+		runup_time = 0.
+	elif not move.is_zero_approx():
+		runup_time += delta
 	# The first tick after a pause restores the physics server's carrier
 	# velocity. Keep an immediate takeoff buffered until that contact updates.
 	var restore_carry := resume_on_carrier and on_floor_before and jump_buffer>0.
@@ -432,6 +446,13 @@ func aim_bone(bone: int, child: int, target: Vector3) -> void:
 
 func animate(delta: float, move: Vector2, running: bool, floor_contact: KinematicCollision3D) -> void:
 	model.rotation.y = lerp_angle(model.rotation.y,atan2(-aim.x,-aim.y),minf(1,delta*18))
+	# Let the shoulders lead a running takeoff, then unfold before touchdown.
+	# The lean only poses the model; the feet and the landing guide use physics.
+	var lean := 0.
+	if not is_on_floor() and hook.time_left<=0. and not jet_armed and stunt_time<=0.:
+		var speed := Vector2(velocity.x,velocity.z).length()
+		lean = -.14*smoothstep(0.,RUN_SPEED,speed)*smoothstep(-1.8,4.8,velocity.y)
+	model.rotation.x = lerpf(model.rotation.x,lean,1.-exp(-20.*delta))
 	var hit := ground_at(global_position,10)
 	if spring_pad:
 		# Both feet stay planted through the crouch in the standing-up clip.

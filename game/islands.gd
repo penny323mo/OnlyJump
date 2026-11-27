@@ -16,6 +16,7 @@ const ROUTE := [
 const Branches = preload("res://game/branch_routes.gd")
 var branches := Branches.new()
 var pickups := preload("res://game/pickups.gd").new()
+var street_life := preload("res://game/street_life.gd").new()
 var aerial: MeshInstance3D
 var keys:=preload("res://game/playable_keyboard.gd").new()
 var platter:=preload("res://game/record_platter.gd").new()
@@ -46,18 +47,25 @@ func _ready() -> void:
 				body.position=Vector3(.65,0,.52)
 				rooftop(body)
 			1: footstool(body)
-			2: coffee_table(body)
+			2:
+				coffee_table(body)
+				batch_static_trim(body)
 			3:
 				television(body)
+				batch_static_trim(body)
 				var base:=Vector3(.22,.02,-.76)
 				box(body,base,Vector3(.44,.08,.22),"484e52")
 				for x: float in [-.14,.14]:
 					tube(body,base+Vector3.RIGHT*x,base+Vector3(x*.6,1.39,-.14),.027,"adbac0")
 				aerial=rim(body,base+Vector3(0,1.63,-.14),.29,.068,"e4a842")
 				aerial.rotation.x=PI/2
-			4: suitcase(body)
+			4:
+				suitcase(body)
+				batch_static_trim(body)
 			5: model_prop(body,SHOE,3.50,Vector3(0,170,180))
-			6: cassette(body)
+			6:
+				cassette(body)
+				batch_static_trim(body)
 			7:
 				model_prop(body,STEREO,3.8,Vector3(0,-85,0))
 				speaker(body,SPEAKER_TOP)
@@ -97,6 +105,7 @@ func _ready() -> void:
 			24: laundry.parasol(body)
 	branches.build(self,ROUTE)
 	pickups.build(self,branches.bodies)
+	add_child(street_life)
 	city()
 	crane()
 	skyline()
@@ -210,27 +219,43 @@ func finish_counter(b: StaticBody3D) -> void:
 	cone(b,p+Vector3.UP*.40,.11,.09,.09,"e7bc69")
 	label(b,Vector3(-.60,.015,-.36),"ARRIVALS",.22,"f6dfb6",true)
 
-# Batch repeated scenery by mesh, so a whole street of the same building
-# costs one draw per material instead of one per address.
+# Batch by mesh and neighbourhood so blocks behind the camera can be culled.
 func streetscape(scene: PackedScene, instances: Array[Transform3D]) -> void:
 	if instances.is_empty(): return
 	var template: Node3D = scene.instantiate()
 	add_child(template)
 	for part: MeshInstance3D in template.find_children("*","MeshInstance3D",true,false):
-		var batch := MultiMesh.new()
-		batch.transform_format=MultiMesh.TRANSFORM_3D
-		batch.mesh=part.mesh
-		batch.instance_count=instances.size()
-		for i in instances.size(): batch.set_instance_transform(i,instances[i]*part.global_transform)
-		var node := MultiMeshInstance3D.new()
-		node.multimesh=batch
+		if scene in CITY:
+			for placement in instances:
+				var address := Vector2i(roundi(placement.origin.x/7.),roundi(placement.origin.z/7.))
+				if address in [Vector2i(2,-3),Vector2i(-1,-3),Vector2i(-3,2)]:
+					var roof := placement.origin + Vector3.UP*placement.basis.y.length()*part.mesh.get_aabb().end.y
+					street_life.roof_sign(roof,address.x==2)
+		var street_material: Material
 		var source := part.mesh.surface_get_material(0) as StandardMaterial3D
 		if source and part.mesh.get_surface_count()==1:
-			var faded := source.duplicate() as StandardMaterial3D
-			faded.albedo_color *= Color("a7a9ad")
-			node.material_override = faded
-		node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(node)
+			var finish := ShaderMaterial.new()
+			finish.shader = preload("res://game/district.gdshader")
+			finish.set_shader_parameter("palette",source.albedo_texture)
+			finish.set_shader_parameter("street_shade",preload("res://assets/city/street-shade.png"))
+			finish.set_shader_parameter("roadway",scene == ROAD or scene == CROSSING)
+			street_material = finish
+		var chunks := {}
+		for placement in instances:
+			var cell := Vector2i(floori((placement.origin.x+24.5)/49.),floori((placement.origin.z+24.5)/49.))
+			if not chunks.has(cell): chunks[cell] = []
+			chunks[cell].append(placement)
+		for placements: Array in chunks.values():
+			var batch := MultiMesh.new()
+			batch.transform_format=MultiMesh.TRANSFORM_3D
+			batch.mesh=part.mesh
+			batch.instance_count=placements.size()
+			for i in placements.size(): batch.set_instance_transform(i,placements[i]*part.global_transform)
+			var node := MultiMeshInstance3D.new()
+			node.multimesh=batch
+			node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			node.material_override=street_material
+			add_child(node)
 	template.free()
 
 func city() -> void:
@@ -241,7 +266,11 @@ func city() -> void:
 	var blocks := [[],[],[],[]]
 	# Road GLBs have upward-facing asphalt at local Y=0. Leave real depth
 	# clearance to the backing plane across the entire tiled district.
-	box(self,Vector3(0,-12.38,-13),Vector3(310,.4,310),"889697")
+	var shore := ShaderMaterial.new()
+	shore.shader = preload("res://game/harbour.gdshader")
+	var coast := box(self,Vector3(0,-12.38,-13),Vector3(310,.4,310),"889697")
+	coast.material_override = shore
+	coast.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for x in range(-7,8):
 		for z in range(-8,7):
 			var p := Vector3(x*7.0,-11.9,z*7.0)
