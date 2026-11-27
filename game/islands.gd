@@ -179,6 +179,7 @@ func rooftop(b: StaticBody3D) -> void:
 	var roof := solid(b,Vector3.DOWN*.18,Vector3(7.65,.36,5.36),"91a49b")
 	var concrete := ShaderMaterial.new()
 	concrete.shader=preload("res://game/rooftop.gdshader")
+	concrete.set_shader_parameter("concrete_scan",preload("res://assets/surfaces/concrete.webp"))
 	roof.material_override=concrete
 	# A flush drain and hazard paint leave the entire takeoff lane usable.
 	box(b,Vector3(2.81,.01,.89),Vector3(.64,.023,.78),"485758")
@@ -238,7 +239,10 @@ func streetscape(scene: PackedScene, instances: Array[Transform3D]) -> void:
 			finish.shader = preload("res://game/district.gdshader")
 			finish.set_shader_parameter("palette",source.albedo_texture)
 			finish.set_shader_parameter("street_shade",preload("res://assets/city/street-shade.png"))
-			finish.set_shader_parameter("roadway",scene == ROAD or scene == CROSSING)
+			var road := scene == ROAD or scene == CROSSING
+			var masonry := preload("res://assets/surfaces/brick.webp") if scene == CITY[2] else preload("res://assets/surfaces/render.webp")
+			finish.set_shader_parameter("surface_scan",preload("res://assets/surfaces/road.webp") if road else masonry)
+			finish.set_shader_parameter("roadway",road)
 			street_material = finish
 		var chunks := {}
 		for placement in instances:

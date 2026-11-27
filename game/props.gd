@@ -14,6 +14,18 @@ func material(tint: String) -> StandardMaterial3D:
 		materials[tint] = mat
 	return materials[tint]
 
+# Preserve the model and collider while giving the broad working faces their finish.
+func surface_scan(part: MeshInstance3D, texture: Texture2D, tile: float, roughness: float, relief: float, buttoned := false) -> void:
+	var finish := ShaderMaterial.new()
+	finish.shader = preload("res://game/upholstery_wood.gdshader")
+	finish.set_shader_parameter("scan",texture)
+	finish.set_shader_parameter("dye",(part.material_override as StandardMaterial3D).albedo_color)
+	finish.set_shader_parameter("metres_per_tile",tile)
+	finish.set_shader_parameter("matte",roughness)
+	finish.set_shader_parameter("relief",relief)
+	finish.set_shader_parameter("buttoned",buttoned)
+	part.material_override = finish
+
 func piece(parent: Node3D, mesh: Mesh, pos: Vector3, tint: String) -> MeshInstance3D:
 	var item := MeshInstance3D.new()
 	item.mesh = mesh
@@ -135,8 +147,8 @@ func solid(body: StaticBody3D, p: Vector3, size: Vector3, tint: String, bevel :=
 	hit.rotation.y=yaw
 	return item
 
-func deck(body: StaticBody3D, size: Vector3, tint: String, bevel := 0.06) -> void:
-	solid(body,Vector3.DOWN*size.y/2,size,tint,bevel)
+func deck(body: StaticBody3D, size: Vector3, tint: String, bevel := 0.06) -> MeshInstance3D:
+	return solid(body,Vector3.DOWN*size.y/2,size,tint,bevel)
 
 func wheels(body: Node3D, span: Vector2, y: float, r: float, tint: String) -> void:
 	for a in [-1,1]:
@@ -146,23 +158,59 @@ func wheels(body: Node3D, span: Vector2, y: float, r: float, tint: String) -> vo
 			cone(body,p,r*0.85,r,r,tint,20).rotation.z = PI/2
 			cone(body,p+Vector3.RIGHT*b*r*0.44,0.025,r*0.43,r*0.43,"49535a",16).rotation.z = PI/2
 
+func tufted_seat(size: Vector3) -> ArrayMesh:
+	var blank := BoxMesh.new()
+	blank.size = size
+	blank.subdivide_width = 34
+	blank.subdivide_depth = 26
+	blank.subdivide_height = 3
+	var data := blank.surface_get_arrays(0)
+	var vertices: PackedVector3Array = data[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = data[Mesh.ARRAY_NORMAL]
+	var core := size*.5 - Vector3(.19,.12,.19)
+	for i in vertices.size():
+		var p := vertices[i]
+		var centre := p.clamp(-core,core)
+		var normal := (p-centre).normalized()
+		p = centre + normal*Vector3(.19,.12,.19)
+		# Sink each fabric-covered button and let the padded lip roll down
+		# towards the piping. Keep the crown at the collision surface.
+		if normal.y > .7:
+			var button := Vector2(clampf(roundf(p.x/.74),-1.,1.)*.74,.49 if p.z>=0. else -.49)
+			var offset := Vector2(p.x,p.z)-button
+			var hollow := .052*exp(-offset.length_squared()/.035)
+			p.y -= hollow
+			normal = (normal-Vector3(offset.x,0,offset.y)*(2.*hollow/.035)).normalized()
+		vertices[i] = p
+		normals[i] = normal
+	data[Mesh.ARRAY_VERTEX] = vertices
+	data[Mesh.ARRAY_NORMAL] = normals
+	var cushion := ArrayMesh.new()
+	cushion.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,data)
+	return cushion
+
 func footstool(b: StaticBody3D) -> void:
 	# One upholstered cushion, with a darker piping seam and four tapered feet.
-	deck(b,Vector3(3.14,.33,2.34),"339487",.16)
+	var linen := preload("res://assets/surfaces/linen.webp")
+	var size := Vector3(3.14,.33,2.34)
+	var cushion := deck(b,size,"438b7e",.16)
+	cushion.mesh = tufted_seat(size)
+	surface_scan(cushion,linen,1.25,.97,.58,true)
 	box(b,Vector3.DOWN*.35,Vector3(3.04,.14,2.24),"215e58",.065)
-	box(b,Vector3.DOWN*.46,Vector3(2.87,.21,2.09),"347c71",.095)
+	surface_scan(box(b,Vector3.DOWN*.46,Vector3(2.87,.21,2.09),"386e63",.095),linen,.52,.97,.58)
 	for x: float in [-1.19,1.19]:
 		for z: float in [-.82,.82]:
 			cone(b,Vector3(x,-.70,z),.34,.092,.14,"9c714a",16)
 	for x: float in [-.74,0.,.74]:
 		for z: float in [-.49,.49]:
-			cone(b,Vector3(x,.003,z),.012,.046,.038,"276e65",16)
+			cone(b,Vector3(x,-.037,z),.016,.055,.047,"38685b",16)
 
 func coffee_table(b: StaticBody3D) -> void:
-	deck(b,Vector3(3.12,.19,2.87),"95613f",.095)
+	var walnut := preload("res://assets/surfaces/walnut.webp")
+	surface_scan(deck(b,Vector3(3.12,.19,2.87),"966b4d",.095),walnut,2.85,.68,.46)
 	box(b,Vector3(0,-.17,0),Vector3(2.98,.15,2.68),"533d32")
 	# The pull-out tray beneath the far edge still catches a missed lift.
-	solid(b,Vector3(.74,-.17,-1.79),Vector3(1.60,.13,.86),"bd8352",.045)
+	surface_scan(solid(b,Vector3(.74,-.17,-1.79),Vector3(1.60,.13,.86),"ae8058",.045),walnut,2.85,.73,.46)
 	for x in [-1,1]:
 		for z in [-1,1]:
 			tube(b,Vector3(x*1.19,-.18,z*1.05),Vector3(x*1.40,-1.36,z*1.23),.085,"6c4435")
@@ -170,7 +218,7 @@ func coffee_table(b: StaticBody3D) -> void:
 	label(b,Vector3(-1.13,0.077,0.49),"FORM",0.16,"fff0c7",true).rotation.y = -0.16
 
 func television(b: StaticBody3D) -> void:
-	deck(b,Vector3(3.15,2.05,1.91),"af7250",0.15)
+	surface_scan(deck(b,Vector3(3.15,2.05,1.91),"92694a",.15),preload("res://assets/surfaces/walnut.webp"),2.25,.72,.38)
 	box(b,Vector3(0,-1.02,0.91),Vector3(3.0,1.91,0.28),"393e42",0.13)
 	box(b,Vector3(-0.28,-1.0,1.055),Vector3(2.14,1.48,0.18),"93b5aa",0.17)
 	for j in 12:
@@ -183,7 +231,7 @@ func television(b: StaticBody3D) -> void:
 		box(b,Vector3(0.94+j*0.063,0.007,-0.39),Vector3(0.028,0.012,0.63),"614f46")
 
 func suitcase(b: StaticBody3D) -> void:
-	deck(b,Vector3(3.7,0.87,2.50),"ad653e",0.16)
+	surface_scan(deck(b,Vector3(3.7,.87,2.50),"a56b46",.16),preload("res://assets/surfaces/hide.webp"),1.72,.76,.48)
 	box(b,Vector3(0,-0.39,0),Vector3(3.72,0.055,2.52),"6a4332",0.14)
 	for x in [-1,1]:
 		box(b,Vector3(x*1.11,-0.421,0),Vector3(0.20,0.90,2.53),"664535",0.065)
